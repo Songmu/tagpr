@@ -54,6 +54,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	git("branch", "-D", rcBranch)
 
 	c := &cmd{outStream: outStream, errStream: errStream, dir: "."}
+	c.git("config", "--local", "user.email", "github-actions[bot]@users.noreply.github.com")
+	c.git("config", "--local", "user.name", "github-actions[bot]")
+
 	c.git("checkout", "-b", rcBranch)
 
 	// XXX do some releng related changes before commit
