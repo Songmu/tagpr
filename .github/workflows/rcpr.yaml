@@ -1,0 +1,21 @@
+name: rcpr
+on:
+  push:
+    branches:
+    - "main"
+  pull_request: {}
+jobs:
+  rcpr:
+    runs-on: ubuntu-latest
+    steps:
+    - name: setup go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.x
+    - name: checkout
+      uses: actions/checkout@v3
+    - run: |
+        make build
+        ./rcpr
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
