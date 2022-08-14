@@ -50,9 +50,10 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			defaultBr, branch)
 	}
 
-	c := &cmd{outStream: outStream, errStream: errStream, dir: "."}
 	rcBranch := fmt.Sprintf("rc-%s", currVer)
-	c.git("branch", "-D", rcBranch)
+	git("branch", "-D", rcBranch)
+
+	c := &cmd{outStream: outStream, errStream: errStream, dir: "."}
 	c.git("checkout", "-b", rcBranch)
 
 	// XXX do some releng related changes before commit
