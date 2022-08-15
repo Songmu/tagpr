@@ -71,6 +71,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			releaseBranch, branch)
 	}
 
+	isShallow, _, err := git("rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return err
+	}
+	if isShallow == "true" {
+		if _, _, err := git("fetch", "--unshallow"); err != nil {
+			return err
+		}
+	}
+
 	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
 	git("branch", "-D", rcBranch)
 
