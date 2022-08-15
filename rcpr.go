@@ -22,8 +22,6 @@ const (
 	autoCommitMessage    = "[rcpr] prepare for the next release"
 )
 
-var remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
-
 type rcpr struct {
 }
 
@@ -34,6 +32,11 @@ func (rp *rcpr) latestSemverTag() string {
 	}
 	return ""
 }
+
+var (
+	gitlogReg = regexp.MustCompile(`^([a-f0-9]+) (.*?)\r?`)
+	remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
+)
 
 // Run the rcpr
 func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) error {
@@ -80,7 +83,34 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	// XXX do some releng related changes before commit
 	c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
-	// TODO: If remote rc branches are advanced, apply them with cherry-pick, etc.
+	// cherry-pick if the remote branch is exists and changed
+	out, _, err := git("log", "--pretty=format:%h %an %s", "main...origin/"+rcBranch)
+	if err == nil {
+		var cherryPicks []string
+		for _, line := range strings.Split(out, "\n") {
+			m := gitlogReg.FindStringSubmatch(line)
+			if len(m) < 3 {
+				continue
+			}
+			commitish := m[1]
+			authorAndSubject := m[2]
+			if authorAndSubject != gitUser+" "+autoCommitMessage {
+				cherryPicks = append(cherryPicks, commitish)
+			}
+		}
+		if len(cherryPicks) > 0 {
+			for i := len(cherryPicks) - 1; i >= 0; i-- {
+				commitish := cherryPicks[i]
+				_, _, err := git(
+					"cherry-pick", "--keep-redundant-commits", "--allow-empty", commitish)
+
+				// conflict / Need error handling in case of non-conflict error?
+				if err != nil {
+					git("reset", "--hard", "ORIG_HEAD")
+				}
+			}
+		}
+	}
 
 	c.git("push", "--force", "origin", rcBranch)
 	if c.err != nil {
