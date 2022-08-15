@@ -94,7 +94,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
-	out, _, err := git("log", "--pretty=format:%h %an %s", "main...origin/"+rcBranch)
+	out, _, err := git("log", "--no-merges", "--pretty=format:%h %an %s", "main..origin/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
