@@ -34,7 +34,7 @@ func (rp *rcpr) latestSemverTag() string {
 }
 
 var (
-	gitlogReg = regexp.MustCompile(`^([a-f0-9]+) (.*?)\r?`)
+	gitlogReg = regexp.MustCompile(`^([a-f0-9]+)\s(.*)`)
 	remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
 )
 
@@ -93,7 +93,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 				continue
 			}
 			commitish := m[1]
-			authorAndSubject := m[2]
+			authorAndSubject := strings.TrimSpace(m[2])
 			if authorAndSubject != gitUser+" "+autoCommitMessage {
 				cherryPicks = append(cherryPicks, commitish)
 			}
@@ -106,7 +106,6 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 
 				// conflict / Need error handling in case of non-conflict error?
 				if err != nil {
-					log.Println(err)
 					git("reset", "--hard", "ORIG_HEAD")
 				}
 			}
