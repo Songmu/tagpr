@@ -18,6 +18,17 @@ const cmdName = "rcpr"
 
 var remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
 
+type rcpr struct {
+}
+
+func (rp *rcpr) latestSemverTag() string {
+	vers := (&gitsemvers.Semvers{}).VersionStrings()
+	if len(vers) > 0 {
+		return vers[0]
+	}
+	return ""
+}
+
 // Run the rcpr
 func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) error {
 	log.SetOutput(errStream)
@@ -32,25 +43,26 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return printVersion(outStream)
 	}
 
-	vers := (&gitsemvers.Semvers{}).VersionStrings()
-	currVer := "v0.0.0"
-	if len(vers) > 0 {
-		currVer = vers[0]
+	rp := &rcpr{}
+	currVer := rp.latestSemverTag()
+	if currVer == "" {
+		currVer = "v0.0.0"
 	}
-	defaultBr, _ := defaultBranch("") // TODO: make configable
-	if defaultBr == "" {
-		defaultBr = "main"
+
+	releaseBranch, _ := defaultBranch("") // TODO: make configable
+	if releaseBranch == "" {
+		releaseBranch = "main"
 	}
 	branch, _, err := git("symbolic-ref", "--short", "HEAD")
 	if err != nil {
-		return fmt.Errorf("faild to release when git symbolic-ref: %w", err)
+		return fmt.Errorf("failed to release when git symbolic-ref: %w", err)
 	}
-	if branch != defaultBr {
+	if branch != releaseBranch {
 		return fmt.Errorf("you are not on releasing branch %q, current branch is %q",
-			defaultBr, branch)
+			releaseBranch, branch)
 	}
 
-	rcBranch := fmt.Sprintf("rc-%s", currVer)
+	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
 	git("branch", "-D", rcBranch)
 
 	c := &cmd{outStream: outStream, errStream: errStream, dir: "."}
@@ -62,10 +74,13 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	// XXX do some releng related changes before commit
 	c.git("commit", "--allow-empty", "-am", "release")
 
+	// TODO: If remote rc branches are advanced, apply them with cherry-pick, etc.
+
 	c.git("push", "--force", "origin", rcBranch)
 	if c.err != nil {
 		return c.err
 	}
+
 	remote, _, err := git("remote", "-v")
 	if err != nil {
 		return err
@@ -76,18 +91,19 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 	owner := m[1]
 	repo := m[2]
-	repo = strings.TrimSuffix(repo, ".git") // XXX
+	// XXX: This is to remove the ".git" suffix of the git schema or scp like URL,
+	// but if the repository name really ends in .git, it will be removed, but it's OK for now.
+	repo = strings.TrimSuffix(repo, ".git")
 
 	cli, err := client(ctx, "", "")
 	if err != nil {
 		return err
 	}
-
 	v, err := semver.NewVersion(currVer)
 	if err != nil {
 		return err
 	}
-	nextVer := "v" + v.IncPatch().String() // XXX proper next version detection
+	nextVer := "v" + v.IncPatch().String() // XXX: proper next version detection
 
 	previousTag := &currVer
 	if *previousTag == "v0.0.0" {
@@ -97,7 +113,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		ctx, owner, repo, &github.GenerateNotesOptions{
 			TagName:         nextVer,
 			PreviousTagName: previousTag,
-			TargetCommitish: &defaultBr,
+			TargetCommitish: &releaseBranch,
 		})
 	if err != nil {
 		return err
@@ -106,7 +122,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	head := fmt.Sprintf("%s:%s", owner, rcBranch)
 	pulls, _, err := cli.PullRequests.List(ctx, owner, repo, &github.PullRequestListOptions{
 		Head: head,
-		Base: defaultBr,
+		Base: releaseBranch,
 	})
 	if err != nil {
 		return err
@@ -120,7 +136,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		pr, _, err := cli.PullRequests.Create(ctx, owner, repo, &github.NewPullRequest{
 			Title: pstr(title),
 			Body:  pstr(releases.Body),
-			Base:  &defaultBr,
+			Base:  &releaseBranch,
 			Head:  pstr(head),
 		})
 		if err != nil {
