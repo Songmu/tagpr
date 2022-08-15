@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os/exec"
 	"regexp"
 	"strings"
 )
 
 func git(args ...string) (string, string, error) {
+	log.Println(args)
 	var (
 		outBuf bytes.Buffer
 		errBuf bytes.Buffer
@@ -19,6 +21,12 @@ func git(args ...string) (string, string, error) {
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	err := cmd.Run()
+
+	if err != nil {
+		log.Println(err)
+		log.Println(outBuf.String())
+		log.Println(errBuf.String())
+	}
 	return strings.TrimSpace(outBuf.String()), strings.TrimSpace(errBuf.String()), err
 }
 
@@ -29,6 +37,7 @@ type cmd struct {
 }
 
 func (c *cmd) git(args ...string) (string, string) {
+	log.Println(args)
 	return c.run("git", args...)
 }
 
@@ -47,6 +56,11 @@ func (c *cmd) run(prog string, args ...string) (string, string) {
 		cmd.Dir = c.dir
 	}
 	c.err = cmd.Run()
+	if c.err != nil {
+		log.Println(c.err)
+		log.Println(outBuf.String())
+		log.Println(errBuf.String())
+	}
 	return outBuf.String(), errBuf.String()
 }
 
