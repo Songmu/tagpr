@@ -14,7 +14,13 @@ import (
 	"github.com/google/go-github/v45/github"
 )
 
-const cmdName = "rcpr"
+const (
+	cmdName              = "rcpr"
+	gitUser              = "github-actions[bot]"
+	gitEmail             = "github-actions[bot]@users.noreply.github.com"
+	defaultReleaseBranch = "main"
+	autoCommitMessage    = "[rcpr] prepare for the next release"
+)
 
 var remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
 
@@ -51,7 +57,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 
 	releaseBranch, _ := defaultBranch("") // TODO: make configable
 	if releaseBranch == "" {
-		releaseBranch = "main"
+		releaseBranch = defaultReleaseBranch
 	}
 	branch, _, err := git("symbolic-ref", "--short", "HEAD")
 	if err != nil {
@@ -66,13 +72,13 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	git("branch", "-D", rcBranch)
 
 	c := &cmd{outStream: outStream, errStream: errStream, dir: "."}
-	c.git("config", "--local", "user.email", "github-actions[bot]@users.noreply.github.com")
-	c.git("config", "--local", "user.name", "github-actions[bot]")
+	c.git("config", "--local", "user.email", gitEmail)
+	c.git("config", "--local", "user.name", gitUser)
 
 	c.git("checkout", "-b", rcBranch)
 
 	// XXX do some releng related changes before commit
-	c.git("commit", "--allow-empty", "-am", "release")
+	c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// TODO: If remote rc branches are advanced, apply them with cherry-pick, etc.
 
