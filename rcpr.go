@@ -33,10 +33,7 @@ func (rp *rcpr) latestSemverTag() string {
 	return ""
 }
 
-var (
-	gitlogReg = regexp.MustCompile(`^([a-f0-9]+)\s(.*)`)
-	remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
-)
+var remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
 
 // Run the rcpr
 func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) error {
@@ -98,12 +95,12 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
-			m := gitlogReg.FindStringSubmatch(line)
-			if len(m) < 3 {
+			m := strings.SplitN(line, " ", 2)
+			if len(m) < 2 {
 				continue
 			}
-			commitish := m[1]
-			authorAndSubject := strings.TrimSpace(m[2])
+			commitish := m[0]
+			authorAndSubject := strings.TrimSpace(m[1])
 			if authorAndSubject != gitUser+" "+autoCommitMessage {
 				cherryPicks = append(cherryPicks, commitish)
 			}
