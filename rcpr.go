@@ -103,8 +103,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
+	head := fmt.Sprintf("%s:%s", owner, rcBranch)
 	pulls, _, err := cli.PullRequests.List(ctx, owner, repo, &github.PullRequestListOptions{
-		Head: fmt.Sprintf("%s:%s", owner, rcBranch),
+		Head: head,
 		Base: defaultBr,
 	})
 	if err != nil {
@@ -114,20 +115,29 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	pstr := func(str string) *string {
 		return &str
 	}
+	title := fmt.Sprintf("release %s", nextVer)
 	if len(pulls) == 0 {
-		_, _, err := cli.PullRequests.Create(ctx, owner, repo, &github.NewPullRequest{
-			Title: pstr(fmt.Sprintf("release %s", nextVer)),
+		pr, _, err := cli.PullRequests.Create(ctx, owner, repo, &github.NewPullRequest{
+			Title: pstr(title),
 			Body:  pstr(releases.Body),
 			Base:  &defaultBr,
-			Head:  pstr(fmt.Sprintf("%s:%s", owner, rcBranch)),
+			Head:  pstr(head),
 		})
+		if err != nil {
+			return err
+		}
+		_, _, err = cli.Issues.AddLabelsToIssue(ctx, owner, repo, *pr.Number, []string{"rcpr"})
 		return err
 	}
-	_, _, err = cli.PullRequests.Edit(ctx, owner, repo, *pulls[0].Number, &github.PullRequest{
-		Title: pstr(fmt.Sprintf("release %s", nextVer)),
-		Body:  pstr(releases.Body),
-	})
+	pr := pulls[0]
+	pr.Title = pstr(title)
+	pr.Body = pstr(mergeBody(*pr.Body, releases.Body))
+	_, _, err = cli.PullRequests.Edit(ctx, owner, repo, *pr.Number, pr)
 	return err
+}
+
+func mergeBody(now, update string) string {
+	return update
 }
 
 func printVersion(out io.Writer) error {
