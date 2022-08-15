@@ -106,6 +106,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 
 				// conflict / Need error handling in case of non-conflict error?
 				if err != nil {
+					log.Println(err)
 					git("reset", "--hard", "ORIG_HEAD")
 				}
 			}
