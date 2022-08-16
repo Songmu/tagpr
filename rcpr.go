@@ -304,13 +304,8 @@ func detectVersionFile(root, ver string) (string, error) {
 	}
 
 	errorCb := func(fpath string, err error) error {
-		if os.IsPermission(err) {
+		if os.IsPermission(err) || errors.Is(err, syscall.ETXTBSY) {
 			return nil
-		}
-		if perr, ok := err.(*os.PathError); ok {
-			if perr.Err == syscall.ETXTBSY {
-				return nil
-			}
 		}
 		return err
 	}
