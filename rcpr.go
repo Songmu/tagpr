@@ -156,7 +156,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		repo = strings.TrimSuffix(repo, ".git")
 	}
 
-	cli, err := client(ctx, "", "")
+	cli, err := client(ctx, "", u.Hostname())
 	if err != nil {
 		return err
 	}
