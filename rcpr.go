@@ -2,6 +2,7 @@ package rcpr
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -62,16 +63,21 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		currVer = "v0.0.0"
 	}
 
-	releaseBranch, _ := rp.defaultBranch("") // TODO: make configable
+	remoteName, err := rp.detectRemote()
+	if err != nil {
+		return err
+	}
+
+	releaseBranch, _ := rp.defaultBranch(remoteName) // TODO: make configable
 	if releaseBranch == "" {
 		releaseBranch = defaultReleaseBranch
 	}
 	branch, _, err := rp.c.gitE("symbolic-ref", "--short", "HEAD")
 	if err != nil {
-		return fmt.Errorf("failed to release when git symbolic-ref: %w", err)
+		return fmt.Errorf("failed to git symbolic-ref: %w", err)
 	}
 	if branch != releaseBranch {
-		return fmt.Errorf("you are not on releasing branch %q, current branch is %q",
+		return fmt.Errorf("you are not on release branch %q, current branch is %q",
 			releaseBranch, branch)
 	}
 
@@ -85,19 +91,23 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 	}
 
+	if _, _, err := rp.c.gitE("config", "user.email"); err != nil {
+		rp.c.git("config", "--local", "user.email", gitEmail)
+	}
+	if _, _, err := rp.c.gitE("config", "user.name"); err != nil {
+		rp.c.git("config", "--local", "user.name", gitUser)
+	}
+
 	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
 	rp.c.gitE("branch", "-D", rcBranch)
-
-	rp.c.git("config", "--local", "user.email", gitEmail)
-	rp.c.git("config", "--local", "user.name", gitUser)
-
 	rp.c.git("checkout", "-b", rcBranch)
 
 	// XXX do some releng related changes before commit
 	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
-	out, _, err := rp.c.gitE("log", "--no-merges", "--pretty=format:%h %an %s", "main..origin/"+rcBranch)
+	out, _, err := rp.c.gitE(
+		"log", "--no-merges", "--pretty=format:%h %s", "main.."+remoteName+"/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
@@ -107,7 +117,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			}
 			commitish := m[0]
 			authorAndSubject := strings.TrimSpace(m[1])
-			if authorAndSubject != gitUser+" "+autoCommitMessage {
+			if authorAndSubject != autoCommitMessage {
 				cherryPicks = append(cherryPicks, commitish)
 			}
 		}
@@ -124,15 +134,15 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			}
 		}
 	}
-	if _, _, err := rp.c.gitE("push", "--force", "origin", rcBranch); err != nil {
+	if _, _, err := rp.c.gitE("push", "--force", remoteName, rcBranch); err != nil {
 		return err
 	}
 
-	remote, _, err := rp.c.gitE("config", "remote.origin.url")
+	remoteURL, _, err := rp.c.gitE("config", "remote."+remoteName+".url")
 	if err != nil {
 		return err
 	}
-	u, err := parseGitURL(remote)
+	u, err := parseGitURL(remoteURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse remote")
 	}
@@ -146,7 +156,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		repo = strings.TrimSuffix(repo, ".git")
 	}
 
-	cli, err := client(ctx, "", "")
+	cli, err := client(ctx, "", u.Hostname())
 	if err != nil {
 		return err
 	}
@@ -219,4 +229,37 @@ func parseGitURL(u string) (*url.URL, error) {
 
 func mergeBody(now, update string) string {
 	return update
+}
+
+var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
+
+func (rp *rcpr) defaultBranch(remote string) (string, error) {
+	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
+	// So use `git remote show origin` for detecting default branch
+	show, _, err := rp.c.gitE("remote", "show", remote)
+	if err != nil {
+		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
+	}
+	m := headBranchReg.FindStringSubmatch(show)
+	if len(m) < 2 {
+		return "", fmt.Errorf("failed to detect default branch from remote: %s", remote)
+	}
+	return m[1], nil
+}
+
+func (rp *rcpr) detectRemote() (string, error) {
+	remotesStr, _, err := rp.c.gitE("remote")
+	if err != nil {
+		return "", fmt.Errorf("failed to detect remote: %s", err)
+	}
+	remotes := strings.Fields(remotesStr)
+	if len(remotes) == 1 {
+		return remotes[0], nil
+	}
+	for _, r := range remotes {
+		if r == "origin" {
+			return r, nil
+		}
+	}
+	return "", errors.New("failed to detect remote")
 }
