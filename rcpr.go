@@ -8,12 +8,16 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/Songmu/gitsemvers"
 	"github.com/google/go-github/v45/github"
+	"github.com/saracen/walker"
 )
 
 const (
@@ -111,6 +115,23 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	rp.c.gitE("branch", "-D", rcBranch)
 	rp.c.git("checkout", "-b", rcBranch)
 
+	v, err := semver.StrictNewVersion(nakedSemver)
+	if err != nil {
+		return err
+	}
+	nextNakedVer := v.IncPatch().String() // XXX: proper next version detection
+	nextTagCandidate := nextNakedVer
+	if vPrefix {
+		nextTagCandidate = "v" + nextTagCandidate
+	}
+
+	file, err := detectVersionFile(".", nakedSemver)
+	if err != nil {
+		return err
+	}
+	if err := bumpVersionFile(file, nakedSemver, nextNakedVer); err != nil {
+		return err
+	}
 	// XXX do some releng related changes before commit
 	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
@@ -168,16 +189,6 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	cli, err := client(ctx, "", u.Hostname())
 	if err != nil {
 		return err
-	}
-
-	v, err := semver.StrictNewVersion(nakedSemver)
-	if err != nil {
-		return err
-	}
-	nextNakedVer := v.IncPatch().String() // XXX: proper next version detection
-	nextTagCandidate := nextNakedVer
-	if vPrefix {
-		nextTagCandidate = "v" + nextTagCandidate
 	}
 
 	previousTag := &latestSemverTag
@@ -276,4 +287,99 @@ func (rp *rcpr) detectRemote() (string, error) {
 		}
 	}
 	return "", errors.New("failed to detect remote")
+}
+
+const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].*)`
+
+var versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
+
+func detectVersionFile(root, ver string) (string, error) {
+	if ver[0] == 'v' {
+		return "", fmt.Errorf("don't v-prefix: %s", ver)
+	}
+	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(ver))
+	if err != nil {
+		return "", err
+	}
+	fl := &fileList{}
+	if err := walker.Walk(root, func(fpath string, fi os.FileInfo) error {
+		if fi.IsDir() {
+			if fi.Name() == ".git" || fi.Name() == "testdata" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+		joinedPath := filepath.Join(root, fpath)
+		bs, err := os.ReadFile(joinedPath)
+		if err != nil {
+			return err
+		}
+		if verReg.Match(bs) {
+			fl.append(joinedPath)
+		}
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	list := fl.list()
+	if len(list) < 1 {
+		return "", nil
+	}
+	return list[0], nil // XXX
+}
+
+type fileList struct {
+	l  []string
+	mu sync.RWMutex
+}
+
+func (fl *fileList) append(fpath string) {
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+	fl.l = append(fl.l, fpath)
+}
+
+func (fl *fileList) list() []string {
+	fl.mu.RLock()
+	defer fl.mu.RUnlock()
+	return fl.l
+}
+
+func bumpVersionFile(fpath, from, to string) error {
+	if from[0] == 'v' {
+		return fmt.Errorf("don't v-prefix: %s", from)
+	}
+	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(from))
+	if err != nil {
+		return err
+	}
+	bs, err := os.ReadFile(fpath)
+	if err != nil {
+		return err
+	}
+
+	replaced := false
+	updated := verReg.ReplaceAllFunc(bs, func(match []byte) []byte {
+		if replaced {
+			return match
+		}
+		replaced = true
+		return verReg.ReplaceAll(match, []byte(`${1}`+to))
+	})
+	return os.WriteFile(fpath, updated, 0666)
+}
+
+func retrieveVersionFromFile(fpath string) (string, error) {
+	bs, err := os.ReadFile(fpath)
+	if err != nil {
+		return "", err
+	}
+	m := versionReg.FindSubmatch(bs)
+	if len(m) < 3 {
+		return "", fmt.Errorf("no version detected from file: %s", fpath)
+	}
+	return string(m[2]), nil
 }
