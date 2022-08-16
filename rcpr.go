@@ -136,7 +136,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if err != nil {
 		return fmt.Errorf("failed to parse remote")
 	}
-	m := strings.Split(u.Path, "/")
+	m := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
 	if len(m) < 2 {
 		return fmt.Errorf("failed to detect owner and repo from remote URL")
 	}
