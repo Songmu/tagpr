@@ -2,6 +2,7 @@ package rcpr
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/Songmu/gitconfig"
@@ -9,10 +10,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func client(ctx context.Context, token, baseURL string) (*github.Client, error) {
+func client(ctx context.Context, token, host string) (*github.Client, error) {
 	if token == "" {
 		var err error
-		token, err = gitconfig.GitHubToken(baseURL)
+		token, err = gitconfig.GitHubToken(host)
 		if err != nil {
 			return nil, err
 		}
@@ -21,8 +22,14 @@ func client(ctx context.Context, token, baseURL string) (*github.Client, error) 
 	oauthClient := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(oauthClient)
 
-	if baseURL != "" {
-		u, err := url.Parse(baseURL)
+	if host != "" {
+		if host == "github.com" {
+			host = "https://api.github.com"
+		} else {
+			// ref. https://github.com/google/go-github/issues/958
+			host = fmt.Sprintf("https://%s/api/v3/", host)
+		}
+		u, err := url.Parse(host)
 		if err != nil {
 			return nil, err
 		}
