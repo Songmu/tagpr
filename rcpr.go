@@ -106,7 +106,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
-	out, _, err := rp.c.gitE("log", "--no-merges", "--pretty=format:%h %s", "main..origin/"+rcBranch)
+	out, _, err := rp.c.gitE(
+		"log", "--no-merges", "--pretty=format:%h %s", "main.."+remoteName+"/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
@@ -133,15 +134,15 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			}
 		}
 	}
-	if _, _, err := rp.c.gitE("push", "--force", "origin", rcBranch); err != nil {
+	if _, _, err := rp.c.gitE("push", "--force", remoteName, rcBranch); err != nil {
 		return err
 	}
 
-	remote, _, err := rp.c.gitE("config", "remote.origin.url")
+	remoteURL, _, err := rp.c.gitE("config", "remote."+remoteName+".url")
 	if err != nil {
 		return err
 	}
-	u, err := parseGitURL(remote)
+	u, err := parseGitURL(remoteURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse remote")
 	}
