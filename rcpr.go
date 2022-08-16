@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/Songmu/gitsemvers"
@@ -316,15 +315,7 @@ func detectVersionFile(root, ver string) (string, error) {
 		joinedPath := filepath.Join(root, fpath)
 		bs, err := os.ReadFile(joinedPath)
 		if err != nil {
-			if os.IsPermission(err) {
-				return nil
-			}
-			if perr, ok := err.(*os.PathError); ok {
-				if perr.Err == syscall.ETXTBSY {
-					return nil
-				}
-			}
-			return err
+			return nil
 		}
 		if verReg.Match(bs) {
 			fl.append(joinedPath)
