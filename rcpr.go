@@ -91,19 +91,22 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 	}
 
+	if _, _, err := rp.c.gitE("config", "user.email"); err != nil {
+		rp.c.git("config", "--local", "user.email", gitEmail)
+	}
+	if _, _, err := rp.c.gitE("config", "user.name"); err != nil {
+		rp.c.git("config", "--local", "user.name", gitUser)
+	}
+
 	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
 	rp.c.gitE("branch", "-D", rcBranch)
-
-	rp.c.git("config", "--local", "user.email", gitEmail)
-	rp.c.git("config", "--local", "user.name", gitUser)
-
 	rp.c.git("checkout", "-b", rcBranch)
 
 	// XXX do some releng related changes before commit
 	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
-	out, _, err := rp.c.gitE("log", "--no-merges", "--pretty=format:%h %an %s", "main..origin/"+rcBranch)
+	out, _, err := rp.c.gitE("log", "--no-merges", "--pretty=format:%h %s", "main..origin/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
@@ -113,7 +116,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			}
 			commitish := m[0]
 			authorAndSubject := strings.TrimSpace(m[1])
-			if authorAndSubject != gitUser+" "+autoCommitMessage {
+			if authorAndSubject != autoCommitMessage {
 				cherryPicks = append(cherryPicks, commitish)
 			}
 		}
