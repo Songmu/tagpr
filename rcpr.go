@@ -125,12 +125,13 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		nextTagCandidate = "v" + nextTagCandidate
 	}
 
-	file, err := rp.detectVersionFile(".", nakedSemver)
+	file, err := detectVersionFile(".", nakedSemver)
 	if err != nil {
 		return err
 	}
-	_ = file
-
+	if err := bumpVersionFile(file, nakedSemver, nextNakedVer); err != nil {
+		return err
+	}
 	// XXX do some releng related changes before commit
 	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
@@ -292,7 +293,10 @@ const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].*)`
 
 var versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
 
-func (rp *rcpr) detectVersionFile(root, ver string) (string, error) {
+func detectVersionFile(root, ver string) (string, error) {
+	if ver[0] == 'v' {
+		return "", fmt.Errorf("don't v-prefix: %s", ver)
+	}
 	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(ver))
 	if err != nil {
 		return "", err
@@ -317,7 +321,7 @@ func (rp *rcpr) detectVersionFile(root, ver string) (string, error) {
 			fl.append(joinedPath)
 		}
 		return nil
-	}, nil); err != nil {
+	}); err != nil {
 		return "", err
 	}
 	list := fl.list()
@@ -342,4 +346,40 @@ func (fl *fileList) list() []string {
 	fl.mu.RLock()
 	defer fl.mu.RUnlock()
 	return fl.l
+}
+
+func bumpVersionFile(fpath, from, to string) error {
+	if from[0] == 'v' {
+		return fmt.Errorf("don't v-prefix: %s", from)
+	}
+	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(from))
+	if err != nil {
+		return err
+	}
+	bs, err := os.ReadFile(fpath)
+	if err != nil {
+		return err
+	}
+
+	replaced := false
+	updated := verReg.ReplaceAllFunc(bs, func(match []byte) []byte {
+		if replaced {
+			return match
+		}
+		replaced = true
+		return verReg.ReplaceAll(match, []byte(`${1}`+to))
+	})
+	return os.WriteFile(fpath, updated, 0666)
+}
+
+func retrieveVersionFromFile(fpath string) (string, error) {
+	bs, err := os.ReadFile(fpath)
+	if err != nil {
+		return "", err
+	}
+	m := versionReg.FindSubmatch(bs)
+	if len(m) < 3 {
+		return "", fmt.Errorf("no version detected from file: %s", fpath)
+	}
+	return string(m[2]), nil
 }
