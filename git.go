@@ -35,7 +35,7 @@ func (c *commander) cmdE(prog string, args ...string) (string, string, error) {
 		cmd.Dir = c.dir
 	}
 	err := cmd.Run()
-	return outBuf.String(), errBuf.String(), err
+	return strings.TrimSpace(outBuf.String()), strings.TrimSpace(errBuf.String()), err
 }
 
 func (c *commander) gitE(args ...string) (string, string, error) {
