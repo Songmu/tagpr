@@ -2,6 +2,7 @@ package rcpr
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -62,16 +63,21 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		currVer = "v0.0.0"
 	}
 
-	releaseBranch, _ := rp.defaultBranch("") // TODO: make configable
+	remoteName, err := rp.detectRemote()
+	if err != nil {
+		return err
+	}
+
+	releaseBranch, _ := rp.defaultBranch(remoteName) // TODO: make configable
 	if releaseBranch == "" {
 		releaseBranch = defaultReleaseBranch
 	}
 	branch, _, err := rp.c.gitE("symbolic-ref", "--short", "HEAD")
 	if err != nil {
-		return fmt.Errorf("failed to release when git symbolic-ref: %w", err)
+		return fmt.Errorf("failed to git symbolic-ref: %w", err)
 	}
 	if branch != releaseBranch {
-		return fmt.Errorf("you are not on releasing branch %q, current branch is %q",
+		return fmt.Errorf("you are not on release branch %q, current branch is %q",
 			releaseBranch, branch)
 	}
 
@@ -219,4 +225,37 @@ func parseGitURL(u string) (*url.URL, error) {
 
 func mergeBody(now, update string) string {
 	return update
+}
+
+var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
+
+func (rp *rcpr) defaultBranch(remote string) (string, error) {
+	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
+	// So use `git remote show origin` for detecting default branch
+	show, _, err := rp.c.gitE("remote", "show", remote)
+	if err != nil {
+		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
+	}
+	m := headBranchReg.FindStringSubmatch(show)
+	if len(m) < 2 {
+		return "", fmt.Errorf("failed to detect default branch from remote: %s", remote)
+	}
+	return m[1], nil
+}
+
+func (rp *rcpr) detectRemote() (string, error) {
+	remotesStr, _, err := rp.c.gitE("remote")
+	if err != nil {
+		return "", fmt.Errorf("failed to detect remote: %s", err)
+	}
+	remotes := strings.Fields(remotesStr)
+	if len(remotes) == 1 {
+		return remotes[0], nil
+	}
+	for _, r := range remotes {
+		if r == "origin" {
+			return r, nil
+		}
+	}
+	return "", errors.New("failed to detect remote")
 }
