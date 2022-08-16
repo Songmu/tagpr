@@ -58,9 +58,18 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	rp := &rcpr{
 		c: &commander{outStream: outStream, errStream: errStream, dir: "."},
 	}
-	currVer := rp.latestSemverTag()
+
+	latestSemverTag := rp.latestSemverTag()
+	currVer := latestSemverTag
 	if currVer == "" {
 		currVer = "v0.0.0"
+	}
+	nakedSemver := currVer
+	// Do I need to take care of past tags with and without v-prefixes?
+	// It might be good to be able to enforce presence or absence in a configuration file item.
+	vPrefix := currVer[0] == 'v'
+	if vPrefix {
+		nakedSemver = nakedSemver[1:]
 	}
 
 	remoteName, err := rp.detectRemote()
@@ -160,19 +169,24 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if err != nil {
 		return err
 	}
-	v, err := semver.NewVersion(currVer)
+
+	v, err := semver.StrictNewVersion(nakedSemver)
 	if err != nil {
 		return err
 	}
-	nextVer := "v" + v.IncPatch().String() // XXX: proper next version detection
+	nextNakedVer := v.IncPatch().String() // XXX: proper next version detection
+	nextTagCandidate := nextNakedVer
+	if vPrefix {
+		nextTagCandidate = "v" + nextTagCandidate
+	}
 
-	previousTag := &currVer
-	if *previousTag == "v0.0.0" {
+	previousTag := &latestSemverTag
+	if *previousTag == "" {
 		previousTag = nil
 	}
 	releases, _, err := cli.Repositories.GenerateReleaseNotes(
 		ctx, owner, repo, &github.GenerateNotesOptions{
-			TagName:         nextVer,
+			TagName:         nextTagCandidate,
 			PreviousTagName: previousTag,
 			TargetCommitish: &releaseBranch,
 		})
@@ -192,7 +206,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	pstr := func(str string) *string {
 		return &str
 	}
-	title := fmt.Sprintf("release %s", nextVer)
+	title := fmt.Sprintf("release %s", nextTagCandidate)
 	if len(pulls) == 0 {
 		pr, _, err := cli.PullRequests.Create(ctx, owner, repo, &github.NewPullRequest{
 			Title: pstr(title),
