@@ -70,7 +70,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		currVer = "v0.0.0"
 	}
 	nakedSemver := currVer
-	// Do I need to take care of past tags with and without v-prefixes?
+	// XXX: Do I need to take care of past tags with and without v-prefixes?
 	// It might be good to be able to enforce presence or absence in a configuration file item.
 	vPrefix := currVer[0] == 'v'
 	if vPrefix {
@@ -112,6 +112,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		rp.c.git("config", "--local", "user.name", gitUser)
 	}
 
+	// TODO: tag and exit if the HEAD is the merged rcpr
+
 	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
 	rp.c.gitE("branch", "-D", rcBranch)
 	rp.c.git("checkout", "-b", rcBranch)
@@ -126,6 +128,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		nextTagCandidate = "v" + nextTagCandidate
 	}
 
+	// TODO: make configurable version file
 	file, err := detectVersionFile(".", nakedSemver)
 	if err != nil {
 		return err
@@ -215,6 +218,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
+	// TODO: pull request template
 	pstr := func(str string) *string {
 		return &str
 	}
