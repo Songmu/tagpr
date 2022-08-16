@@ -11,40 +11,19 @@ import (
 	"strings"
 )
 
-func git(args ...string) (string, string, error) {
-	log.Println(args)
-	var (
-		outBuf bytes.Buffer
-		errBuf bytes.Buffer
-	)
-	cmd := exec.Command("git", args...)
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	err := cmd.Run()
-
-	if err != nil {
-		log.Println(err)
-		log.Println(outBuf.String())
-		log.Println(errBuf.String())
-	}
-	return strings.TrimSpace(outBuf.String()), strings.TrimSpace(errBuf.String()), err
-}
-
-type cmd struct {
+type commander struct {
 	outStream, errStream io.Writer
 	dir                  string
-	err                  error
+
+	err error
 }
 
-func (c *cmd) git(args ...string) (string, string) {
-	log.Println(args)
-	return c.run("git", args...)
-}
-
-func (c *cmd) run(prog string, args ...string) (string, string) {
+func (c *commander) cmdE(prog string, args ...string) (string, string, error) {
 	if c.err != nil {
-		return "", ""
+		return "", "", c.err
 	}
+	log.Println(prog, args)
+
 	var (
 		outBuf bytes.Buffer
 		errBuf bytes.Buffer
@@ -55,28 +34,37 @@ func (c *cmd) run(prog string, args ...string) (string, string) {
 	if c.dir != "" {
 		cmd.Dir = c.dir
 	}
-	c.err = cmd.Run()
-	if c.err != nil {
-		log.Println(c.err)
-		log.Println(outBuf.String())
-		log.Println(errBuf.String())
-	}
-	return outBuf.String(), errBuf.String()
+	err := cmd.Run()
+	return outBuf.String(), errBuf.String(), err
+}
+
+func (c *commander) gitE(args ...string) (string, string, error) {
+	return c.cmdE("git", args...)
+}
+
+func (c *commander) git(args ...string) (string, string) {
+	return c.cmd("git", args...)
+}
+
+func (c *commander) cmd(prog string, args ...string) (string, string) {
+	stdout, stderr, err := c.cmdE(prog, args...)
+	c.err = err
+	return stdout, stderr
 }
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 
-func defaultBranch(remote string) (string, error) {
+func (rp *rcpr) defaultBranch(remote string) (string, error) {
 	if remote == "" {
 		var err error
-		remote, err = detectRemote()
+		remote, err = rp.detectRemote()
 		if err != nil {
 			return "", err
 		}
 	}
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
 	// So use `git remote show origin` for detecting default branch
-	show, _, err := git("remote", "show", remote)
+	show, _, err := rp.c.gitE("remote", "show", remote)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
 	}
@@ -87,8 +75,8 @@ func defaultBranch(remote string) (string, error) {
 	return m[1], nil
 }
 
-func detectRemote() (string, error) {
-	remotesStr, _, err := git("remote")
+func (rp *rcpr) detectRemote() (string, error) {
+	remotesStr, _, err := rp.c.gitE("remote")
 	if err != nil {
 		return "", fmt.Errorf("failed to detect remote: %s", err)
 	}
