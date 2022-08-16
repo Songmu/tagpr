@@ -203,11 +203,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	return err
 }
 
-var scpLikeURLReg = regexp.MustCompile("^([^@]+@)?([^:]+):(/?.+)$")
+var (
+	hasSchemeReg  = regexp.MustCompile("^[^:]+://")
+	scpLikeURLReg = regexp.MustCompile("^([^@]+@)?([^:]+):(/?.+)$")
+)
 
 func parseGitURL(u string) (*url.URL, error) {
-	if m := scpLikeURLReg.FindStringSubmatch(u); len(m) == 4 {
-		u = fmt.Sprintf("ssh://%s%s/%s", m[1], m[2], strings.TrimPrefix(m[3], "/"))
+	if !hasSchemeReg.MatchString(u) {
+		if m := scpLikeURLReg.FindStringSubmatch(u); len(m) == 4 {
+			u = fmt.Sprintf("ssh://%s%s/%s", m[1], m[2], strings.TrimPrefix(m[3], "/"))
+		}
 	}
 	return url.Parse(u)
 }
