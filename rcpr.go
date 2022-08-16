@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/Songmu/gitsemvers"
@@ -301,6 +302,19 @@ func detectVersionFile(root, ver string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	errorCb := func(fpath string, err error) error {
+		if os.IsPermission(err) {
+			return nil
+		}
+		if perr, ok := err.(*os.PathError); ok {
+			if perr.Err == syscall.ETXTBSY {
+				return nil
+			}
+		}
+		return err
+	}
+
 	fl := &fileList{}
 	if err := walker.Walk(root, func(fpath string, fi os.FileInfo) error {
 		if fi.IsDir() {
@@ -315,13 +329,13 @@ func detectVersionFile(root, ver string) (string, error) {
 		joinedPath := filepath.Join(root, fpath)
 		bs, err := os.ReadFile(joinedPath)
 		if err != nil {
-			return nil
+			return errorCb(fpath, err)
 		}
 		if verReg.Match(bs) {
 			fl.append(joinedPath)
 		}
 		return nil
-	}); err != nil {
+	}, walker.WithErrorCallback(errorCb)); err != nil {
 		return "", err
 	}
 	list := fl.list()
