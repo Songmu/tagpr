@@ -24,7 +24,7 @@ func client(ctx context.Context, token, host string) (*github.Client, error) {
 
 	if host != "" {
 		if host == "github.com" {
-			host = "https://api.github.com"
+			host = "https://api.github.com/"
 		} else {
 			// ref. https://github.com/google/go-github/issues/958
 			host = fmt.Sprintf("https://%s/api/v3/", host)
