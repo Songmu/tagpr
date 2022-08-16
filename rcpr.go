@@ -29,6 +29,7 @@ func printVersion(out io.Writer) error {
 }
 
 type rcpr struct {
+	c *commander
 }
 
 func (rp *rcpr) latestSemverTag() string {
@@ -53,17 +54,19 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return printVersion(outStream)
 	}
 
-	rp := &rcpr{}
+	rp := &rcpr{
+		c: &commander{outStream: outStream, errStream: errStream, dir: "."},
+	}
 	currVer := rp.latestSemverTag()
 	if currVer == "" {
 		currVer = "v0.0.0"
 	}
 
-	releaseBranch, _ := defaultBranch("") // TODO: make configable
+	releaseBranch, _ := rp.defaultBranch("") // TODO: make configable
 	if releaseBranch == "" {
 		releaseBranch = defaultReleaseBranch
 	}
-	branch, _, err := git("symbolic-ref", "--short", "HEAD")
+	branch, _, err := rp.c.gitE("symbolic-ref", "--short", "HEAD")
 	if err != nil {
 		return fmt.Errorf("failed to release when git symbolic-ref: %w", err)
 	}
@@ -72,30 +75,29 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			releaseBranch, branch)
 	}
 
-	isShallow, _, err := git("rev-parse", "--is-shallow-repository")
+	isShallow, _, err := rp.c.gitE("rev-parse", "--is-shallow-repository")
 	if err != nil {
 		return err
 	}
 	if isShallow == "true" {
-		if _, _, err := git("fetch", "--unshallow"); err != nil {
+		if _, _, err := rp.c.gitE("fetch", "--unshallow"); err != nil {
 			return err
 		}
 	}
 
 	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
-	git("branch", "-D", rcBranch)
+	rp.c.gitE("branch", "-D", rcBranch)
 
-	c := &cmd{outStream: outStream, errStream: errStream, dir: "."}
-	c.git("config", "--local", "user.email", gitEmail)
-	c.git("config", "--local", "user.name", gitUser)
+	rp.c.git("config", "--local", "user.email", gitEmail)
+	rp.c.git("config", "--local", "user.name", gitUser)
 
-	c.git("checkout", "-b", rcBranch)
+	rp.c.git("checkout", "-b", rcBranch)
 
 	// XXX do some releng related changes before commit
-	c.git("commit", "--allow-empty", "-am", autoCommitMessage)
+	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
-	out, _, err := git("log", "--no-merges", "--pretty=format:%h %an %s", "main..origin/"+rcBranch)
+	out, _, err := rp.c.gitE("log", "--no-merges", "--pretty=format:%h %an %s", "main..origin/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
@@ -112,23 +114,21 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		if len(cherryPicks) > 0 {
 			for i := len(cherryPicks) - 1; i >= 0; i-- {
 				commitish := cherryPicks[i]
-				_, _, err := git(
+				_, _, err := rp.c.gitE(
 					"cherry-pick", "--keep-redundant-commits", "--allow-empty", commitish)
 
 				// conflict / Need error handling in case of non-conflict error?
 				if err != nil {
-					git("cherry-pick", "--abort")
+					rp.c.gitE("cherry-pick", "--abort")
 				}
 			}
 		}
 	}
-
-	c.git("push", "--force", "origin", rcBranch)
-	if c.err != nil {
-		return c.err
+	if _, _, err := rp.c.gitE("push", "--force", "origin", rcBranch); err != nil {
+		return err
 	}
 
-	remote, _, err := git("config", "remote.origin.url")
+	remote, _, err := rp.c.gitE("config", "remote.origin.url")
 	if err != nil {
 		return err
 	}
