@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -22,6 +23,11 @@ const (
 	autoCommitMessage    = "[rcpr] prepare for the next release"
 )
 
+func printVersion(out io.Writer) error {
+	_, err := fmt.Fprintf(out, "%s v%s (rev:%s)\n", cmdName, version, revision)
+	return err
+}
+
 type rcpr struct {
 }
 
@@ -32,8 +38,6 @@ func (rp *rcpr) latestSemverTag() string {
 	}
 	return ""
 }
-
-var remoteReg = regexp.MustCompile(`origin\s.*?github\.com[:/]([-a-zA-Z0-9]+)/(\S+)`)
 
 // Run the rcpr
 func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) error {
@@ -124,19 +128,23 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return c.err
 	}
 
-	remote, _, err := git("remote", "-v")
+	remote, _, err := git("config", "remote.origin.url")
 	if err != nil {
 		return err
 	}
-	m := remoteReg.FindStringSubmatch(remote)
-	if len(m) < 3 {
-		return fmt.Errorf("failed to detect remote")
+	u, err := parseGitURL(remote)
+	if err != nil {
+		return fmt.Errorf("failed to parse remote")
 	}
-	owner := m[1]
-	repo := m[2]
-	// XXX: This is to remove the ".git" suffix of the git schema or scp like URL,
-	// but if the repository name really ends in .git, it will be removed, but it's OK for now.
-	repo = strings.TrimSuffix(repo, ".git")
+	m := strings.Split(u.Path, "/")
+	if len(m) < 2 {
+		return fmt.Errorf("failed to detect owner and repo from remote URL")
+	}
+	owner := m[0]
+	repo := m[1]
+	if u.Scheme == "ssh" || u.Scheme == "git" {
+		repo = strings.TrimSuffix(repo, ".git")
+	}
 
 	cli, err := client(ctx, "", "")
 	if err != nil {
@@ -195,11 +203,15 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	return err
 }
 
-func mergeBody(now, update string) string {
-	return update
+var scpLikeURLReg = regexp.MustCompile("^([^@]+@)?([^:]+):(/?.+)$")
+
+func parseGitURL(u string) (*url.URL, error) {
+	if m := scpLikeURLReg.FindStringSubmatch(u); len(m) == 4 {
+		u = fmt.Sprintf("ssh://%s%s/%s", m[1], m[2], strings.TrimPrefix(m[3], "/"))
+	}
+	return url.Parse(u)
 }
 
-func printVersion(out io.Writer) error {
-	_, err := fmt.Fprintf(out, "%s v%s (rev:%s)\n", cmdName, version, revision)
-	return err
+func mergeBody(now, update string) string {
+	return update
 }
