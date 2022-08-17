@@ -22,13 +22,9 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	oauthClient := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(oauthClient)
 
-	if host != "" {
-		if host == "github.com" {
-			host = "https://api.github.com/"
-		} else {
-			// ref. https://github.com/google/go-github/issues/958
-			host = fmt.Sprintf("https://%s/api/v3/", host)
-		}
+	if host != "" && host != "github.com" {
+		// ref. https://github.com/google/go-github/issues/958
+		host = fmt.Sprintf("https://%s/api/v3/", host)
 		u, err := url.Parse(host)
 		if err != nil {
 			return nil, err
