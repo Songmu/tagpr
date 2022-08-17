@@ -283,8 +283,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 				continue
 			}
 			commitish := m[0]
-			authorAndSubject := strings.TrimSpace(m[1])
-			if authorAndSubject != autoCommitMessage {
+			subject := strings.TrimSpace(m[1])
+			if subject != autoCommitMessage && subject != autoChangelogMessage {
 				cherryPicks = append(cherryPicks, commitish)
 			}
 		}
@@ -325,7 +325,22 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	changelog := convertKeepAChangelogFormat(releases.Body)
-	_ = changelog
+	changelogMd := "CHANGELOG.md"
+	var content string
+	if exists(changelogMd) {
+		byt, err := os.ReadFile(changelogMd)
+		if err != nil {
+			return err
+		}
+		content = insertNewChangelog(byt, changelog)
+	} else {
+		content = "# Changelog\n\n" + changelog
+	}
+	if err := os.WriteFile(changelogMd, []byte(content), 0644); err != nil {
+		return err
+	}
+	rp.c.gitE("add", changelogMd)
+	rp.c.gitE("commit", "-m", autoChangelogMessage)
 
 	if _, _, err := rp.c.gitE("push", "--force", rp.remoteName, rcBranch); err != nil {
 		return err
