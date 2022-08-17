@@ -168,14 +168,24 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 		if len(pulls) > 0 && isRcpr(pulls[0]) {
 			rp.c.git("checkout", "HEAD~")
-			f, err := detectVersionFile(".", nakedSemver)
+			vfile, err := detectVersionFile(".", nakedSemver)
 			if err != nil {
 				return err
 			}
 			rp.c.git("checkout", releaseBranch)
-			nextTag, err := retrieveVersionFromFile(f)
-			if err != nil {
-				return err
+
+			var nextTag string
+
+			if vfile != "" {
+				nextTag, err = retrieveVersionFromFile(vfile)
+				if err != nil {
+					return err
+				}
+			} else {
+				nextTag, err = guessNextSemver(nakedSemver, pulls[0])
+				if err != nil {
+					return err
+				}
 			}
 			if vPrefix {
 				nextTag = "v" + nextTag
@@ -193,23 +203,38 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	rp.c.gitE("branch", "-D", rcBranch)
 	rp.c.git("checkout", "-b", rcBranch)
 
-	v, err := semver.StrictNewVersion(nakedSemver)
+	head := fmt.Sprintf("%s:%s", rp.owner, rcBranch)
+	pulls, _, err := rp.gh.PullRequests.List(ctx, rp.owner, rp.repo,
+		&github.PullRequestListOptions{
+			Head: head,
+			Base: releaseBranch,
+		})
 	if err != nil {
 		return err
 	}
-	nextNakedVer := v.IncPatch().String() // XXX: proper next version detection
+	var currRcpr *github.PullRequest
+	if len(pulls) > 0 {
+		currRcpr = pulls[0]
+	}
+
+	nextNakedVer, err := guessNextSemver(nakedSemver, currRcpr)
+	if err != nil {
+		return err
+	}
 	nextTagCandidate := nextNakedVer
 	if vPrefix {
 		nextTagCandidate = "v" + nextTagCandidate
 	}
 
 	// TODO: make configurable version file
-	file, err := detectVersionFile(".", nakedSemver)
+	vfile, err := detectVersionFile(".", nakedSemver)
 	if err != nil {
 		return err
 	}
-	if err := bumpVersionFile(file, nakedSemver, nextNakedVer); err != nil {
-		return err
+	if vfile != "" {
+		if err := bumpVersionFile(vfile, nakedSemver, nextNakedVer); err != nil {
+			return err
+		}
 	}
 	// XXX do some releng related changes before commit
 	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
@@ -261,22 +286,13 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
-	head := fmt.Sprintf("%s:%s", rp.owner, rcBranch)
-	pulls, _, err := rp.gh.PullRequests.List(ctx, rp.owner, rp.repo,
-		&github.PullRequestListOptions{
-			Head: head,
-			Base: releaseBranch,
-		})
-	if err != nil {
-		return err
-	}
-
 	// TODO: pull request template
 	pstr := func(str string) *string {
 		return &str
 	}
 	title := fmt.Sprintf("release %s", nextTagCandidate)
-	if len(pulls) == 0 {
+
+	if currRcpr == nil {
 		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
 			Title: pstr(title),
 			Body:  pstr(releases.Body),
@@ -290,10 +306,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			ctx, rp.owner, rp.repo, *pr.Number, []string{autoLableName})
 		return err
 	}
-	pr := pulls[0]
-	pr.Title = pstr(title)
-	pr.Body = pstr(mergeBody(*pr.Body, releases.Body))
-	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *pr.Number, pr)
+	currRcpr.Title = pstr(title)
+	currRcpr.Body = pstr(mergeBody(*currRcpr.Body, releases.Body))
+	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *currRcpr.Number, currRcpr)
 	return err
 }
 
@@ -449,4 +464,30 @@ func retrieveVersionFromFile(fpath string) (string, error) {
 		return "", fmt.Errorf("no version detected from file: %s", fpath)
 	}
 	return string(m[2]), nil
+}
+
+func guessNextSemver(ver string, pr *github.PullRequest) (string, error) {
+	v, err := semver.StrictNewVersion(ver)
+	if err != nil {
+		return "", err
+	}
+	var isMajor, isMinor bool
+	if pr != nil {
+		for _, l := range pr.Labels {
+			switch l.GetName() {
+			case autoLableName + ":major":
+				isMajor = true
+			case autoLableName + ":minor":
+				isMinor = true
+			}
+		}
+	}
+	switch {
+	case isMajor:
+		return v.IncMajor().String(), nil
+	case isMinor:
+		return v.IncMinor().String(), nil
+	default:
+		return v.IncPatch().String(), nil
+	}
 }
