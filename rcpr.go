@@ -189,7 +189,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 				previousTag = nil
 			}
 
-			// Pick up the previous commit to avoid picking up the merge of the pull
+			// To avoid putting pull requests created by rcpr itself in the release notes,
+			// we generate release notes in advance.
+			// Get the previous commitish to avoid picking up the merge of the pull
 			// request made by rcpr.
 			targetCommitish, _, err := rp.c.gitE("rev-parse", "HEAD~")
 			if err != nil {
@@ -213,14 +215,19 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			if err != nil {
 				return err
 			}
-			draft := true
+
+			// Don't use GenerateReleaseNote flag and use pre generated one
 			_, _, err = rp.gh.Repositories.CreateRelease(
 				ctx, rp.owner, rp.repo, &github.RepositoryRelease{
 					TagName:         &nextTag,
 					TargetCommitish: &releaseBranch,
 					Name:            &releases.Name,
 					Body:            &releases.Body,
-					Draft:           &draft,
+					// I want to make it as a draft release by default, but it is difficult to get a draft release
+					// from another tool via API, and there is no tool supports it, so I will make it as a normal
+					// release. In the future, there may be an option to create it as a Draft, or conversely,
+					// an option not to create a release.
+					// Draft: github.Bool(true),
 				})
 			return err
 		}
