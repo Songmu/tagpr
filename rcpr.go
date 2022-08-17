@@ -27,6 +27,7 @@ const (
 	gitEmail             = "github-actions[bot]@users.noreply.github.com"
 	defaultReleaseBranch = "main"
 	autoCommitMessage    = "[rcpr] prepare for the next release"
+	autoChangelogMessage = "[rcpr] update CHANGELOG.md"
 	autoLableName        = "rcpr"
 )
 
@@ -302,9 +303,6 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			}
 		}
 	}
-	if _, _, err := rp.c.gitE("push", "--force", rp.remoteName, rcBranch); err != nil {
-		return err
-	}
 
 	if vfile != "" {
 		nVer, _ := retrieveVersionFromFile(vfile, nextVer.vPrefix)
@@ -323,6 +321,13 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			TargetCommitish: &releaseBranch,
 		})
 	if err != nil {
+		return err
+	}
+
+	changelog := convertKeepAChangelogFormat(releases.Body)
+	_ = changelog
+
+	if _, _, err := rp.c.gitE("push", "--force", rp.remoteName, rcBranch); err != nil {
 		return err
 	}
 

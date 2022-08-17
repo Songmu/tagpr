@@ -1,5 +1,7 @@
 github.com/Masterminds/semver/v3 v3.1.1 h1:hLg3sBzpNErnxhQtUy/mmLR2I9foDujNK030IGemrRc=
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
+github.com/Songmu/flextime v0.1.0 h1:sss5IALl84LbvU/cS5D1cKNd5ffT94N2BZwC+esgAJI=
+github.com/Songmu/flextime v0.1.0/go.mod h1:ofUSZ/qj7f1BfQQ6rEH4ovewJ0SZmLOjBF1xa8iE87Q=
 github.com/Songmu/gitconfig v0.1.0 h1:JsaQ6rh3Lnig0Xvo4t4nj7Xu6pXrMfyCOPJ6iRriuKY=
 github.com/Songmu/gitconfig v0.1.0/go.mod h1:kVksEBYKkMQuZ5BumlnW7KBDBreiySMbf50dseHYOpQ=
 github.com/Songmu/gitmock v0.0.2 h1:KF5GTll60LxGskZbt58QDd29y/GYLgdxqvkvnSU6RlY=
