@@ -13,8 +13,10 @@ jobs:
         go-version: 1.x
     - name: checkout
       uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GH_PAT }}
     - run: |
         make install
         rcpr
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
