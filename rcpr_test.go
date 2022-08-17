@@ -11,3 +11,11 @@ func TestDetectVersionFile(t *testing.T) {
 	}
 	t.Log(f)
 }
+
+func TestRetrieveVersionFile(t *testing.T) {
+	ver, err := retrieveVersionFromFile("version.go")
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(ver)
+}

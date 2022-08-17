@@ -27,6 +27,7 @@ const (
 	gitEmail             = "github-actions[bot]@users.noreply.github.com"
 	defaultReleaseBranch = "main"
 	autoCommitMessage    = "[rcpr] prepare for the next release"
+	autoLableName        = "rcpr"
 )
 
 func printVersion(out io.Writer) error {
@@ -44,6 +45,15 @@ func (rp *rcpr) latestSemverTag() string {
 		return vers[0]
 	}
 	return ""
+}
+
+func isRcpr(pr *github.PullRequest) bool {
+	for _, label := range pr.Labels {
+		if label.GetName() == autoLableName {
+			return true
+		}
+	}
+	return false
 }
 
 // Run the rcpr
@@ -112,7 +122,61 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		rp.c.git("config", "--local", "user.name", gitUser)
 	}
 
-	// TODO: tag and exit if the HEAD is the merged rcpr
+	remoteURL, _, err := rp.c.gitE("config", "remote."+remoteName+".url")
+	if err != nil {
+		return err
+	}
+	u, err := parseGitURL(remoteURL)
+	if err != nil {
+		return fmt.Errorf("failed to parse remote")
+	}
+	m := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+	if len(m) < 2 {
+		return fmt.Errorf("failed to detect owner and repo from remote URL")
+	}
+	owner := m[0]
+	repo := m[1]
+	if u.Scheme == "ssh" || u.Scheme == "git" {
+		repo = strings.TrimSuffix(repo, ".git")
+	}
+
+	cli, err := client(ctx, "", u.Hostname())
+	if err != nil {
+		return err
+	}
+
+	{
+		// tag and exit if the HEAD is the merged rcpr
+		commitish, _, err := rp.c.gitE("rev-parse", "HEAD")
+		if err != nil {
+			return err
+		}
+		pulls, _, err := cli.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, commitish, nil)
+		if err != nil {
+			return err
+		}
+		if len(pulls) > 0 && isRcpr(pulls[0]) {
+			rp.c.git("checkout", "HEAD~")
+			f, err := detectVersionFile(".", nakedSemver)
+			if err != nil {
+				return err
+			}
+			rp.c.git("checkout", releaseBranch)
+			nextTag, err := retrieveVersionFromFile(f)
+			if err != nil {
+				return err
+			}
+			if vPrefix {
+				nextTag = "v" + nextTag
+			}
+			rp.c.git("tag", nextTag)
+			if rp.c.err != nil {
+				return rp.c.err
+			}
+			_, _, err = rp.c.gitE("push", "--tags")
+			return err
+		}
+	}
 
 	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
 	rp.c.gitE("branch", "-D", rcBranch)
@@ -172,29 +236,6 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
-	remoteURL, _, err := rp.c.gitE("config", "remote."+remoteName+".url")
-	if err != nil {
-		return err
-	}
-	u, err := parseGitURL(remoteURL)
-	if err != nil {
-		return fmt.Errorf("failed to parse remote")
-	}
-	m := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
-	if len(m) < 2 {
-		return fmt.Errorf("failed to detect owner and repo from remote URL")
-	}
-	owner := m[0]
-	repo := m[1]
-	if u.Scheme == "ssh" || u.Scheme == "git" {
-		repo = strings.TrimSuffix(repo, ".git")
-	}
-
-	cli, err := client(ctx, "", u.Hostname())
-	if err != nil {
-		return err
-	}
-
 	previousTag := &latestSemverTag
 	if *previousTag == "" {
 		previousTag = nil
@@ -233,7 +274,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		if err != nil {
 			return err
 		}
-		_, _, err = cli.Issues.AddLabelsToIssue(ctx, owner, repo, *pr.Number, []string{"rcpr"})
+		_, _, err = cli.Issues.AddLabelsToIssue(
+			ctx, owner, repo, *pr.Number, []string{autoLableName})
 		return err
 	}
 	pr := pulls[0]
