@@ -411,6 +411,9 @@ func detectVersionFile(root string, ver *semv) (string, error) {
 	}
 
 	errorCb := func(fpath string, err error) error {
+		// When running a rcpr binary under the repository root, "text file busy" occurred,
+		// so I did error handling as this, but it did not solve the problem, and it is a special case,
+		// so we may not need to do the check in particular.
 		if os.IsPermission(err) || errors.Is(err, syscall.ETXTBSY) {
 			return nil
 		}
@@ -420,12 +423,13 @@ func detectVersionFile(root string, ver *semv) (string, error) {
 	fl := &fileList{}
 	if err := walker.Walk(root, func(fpath string, fi os.FileInfo) error {
 		if fi.IsDir() {
+			// The "testdata" directory is ommited because of the test code for rcpr itself
 			if fi.Name() == ".git" || fi.Name() == "testdata" {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if fi.Mode()&os.ModeSymlink != 0 {
+		if !fi.Mode().IsRegular() {
 			return nil
 		}
 		joinedPath := filepath.Join(root, fpath)
