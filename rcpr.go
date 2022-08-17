@@ -184,11 +184,44 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			} else {
 				nextTag = guessNextSemver(currVer, pulls[0]).Tag()
 			}
+			previousTag := &latestSemverTag
+			if *previousTag == "" {
+				previousTag = nil
+			}
+
+			// Pick up the previous commit to avoid picking up the merge of the pull
+			// request made by rcpr.
+			targetCommitish, _, err := rp.c.gitE("rev-parse", "HEAD~")
+			if err != nil {
+				return nil
+			}
+			releases, _, err := rp.gh.Repositories.GenerateReleaseNotes(
+				ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
+					TagName:         nextTag,
+					PreviousTagName: previousTag,
+					TargetCommitish: &targetCommitish,
+				})
+			if err != nil {
+				return err
+			}
+
 			rp.c.git("tag", nextTag)
 			if rp.c.err != nil {
 				return rp.c.err
 			}
 			_, _, err = rp.c.gitE("push", "--tags")
+			if err != nil {
+				return err
+			}
+			draft := true
+			_, _, err = rp.gh.Repositories.CreateRelease(
+				ctx, rp.owner, rp.repo, &github.RepositoryRelease{
+					TagName:         &nextTag,
+					TargetCommitish: &releaseBranch,
+					Name:            &releases.Name,
+					Body:            &releases.Body,
+					Draft:           &draft,
+				})
 			return err
 		}
 	}
