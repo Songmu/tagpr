@@ -152,6 +152,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			return err
 		}
 		pulls, _, err := cli.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, commitish, nil)
+		if err != nil {
+			return err
+		}
 		if len(pulls) > 0 && isRcpr(pulls[0]) {
 			rp.c.git("checkout", "HEAD~")
 			f, err := detectVersionFile(".", nakedSemver)
