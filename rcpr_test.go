@@ -13,9 +13,9 @@ func TestDetectVersionFile(t *testing.T) {
 }
 
 func TestRetrieveVersionFile(t *testing.T) {
-	ver, err := retrieveVersionFromFile("version.go")
+	ver, err := retrieveVersionFromFile("version.go", false)
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(ver)
+	t.Log(ver.Tag())
 }
