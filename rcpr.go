@@ -36,7 +36,9 @@ func printVersion(out io.Writer) error {
 }
 
 type rcpr struct {
-	c *commander
+	c                       *commander
+	gh                      *github.Client
+	remoteName, owner, repo string
 }
 
 func (rp *rcpr) latestSemverTag() string {
@@ -45,6 +47,39 @@ func (rp *rcpr) latestSemverTag() string {
 		return vers[0]
 	}
 	return ""
+}
+
+func (rp *rcpr) initialize(ctx context.Context) error {
+	var err error
+	rp.remoteName, err = rp.detectRemote()
+	if err != nil {
+		return err
+	}
+	remoteURL, _, err := rp.c.gitE("config", "remote."+rp.remoteName+".url")
+	if err != nil {
+		return err
+	}
+	u, err := parseGitURL(remoteURL)
+	if err != nil {
+		return fmt.Errorf("failed to parse remote")
+	}
+	m := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+	if len(m) < 2 {
+		return fmt.Errorf("failed to detect owner and repo from remote URL")
+	}
+	rp.owner = m[0]
+	repo := m[1]
+	if u.Scheme == "ssh" || u.Scheme == "git" {
+		repo = strings.TrimSuffix(repo, ".git")
+	}
+	rp.repo = repo
+
+	cli, err := ghClient(ctx, "", u.Hostname())
+	if err != nil {
+		return err
+	}
+	rp.gh = cli
+	return nil
 }
 
 func isRcpr(pr *github.PullRequest) bool {
@@ -73,6 +108,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	rp := &rcpr{
 		c: &commander{outStream: outStream, errStream: errStream, dir: "."},
 	}
+	if err := rp.initialize(ctx); err != nil {
+		return err
+	}
 
 	latestSemverTag := rp.latestSemverTag()
 	currVer := latestSemverTag
@@ -87,12 +125,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		nakedSemver = nakedSemver[1:]
 	}
 
-	remoteName, err := rp.detectRemote()
-	if err != nil {
-		return err
-	}
-
-	releaseBranch, _ := rp.defaultBranch(remoteName) // TODO: make configable
+	releaseBranch, _ := rp.defaultBranch() // TODO: make release branch configable
 	if releaseBranch == "" {
 		releaseBranch = defaultReleaseBranch
 	}
@@ -122,36 +155,14 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		rp.c.git("config", "--local", "user.name", gitUser)
 	}
 
-	remoteURL, _, err := rp.c.gitE("config", "remote."+remoteName+".url")
-	if err != nil {
-		return err
-	}
-	u, err := parseGitURL(remoteURL)
-	if err != nil {
-		return fmt.Errorf("failed to parse remote")
-	}
-	m := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
-	if len(m) < 2 {
-		return fmt.Errorf("failed to detect owner and repo from remote URL")
-	}
-	owner := m[0]
-	repo := m[1]
-	if u.Scheme == "ssh" || u.Scheme == "git" {
-		repo = strings.TrimSuffix(repo, ".git")
-	}
-
-	cli, err := client(ctx, "", u.Hostname())
-	if err != nil {
-		return err
-	}
-
 	{
 		// tag and exit if the HEAD is the merged rcpr
 		commitish, _, err := rp.c.gitE("rev-parse", "HEAD")
 		if err != nil {
 			return err
 		}
-		pulls, _, err := cli.PullRequests.ListPullRequestsWithCommit(ctx, owner, repo, commitish, nil)
+		pulls, _, err := rp.gh.PullRequests.ListPullRequestsWithCommit(
+			ctx, rp.owner, rp.repo, commitish, nil)
 		if err != nil {
 			return err
 		}
@@ -205,7 +216,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 
 	// cherry-pick if the remote branch is exists and changed
 	out, _, err := rp.c.gitE(
-		"log", "--no-merges", "--pretty=format:%h %s", "main.."+remoteName+"/"+rcBranch)
+		"log", "--no-merges", "--pretty=format:%h %s", "main.."+rp.remoteName+"/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
@@ -232,7 +243,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			}
 		}
 	}
-	if _, _, err := rp.c.gitE("push", "--force", remoteName, rcBranch); err != nil {
+	if _, _, err := rp.c.gitE("push", "--force", rp.remoteName, rcBranch); err != nil {
 		return err
 	}
 
@@ -240,8 +251,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if *previousTag == "" {
 		previousTag = nil
 	}
-	releases, _, err := cli.Repositories.GenerateReleaseNotes(
-		ctx, owner, repo, &github.GenerateNotesOptions{
+	releases, _, err := rp.gh.Repositories.GenerateReleaseNotes(
+		ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
 			TagName:         nextTagCandidate,
 			PreviousTagName: previousTag,
 			TargetCommitish: &releaseBranch,
@@ -250,11 +261,12 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
-	head := fmt.Sprintf("%s:%s", owner, rcBranch)
-	pulls, _, err := cli.PullRequests.List(ctx, owner, repo, &github.PullRequestListOptions{
-		Head: head,
-		Base: releaseBranch,
-	})
+	head := fmt.Sprintf("%s:%s", rp.owner, rcBranch)
+	pulls, _, err := rp.gh.PullRequests.List(ctx, rp.owner, rp.repo,
+		&github.PullRequestListOptions{
+			Head: head,
+			Base: releaseBranch,
+		})
 	if err != nil {
 		return err
 	}
@@ -265,7 +277,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 	title := fmt.Sprintf("release %s", nextTagCandidate)
 	if len(pulls) == 0 {
-		pr, _, err := cli.PullRequests.Create(ctx, owner, repo, &github.NewPullRequest{
+		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
 			Title: pstr(title),
 			Body:  pstr(releases.Body),
 			Base:  &releaseBranch,
@@ -274,14 +286,14 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		if err != nil {
 			return err
 		}
-		_, _, err = cli.Issues.AddLabelsToIssue(
-			ctx, owner, repo, *pr.Number, []string{autoLableName})
+		_, _, err = rp.gh.Issues.AddLabelsToIssue(
+			ctx, rp.owner, rp.repo, *pr.Number, []string{autoLableName})
 		return err
 	}
 	pr := pulls[0]
 	pr.Title = pstr(title)
 	pr.Body = pstr(mergeBody(*pr.Body, releases.Body))
-	_, _, err = cli.PullRequests.Edit(ctx, owner, repo, *pr.Number, pr)
+	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *pr.Number, pr)
 	return err
 }
 
@@ -305,16 +317,16 @@ func mergeBody(now, update string) string {
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 
-func (rp *rcpr) defaultBranch(remote string) (string, error) {
+func (rp *rcpr) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
 	// So use `git remote show origin` for detecting default branch
-	show, _, err := rp.c.gitE("remote", "show", remote)
+	show, _, err := rp.c.gitE("remote", "show", rp.remoteName)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
 	}
 	m := headBranchReg.FindStringSubmatch(show)
 	if len(m) < 2 {
-		return "", fmt.Errorf("failed to detect default branch from remote: %s", remote)
+		return "", fmt.Errorf("failed to detect default branch from remote: %s", rp.remoteName)
 	}
 	return m[1], nil
 }

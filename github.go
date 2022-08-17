@@ -10,7 +10,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func client(ctx context.Context, token, host string) (*github.Client, error) {
+func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	if token == "" {
 		var err error
 		token, err = gitconfig.GitHubToken(host)
