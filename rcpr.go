@@ -124,17 +124,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	latestSemverTag := rp.latestSemverTag()
-	currVer := latestSemverTag
-	if currVer == "" {
-		currVer = "v0.0.0"
+	currVerStr := latestSemverTag
+	if currVerStr == "" {
+		currVerStr = "v0.0.0"
 	}
-	nakedSemver := currVer
+	currVer, err := newSemver(currVerStr)
+	if err != nil {
+		return err
+	}
 	// XXX: Do I need to take care of past tags with and without v-prefixes?
 	// It might be good to be able to enforce presence or absence in a configuration file item.
-	vPrefix := currVer[0] == 'v'
-	if vPrefix {
-		nakedSemver = nakedSemver[1:]
-	}
 
 	releaseBranch, _ := rp.defaultBranch() // TODO: make release branch configable
 	if releaseBranch == "" {
@@ -169,27 +168,21 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 		if len(pulls) > 0 && isRcpr(pulls[0]) {
 			rp.c.git("checkout", "HEAD~")
-			vfile, err := detectVersionFile(".", nakedSemver)
+			vfile, err := detectVersionFile(".", currVer.Naked())
 			if err != nil {
 				return err
 			}
 			rp.c.git("checkout", releaseBranch)
 
 			var nextTag string
-
 			if vfile != "" {
-				nextTag, err = retrieveVersionFromFile(vfile)
+				nextVer, err := retrieveVersionFromFile(vfile, currVer.vPrefix)
 				if err != nil {
 					return err
 				}
+				nextTag = nextVer.Tag()
 			} else {
-				nextTag, err = guessNextSemver(nakedSemver, pulls[0])
-				if err != nil {
-					return err
-				}
-			}
-			if vPrefix {
-				nextTag = "v" + nextTag
+				nextTag = guessNextSemver(currVer, pulls[0]).Tag()
 			}
 			rp.c.git("tag", nextTag)
 			if rp.c.err != nil {
@@ -200,7 +193,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 	}
 
-	rcBranch := fmt.Sprintf("rcpr-%s", currVer)
+	rcBranch := fmt.Sprintf("rcpr-%s", currVer.Tag())
 	rp.c.gitE("branch", "-D", rcBranch)
 	rp.c.git("checkout", "-b", rcBranch)
 
@@ -218,22 +211,15 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		currRcpr = pulls[0]
 	}
 
-	nextNakedVer, err := guessNextSemver(nakedSemver, currRcpr)
-	if err != nil {
-		return err
-	}
-	nextTagCandidate := nextNakedVer
-	if vPrefix {
-		nextTagCandidate = "v" + nextTagCandidate
-	}
+	nextVer := guessNextSemver(currVer, currRcpr)
 
 	// TODO: make configurable version file
-	vfile, err := detectVersionFile(".", nakedSemver)
+	vfile, err := detectVersionFile(".", currVer.Naked())
 	if err != nil {
 		return err
 	}
 	if vfile != "" {
-		if err := bumpVersionFile(vfile, nakedSemver, nextNakedVer); err != nil {
+		if err := bumpVersionFile(vfile, currVer.Naked(), nextVer.Naked()); err != nil {
 			return err
 		}
 	}
@@ -274,13 +260,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	if vfile != "" {
-		nVer, _ := retrieveVersionFromFile(vfile)
-		if nVer != "" && nVer != nextNakedVer {
-			nextNakedVer = nVer
-			nextTagCandidate = nextNakedVer
-			if vPrefix {
-				nextTagCandidate = "v" + nextTagCandidate
-			}
+		nVer, _ := retrieveVersionFromFile(vfile, nextVer.vPrefix)
+		if nVer != nil && nVer.Naked() != nextVer.Naked() {
+			nextVer = nVer
 		}
 	}
 	previousTag := &latestSemverTag
@@ -289,7 +271,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 	releases, _, err := rp.gh.Repositories.GenerateReleaseNotes(
 		ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
-			TagName:         nextTagCandidate,
+			TagName:         nextVer.Tag(),
 			PreviousTagName: previousTag,
 			TargetCommitish: &releaseBranch,
 		})
@@ -301,7 +283,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	pstr := func(str string) *string {
 		return &str
 	}
-	title := fmt.Sprintf("release %s", nextTagCandidate)
+	title := fmt.Sprintf("release %s", nextVer.Tag())
 
 	if currRcpr == nil {
 		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
@@ -465,23 +447,23 @@ func bumpVersionFile(fpath, from, to string) error {
 	return os.WriteFile(fpath, updated, 0666)
 }
 
-func retrieveVersionFromFile(fpath string) (string, error) {
+func retrieveVersionFromFile(fpath string, vPrefix bool) (*semv, error) {
 	bs, err := os.ReadFile(fpath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	m := versionReg.FindSubmatch(bs)
 	if len(m) < 3 {
-		return "", fmt.Errorf("no version detected from file: %s", fpath)
+		return nil, fmt.Errorf("no version detected from file: %s", fpath)
 	}
-	return string(m[2]), nil
+	ver := string(m[2])
+	if vPrefix {
+		ver = "v" + ver
+	}
+	return newSemver(ver)
 }
 
-func guessNextSemver(ver string, pr *github.PullRequest) (string, error) {
-	v, err := semver.StrictNewVersion(ver)
-	if err != nil {
-		return "", err
-	}
+func guessNextSemver(ver *semv, pr *github.PullRequest) *semv {
 	var isMajor, isMinor bool
 	if pr != nil {
 		for _, l := range pr.Labels {
@@ -493,12 +475,19 @@ func guessNextSemver(ver string, pr *github.PullRequest) (string, error) {
 			}
 		}
 	}
+
+	var nextv semver.Version
 	switch {
 	case isMajor:
-		return v.IncMajor().String(), nil
+		nextv = ver.v.IncMajor()
 	case isMinor:
-		return v.IncMinor().String(), nil
+		nextv = ver.v.IncMinor()
 	default:
-		return v.IncPatch().String(), nil
+		nextv = ver.v.IncPatch()
+	}
+
+	return &semv{
+		v:       &nextv,
+		vPrefix: ver.vPrefix,
 	}
 }
