@@ -5,7 +5,8 @@ import (
 )
 
 func TestDetectVersionFile(t *testing.T) {
-	f, err := detectVersionFile(".", "0.0.0")
+	v, _ := newSemver("0.0.0")
+	f, err := detectVersionFile(".", v)
 	if err != nil {
 		t.Error(err)
 	}

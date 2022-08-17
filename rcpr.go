@@ -148,6 +148,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			releaseBranch, branch)
 	}
 
+	// XXX: should care GIT_*_NAME etc?
 	if _, _, err := rp.c.gitE("config", "user.email"); err != nil {
 		rp.c.git("config", "--local", "user.email", gitEmail)
 	}
@@ -168,7 +169,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 		if len(pulls) > 0 && isRcpr(pulls[0]) {
 			rp.c.git("checkout", "HEAD~")
-			vfile, err := detectVersionFile(".", currVer.Naked())
+			vfile, err := detectVersionFile(".", currVer)
 			if err != nil {
 				return err
 			}
@@ -189,7 +190,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 				previousTag = nil
 			}
 
-			// Pick up the previous commit to avoid picking up the merge of the pull
+			// To avoid putting pull requests created by rcpr itself in the release notes,
+			// we generate release notes in advance.
+			// Get the previous commitish to avoid picking up the merge of the pull
 			// request made by rcpr.
 			targetCommitish, _, err := rp.c.gitE("rev-parse", "HEAD~")
 			if err != nil {
@@ -213,14 +216,19 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			if err != nil {
 				return err
 			}
-			draft := true
+
+			// Don't use GenerateReleaseNote flag and use pre generated one
 			_, _, err = rp.gh.Repositories.CreateRelease(
 				ctx, rp.owner, rp.repo, &github.RepositoryRelease{
 					TagName:         &nextTag,
 					TargetCommitish: &releaseBranch,
 					Name:            &releases.Name,
 					Body:            &releases.Body,
-					Draft:           &draft,
+					// I want to make it as a draft release by default, but it is difficult to get a draft release
+					// from another tool via API, and there is no tool supports it, so I will make it as a normal
+					// release. In the future, there may be an option to create it as a Draft, or conversely,
+					// an option not to create a release.
+					// Draft: github.Bool(true),
 				})
 			return err
 		}
@@ -247,19 +255,23 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	nextVer := guessNextSemver(currVer, currRcpr)
 
 	// TODO: make configurable version file
-	vfile, err := detectVersionFile(".", currVer.Naked())
+	vfile, err := detectVersionFile(".", currVer)
 	if err != nil {
 		return err
 	}
 	if vfile != "" {
-		if err := bumpVersionFile(vfile, currVer.Naked(), nextVer.Naked()); err != nil {
+		if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
 			return err
 		}
 	}
-	// XXX do some releng related changes before commit
+
+	// TODO To be able to run some kind of change script set by configuration in advance.
+
 	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
+	// XXX: Do I need to apply merge commits too?
+	//     (We ommited merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
 	out, _, err := rp.c.gitE(
 		"log", "--no-merges", "--pretty=format:%h %s", "main.."+rp.remoteName+"/"+rcBranch)
 	if err == nil {
@@ -276,12 +288,14 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			}
 		}
 		if len(cherryPicks) > 0 {
+			// Specify a commitish one by one for cherry-pick instead of multiple commitish,
+			// and apply it as much as possible.
 			for i := len(cherryPicks) - 1; i >= 0; i-- {
 				commitish := cherryPicks[i]
 				_, _, err := rp.c.gitE(
 					"cherry-pick", "--keep-redundant-commits", "--allow-empty", commitish)
 
-				// conflict / Need error handling in case of non-conflict error?
+				// conflict, etc. / Need error handling in case of non-conflict error?
 				if err != nil {
 					rp.c.gitE("cherry-pick", "--abort")
 				}
@@ -313,17 +327,14 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	// TODO: pull request template
-	pstr := func(str string) *string {
-		return &str
-	}
 	title := fmt.Sprintf("release %s", nextVer.Tag())
 
 	if currRcpr == nil {
 		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
-			Title: pstr(title),
-			Body:  pstr(releases.Body),
+			Title: github.String(title),
+			Body:  github.String(releases.Body),
 			Base:  &releaseBranch,
-			Head:  pstr(head),
+			Head:  github.String(head),
 		})
 		if err != nil {
 			return err
@@ -332,8 +343,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			ctx, rp.owner, rp.repo, *pr.Number, []string{autoLableName})
 		return err
 	}
-	currRcpr.Title = pstr(title)
-	currRcpr.Body = pstr(mergeBody(*currRcpr.Body, releases.Body))
+	currRcpr.Title = github.String(title)
+	currRcpr.Body = github.String(mergeBody(*currRcpr.Body, releases.Body))
 	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *currRcpr.Number, currRcpr)
 	return err
 }
@@ -393,11 +404,8 @@ const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].*)`
 
 var versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
 
-func detectVersionFile(root, ver string) (string, error) {
-	if ver[0] == 'v' {
-		return "", fmt.Errorf("don't v-prefix: %s", ver)
-	}
-	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(ver))
+func detectVersionFile(root string, ver *semv) (string, error) {
+	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(ver.Naked()))
 	if err != nil {
 		return "", err
 	}
@@ -436,7 +444,11 @@ func detectVersionFile(root, ver string) (string, error) {
 	if len(list) < 1 {
 		return "", nil
 	}
-	return list[0], nil // XXX
+	return list[0], nil
+	// XXX: Currently, version file detection methods are inaccurate; it might be better to limit it to
+	// gemspec, setup.py, setup.cfg, package.json, META.json, and so on. However, there may be cases
+	// where some projects have their own version files, and it is annoying to deal with various
+	// languages, etc. one by one, so this is the way to go. We would improve it.
 }
 
 type fileList struct {
@@ -456,11 +468,8 @@ func (fl *fileList) list() []string {
 	return fl.l
 }
 
-func bumpVersionFile(fpath, from, to string) error {
-	if from[0] == 'v' {
-		return fmt.Errorf("don't v-prefix: %s", from)
-	}
-	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(from))
+func bumpVersionFile(fpath string, from, to *semv) error {
+	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(from.Naked()))
 	if err != nil {
 		return err
 	}
@@ -475,7 +484,7 @@ func bumpVersionFile(fpath, from, to string) error {
 			return match
 		}
 		replaced = true
-		return verReg.ReplaceAll(match, []byte(`${1}`+to))
+		return verReg.ReplaceAll(match, []byte(`${1}`+to.Naked()))
 	})
 	return os.WriteFile(fpath, updated, 0666)
 }
