@@ -79,6 +79,16 @@ func (rp *rcpr) initialize(ctx context.Context) error {
 		return err
 	}
 	rp.gh = cli
+
+	isShallow, _, err := rp.c.gitE("rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return err
+	}
+	if isShallow == "true" {
+		if _, _, err := rp.c.gitE("fetch", "--unshallow"); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -105,6 +115,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return printVersion(outStream)
 	}
 
+	// main logic follows
 	rp := &rcpr{
 		c: &commander{outStream: outStream, errStream: errStream, dir: "."},
 	}
@@ -136,16 +147,6 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if branch != releaseBranch {
 		return fmt.Errorf("you are not on release branch %q, current branch is %q",
 			releaseBranch, branch)
-	}
-
-	isShallow, _, err := rp.c.gitE("rev-parse", "--is-shallow-repository")
-	if err != nil {
-		return err
-	}
-	if isShallow == "true" {
-		if _, _, err := rp.c.gitE("fetch", "--unshallow"); err != nil {
-			return err
-		}
 	}
 
 	if _, _, err := rp.c.gitE("config", "user.email"); err != nil {
