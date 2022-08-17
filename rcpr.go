@@ -273,6 +273,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
+	if vfile != "" {
+		nVer, _ := retrieveVersionFromFile(vfile)
+		if nVer != "" && nVer != nextNakedVer {
+			nextNakedVer = nVer
+			nextTagCandidate = nextNakedVer
+			if vPrefix {
+				nextTagCandidate = "v" + nextTagCandidate
+			}
+		}
+	}
 	previousTag := &latestSemverTag
 	if *previousTag == "" {
 		previousTag = nil
