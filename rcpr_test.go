@@ -5,12 +5,14 @@ import (
 )
 
 func TestDetectVersionFile(t *testing.T) {
-	v, _ := newSemver("0.0.0")
+	v, _ := newSemver(version)
 	f, err := detectVersionFile(".", v)
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(f)
+	if f != "version.go" {
+		t.Errorf("error")
+	}
 }
 
 func TestRetrieveVersionFile(t *testing.T) {
