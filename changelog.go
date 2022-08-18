@@ -7,8 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/Songmu/flextime"
+	"time"
 )
 
 var (
@@ -17,7 +16,7 @@ var (
 	newContribReg     = regexp.MustCompile(`(?ms)## New Contributors.*\z`)
 )
 
-func convertKeepAChangelogFormat(md string) string {
+func convertKeepAChangelogFormat(md string, d time.Time) string {
 	md = strings.TrimSpace(md)
 
 	var link string
@@ -30,9 +29,8 @@ func convertKeepAChangelogFormat(md string) string {
 	if m := semverFromLinkReg.FindStringSubmatch(link); len(m) > 1 {
 		semvStr = m[1]
 	}
-	now := flextime.Now()
 
-	heading := fmt.Sprintf("## [%s](%s) - %s", semvStr, link, now.Format("2006-01-02"))
+	heading := fmt.Sprintf("## [%s](%s) - %s", semvStr, link, d.UTC().Format("2006-01-02"))
 	md = strings.Replace(md, "## What's Changed", heading, 1)
 	md = strings.ReplaceAll(md, "\n* ", "\n- ")
 	md = newContribReg.ReplaceAllString(md, "")

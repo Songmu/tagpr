@@ -3,8 +3,6 @@ package rcpr
 import (
 	"testing"
 	"time"
-
-	"github.com/Songmu/flextime"
 )
 
 func TestConvertKeepAChangelogFormat(t *testing.T) {
@@ -54,10 +52,7 @@ func TestConvertKeepAChangelogFormat(t *testing.T) {
 - tagging semver to merged rcpr by @Songmu in https://github.com/Songmu/rcpr/pull/19
 `
 
-	restore := flextime.Fix(time.Date(2022, time.August, 16, 18, 10, 10, 0, time.UTC))
-	defer restore()
-
-	got := convertKeepAChangelogFormat(input)
+	got := convertKeepAChangelogFormat(input, time.Date(2022, time.August, 16, 18, 10, 10, 0, time.UTC))
 	if got != expect {
 		t.Errorf("error:\n %s", got)
 	}
