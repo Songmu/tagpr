@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.0.8](https://github.com/Songmu/rcpr/compare/v0.0.7...v0.0.8) - 2022-08-18
+- refine version file detection by @Songmu in https://github.com/Songmu/rcpr/pull/39
+
 ## [v0.0.7](https://github.com/Songmu/rcpr/compare/v0.0.6...v0.0.7) - 2022-08-18
 - fix process around date when updating changelog by @Songmu in https://github.com/Songmu/rcpr/pull/37
 
