@@ -442,7 +442,7 @@ func (rp *rcpr) detectRemote() (string, error) {
 	return "", errors.New("failed to detect remote")
 }
 
-const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].*)`
+const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,20})`
 
 var versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
 
