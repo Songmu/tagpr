@@ -326,16 +326,33 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 
 	changelog := convertKeepAChangelogFormat(releases.Body)
 	changelogMd := "CHANGELOG.md"
+
 	var content string
 	if exists(changelogMd) {
 		byt, err := os.ReadFile(changelogMd)
 		if err != nil {
 			return err
 		}
-		content = insertNewChangelog(byt, changelog)
-	} else {
-		content = "# Changelog\n\n" + changelog
+		content = strings.TrimSpace(string(byt)) + "\n"
 	}
+
+	// If the changelog is not in "keep a changelog" format, or if the file does not exist, re-create everything. Is it rough...?
+	if !changelogReg.MatchString(content) {
+		// We are concerned that depending on the release history, API requests may become more frequent.
+		vers := (&gitsemvers.Semvers{}).VersionStrings()
+		logs := []string{"# Changelog\n"}
+		for i := len(vers) - 1; i >= 0 || len(vers)-i < 10; i-- { // Up to 10 most recent versions
+			ver := vers[i]
+			releases, _, _ := rp.gh.Repositories.GenerateReleaseNotes(
+				ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
+					TagName: ver,
+				})
+			logs = append(logs, strings.TrimSpace(convertKeepAChangelogFormat(releases.Body))+"\n")
+		}
+		content = strings.Join(logs, "\n")
+	}
+
+	content = insertNewChangelog(content, changelog)
 	if err := os.WriteFile(changelogMd, []byte(content), 0644); err != nil {
 		return err
 	}
