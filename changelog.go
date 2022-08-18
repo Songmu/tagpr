@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	versionLinkReg    = regexp.MustCompile(`\*\*Full Changelog\*\*: (https://.*)$`)
+	versionLinkReg    = regexp.MustCompile(`\n\*\*Full Changelog\*\*: (https://.*)$`)
 	semverFromLinkReg = regexp.MustCompile(`.*[./](v?[0-9]+\.[0-9]+\.[0-9]+)`)
 	newContribReg     = regexp.MustCompile(`(?ms)## New Contributors.*\z`)
 )
@@ -45,9 +45,14 @@ func exists(filename string) bool {
 	return err == nil
 }
 
-func insertNewChangelog(orig []byte, section string) string {
+var changelogReg = regexp.MustCompile(`(?i)^# Change\s?log`)
+
+func insertNewChangelog(orig string, section string) string {
+	orig = strings.TrimSpace(orig) + "\n"
+	section = strings.TrimSpace(section) + "\n"
+
 	var bf bytes.Buffer
-	lineSnr := bufio.NewScanner(bytes.NewReader(orig))
+	lineSnr := bufio.NewScanner(strings.NewReader(orig))
 	inserted := false
 	for lineSnr.Scan() {
 		line := lineSnr.Text()
