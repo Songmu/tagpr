@@ -346,11 +346,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			if i > 10 {
 				break
 			}
-			var d time.Time
-			date, _, err := rp.c.gitE("log", "-1", "--format=%ai", "--date=iso", ver)
-			if err != nil {
-				d, _ = time.Parse("2006-01-02 15:04:05 -0700", date)
-			}
+			date, _, _ := rp.c.gitE("log", "-1", "--format=%ai", "--date=iso", ver)
+			d, _ := time.Parse("2006-01-02 15:04:05 -0700", date)
 			releases, _, _ := rp.gh.Repositories.GenerateReleaseNotes(
 				ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
 					TagName: ver,
