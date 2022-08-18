@@ -444,7 +444,28 @@ func (rp *rcpr) detectRemote() (string, error) {
 
 const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,20})`
 
-var versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
+var (
+	versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
+	// The "testdata" directory is ommited because of the test code for rcpr itself
+	skipDirs = map[string]bool{
+		".git":         true,
+		"testdata":     true,
+		"node_modules": true,
+		"vendor":       true,
+		"third_party":  true,
+		"extlib":       true,
+	}
+	skipFiles = map[string]bool{
+		"requirements.txt":  true,
+		"cpanfile.snapshot": true,
+		"package-lock.json": true,
+	}
+)
+
+func isSkipFile(n string) bool {
+	n = strings.ToLower(n)
+	return strings.HasSuffix(n, ".lock") || skipFiles[n]
+}
 
 func detectVersionFile(root string, ver *semv) (string, error) {
 	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(ver.Naked()))
@@ -465,13 +486,12 @@ func detectVersionFile(root string, ver *semv) (string, error) {
 	fl := &fileList{}
 	if err := walker.Walk(root, func(fpath string, fi os.FileInfo) error {
 		if fi.IsDir() {
-			// The "testdata" directory is ommited because of the test code for rcpr itself
-			if fi.Name() == ".git" || fi.Name() == "testdata" {
+			if skipDirs[fi.Name()] {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if !fi.Mode().IsRegular() {
+		if !fi.Mode().IsRegular() || isSkipFile(fi.Name()) {
 			return nil
 		}
 		joinedPath := filepath.Join(root, fpath)
