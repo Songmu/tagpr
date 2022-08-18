@@ -78,17 +78,50 @@ func detectVersionFile(root string, ver *semv) (string, error) {
 	}, walker.WithErrorCallback(errorCb)); err != nil {
 		return "", err
 	}
-	list := fl.list()
-	if len(list) < 1 {
-		return "", nil
-	}
-	list = fileOrder(list)
 
-	return list[0], nil
-	// XXX: Currently, version file detection methods are inaccurate; it might be better to limit it to
-	// gemspec, setup.py, setup.cfg, package.json, META.json, and so on. However, there may be cases
-	// where some projects have their own version files, and it is annoying to deal with various
-	// languages, etc. one by one, so this is the way to go. We would improve it.
+	// XXX: Whether to adopt a version file when the language is not identifiable?
+	f, _ := versionFile(fl.list())
+	return f, nil
+}
+
+func versionFile(files []string) (string, string) {
+	if len(files) < 1 {
+		return "", ""
+	}
+	files = fileOrder(files)
+	var meta string
+	for _, f := range files {
+		if strings.HasSuffix(f, ".gemspec") {
+			return f, "ruby"
+		}
+		if strings.HasSuffix(f, ".go") {
+			return f, "go"
+		}
+		if meta != "" {
+			if strings.HasPrefix(f, "lib/") && strings.HasSuffix(f, ".pm") {
+				return f, "perl"
+			}
+		}
+
+		base := strings.ToLower(filepath.Base(f))
+		switch base {
+		case "setup.py", "setup.cfg":
+			return f, "python"
+		case "package.json":
+			return f, "node"
+		case "pom.xml":
+			return f, "java"
+		case "meta.json":
+			if meta != "" {
+				meta = f
+			}
+		}
+	}
+
+	if meta != "" {
+		return meta, "perl"
+	}
+	return files[0], ""
 }
 
 func fileOrder(list []string) []string {
