@@ -36,6 +36,7 @@ func printVersion(out io.Writer) error {
 type rcpr struct {
 	c                       *commander
 	gh                      *github.Client
+	cfg                     *config
 	remoteName, owner, repo string
 }
 
@@ -47,23 +48,25 @@ func (rp *rcpr) latestSemverTag() string {
 	return ""
 }
 
-func (rp *rcpr) initialize(ctx context.Context) error {
+func newRcpr(ctx context.Context, c *commander) (*rcpr, error) {
+	rp := &rcpr{c: c}
+
 	var err error
 	rp.remoteName, err = rp.detectRemote()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	remoteURL, _, err := rp.c.gitE("config", "remote."+rp.remoteName+".url")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	u, err := parseGitURL(remoteURL)
 	if err != nil {
-		return fmt.Errorf("failed to parse remote")
+		return nil, fmt.Errorf("failed to parse remote")
 	}
 	m := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
 	if len(m) < 2 {
-		return fmt.Errorf("failed to detect owner and repo from remote URL")
+		return nil, fmt.Errorf("failed to detect owner and repo from remote URL")
 	}
 	rp.owner = m[0]
 	repo := m[1]
@@ -74,20 +77,21 @@ func (rp *rcpr) initialize(ctx context.Context) error {
 
 	cli, err := ghClient(ctx, "", u.Hostname())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	rp.gh = cli
 
 	isShallow, _, err := rp.c.gitE("rev-parse", "--is-shallow-repository")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if isShallow == "true" {
 		if _, _, err := rp.c.gitE("fetch", "--unshallow"); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	rp.cfg = newConfig(rp.c)
+	return rp, nil
 }
 
 func isRcpr(pr *github.PullRequest) bool {
@@ -114,10 +118,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	// main logic follows
-	rp := &rcpr{
-		c: &commander{outStream: outStream, errStream: errStream, dir: "."},
-	}
-	if err := rp.initialize(ctx); err != nil {
+	rp, err := newRcpr(ctx, &commander{outStream: outStream, errStream: errStream, dir: "."})
+	if err != nil {
 		return err
 	}
 
@@ -133,10 +135,20 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	// XXX: Do I need to take care of past tags with and without v-prefixes?
 	// It might be good to be able to enforce presence or absence in a configuration file item.
 
-	releaseBranch, _ := rp.defaultBranch() // TODO: make release branch configable
-	if releaseBranch == "" {
-		releaseBranch = defaultReleaseBranch
+	var releaseBranch string
+	if rp.cfg.releaseBranch != nil {
+		releaseBranch = rp.cfg.releaseBranch.String()
 	}
+	if releaseBranch == "" {
+		releaseBranch, _ := rp.defaultBranch()
+		if releaseBranch == "" {
+			releaseBranch = defaultReleaseBranch
+		}
+		if err := rp.cfg.SetRelaseBranch(releaseBranch); err != nil {
+			return err
+		}
+	}
+
 	branch, _, err := rp.c.gitE("symbolic-ref", "--short", "HEAD")
 	if err != nil {
 		return fmt.Errorf("failed to git symbolic-ref: %w", err)
@@ -166,12 +178,17 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			return err
 		}
 		if len(pulls) > 0 && isRcpr(pulls[0]) {
-			rp.c.git("checkout", "HEAD~")
-			vfile, err := detectVersionFile(".", currVer)
-			if err != nil {
-				return err
+			var vfile string
+			if rp.cfg.versionFile == nil {
+				rp.c.git("checkout", "HEAD~")
+				vfile, err = detectVersionFile(".", currVer)
+				if err != nil {
+					return err
+				}
+				rp.c.git("checkout", releaseBranch)
+			} else {
+				vfile = rp.cfg.versionFile.String()
 			}
-			rp.c.git("checkout", releaseBranch)
 
 			var nextTag string
 			if vfile != "" {
@@ -252,16 +269,26 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 
 	nextVer := guessNextSemver(currVer, currRcpr)
 
-	// TODO: make configurable version file
-	vfile, err := detectVersionFile(".", currVer)
-	if err != nil {
-		return err
+	var vfile string
+	if rp.cfg.versionFile == nil {
+		vfile, err = detectVersionFile(".", currVer)
+		if err != nil {
+			return err
+		}
+		if vfile != "" {
+			if err := rp.cfg.SetVersionFile(vfile); err != nil {
+				return err
+			}
+		}
+	} else {
+		vfile = rp.cfg.versionFile.String()
 	}
 	if vfile != "" {
 		if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
 			return err
 		}
 	}
+	rp.c.gitE("add", "-f", rp.cfg.conf) // ignore any errors
 
 	// TODO To be able to run some kind of change script set by configuration in advance.
 
