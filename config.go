@@ -58,7 +58,7 @@ func newConfig(gitPath string) (*config, error) {
 		}
 	} else {
 		out, err := cfg.gitconfig.Get(configReleaseBranch)
-		if err != nil {
+		if err == nil {
 			cfg.releaseBranch = &configValue{
 				value:  out,
 				source: srcConfigFile,
@@ -73,7 +73,7 @@ func newConfig(gitPath string) (*config, error) {
 		}
 	} else {
 		out, err := cfg.gitconfig.Get(configVersionFile)
-		if err != nil {
+		if err == nil {
 			cfg.releaseBranch = &configValue{
 				value:  out,
 				source: srcConfigFile,
@@ -89,7 +89,7 @@ func newConfig(gitPath string) (*config, error) {
 		cfg.vPrefix = github.Bool(b)
 	} else {
 		b, err := cfg.gitconfig.Bool(configVPrefix)
-		if err != nil {
+		if err == nil {
 			cfg.vPrefix = github.Bool(b)
 		}
 	}
