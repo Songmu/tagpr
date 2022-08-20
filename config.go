@@ -2,6 +2,8 @@ package rcpr
 
 import (
 	"os"
+
+	"github.com/Songmu/gitconfig"
 )
 
 const (
@@ -31,19 +33,24 @@ type config struct {
 	releaseBranch *configValue
 	versionFile   *configValue
 
-	c    *commander
-	conf string
+	c         *commander
+	conf      string
+	gitconfig *gitconfig.Config
 }
 
-func newConfig(c *commander) *config {
-	cfg := &config{conf: defaultConfigFile, c: c}
+func newConfig(gitPath string) *config {
+	cfg := &config{
+		conf:      defaultConfigFile,
+		gitconfig: &gitconfig.Config{GitPath: gitPath, File: defaultConfigFile},
+	}
+
 	if rb := os.Getenv(envReleaseBranch); rb != "" {
 		cfg.releaseBranch = &configValue{
 			value:  rb,
 			source: srcEnv,
 		}
 	} else {
-		out, _, err := c.gitE("config", "-f", cfg.conf, configReleaseBranch)
+		out, err := cfg.gitconfig.Get(configReleaseBranch)
 		if err != nil {
 			cfg.releaseBranch = &configValue{
 				value:  out,
@@ -58,7 +65,7 @@ func newConfig(c *commander) *config {
 			source: srcEnv,
 		}
 	} else {
-		out, _, err := c.gitE("config", "-f", cfg.conf, configVersionFile)
+		out, err := cfg.gitconfig.Get(configVersionFile)
 		if err != nil {
 			cfg.releaseBranch = &configValue{
 				value:  out,
@@ -78,13 +85,13 @@ func (cfg *config) set(key, value string) error {
 	if value == "" {
 		value = "-" // value "-" represents null (really?)
 	}
-	_, _, err := cfg.c.gitE("config", "-f", cfg.conf, key, value)
+	_, err := cfg.gitconfig.Do(key, value)
 	if err != nil {
 		// in this case, config file might be invalid or broken, so retry once.
 		if err = cfg.initializeFile(); err != nil {
 			return err
 		}
-		_, _, err = cfg.c.gitE("config", "-f", cfg.conf, key, value)
+		_, err = cfg.gitconfig.Do(key, value)
 	}
 	return err
 }

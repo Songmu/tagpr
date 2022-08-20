@@ -37,6 +37,7 @@ type rcpr struct {
 	c                       *commander
 	gh                      *github.Client
 	cfg                     *config
+	gitPath                 string
 	remoteName, owner, repo string
 }
 
@@ -49,14 +50,14 @@ func (rp *rcpr) latestSemverTag() string {
 }
 
 func newRcpr(ctx context.Context, c *commander) (*rcpr, error) {
-	rp := &rcpr{c: c}
+	rp := &rcpr{c: c, gitPath: c.gitPath}
 
 	var err error
 	rp.remoteName, err = rp.detectRemote()
 	if err != nil {
 		return nil, err
 	}
-	remoteURL, _, err := rp.c.gitE("config", "remote."+rp.remoteName+".url")
+	remoteURL, _, err := rp.c.GitE("config", "remote."+rp.remoteName+".url")
 	if err != nil {
 		return nil, err
 	}
@@ -81,16 +82,16 @@ func newRcpr(ctx context.Context, c *commander) (*rcpr, error) {
 	}
 	rp.gh = cli
 
-	isShallow, _, err := rp.c.gitE("rev-parse", "--is-shallow-repository")
+	isShallow, _, err := rp.c.GitE("rev-parse", "--is-shallow-repository")
 	if err != nil {
 		return nil, err
 	}
 	if isShallow == "true" {
-		if _, _, err := rp.c.gitE("fetch", "--unshallow"); err != nil {
+		if _, _, err := rp.c.GitE("fetch", "--unshallow"); err != nil {
 			return nil, err
 		}
 	}
-	rp.cfg = newConfig(rp.c)
+	rp.cfg = newConfig(rp.gitPath)
 	return rp, nil
 }
 
@@ -118,7 +119,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	// main logic follows
-	rp, err := newRcpr(ctx, &commander{outStream: outStream, errStream: errStream, dir: "."})
+	rp, err := newRcpr(ctx, &commander{
+		gitPath: "git", outStream: outStream, errStream: errStream, dir: "."})
 	if err != nil {
 		return err
 	}
@@ -149,7 +151,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 	}
 
-	branch, _, err := rp.c.gitE("symbolic-ref", "--short", "HEAD")
+	branch, _, err := rp.c.GitE("symbolic-ref", "--short", "HEAD")
 	if err != nil {
 		return fmt.Errorf("failed to git symbolic-ref: %w", err)
 	}
@@ -159,16 +161,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	// XXX: should care GIT_*_NAME etc?
-	if _, _, err := rp.c.gitE("config", "user.email"); err != nil {
-		rp.c.git("config", "--local", "user.email", gitEmail)
+	if _, _, err := rp.c.GitE("config", "user.email"); err != nil {
+		rp.c.Git("config", "--local", "user.email", gitEmail)
 	}
-	if _, _, err := rp.c.gitE("config", "user.name"); err != nil {
-		rp.c.git("config", "--local", "user.name", gitUser)
+	if _, _, err := rp.c.GitE("config", "user.name"); err != nil {
+		rp.c.Git("config", "--local", "user.name", gitUser)
 	}
 
 	{
 		// tag and exit if the HEAD is the merged rcpr
-		commitish, _, err := rp.c.gitE("rev-parse", "HEAD")
+		commitish, _, err := rp.c.GitE("rev-parse", "HEAD")
 		if err != nil {
 			return err
 		}
@@ -180,12 +182,12 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		if len(pulls) > 0 && isRcpr(pulls[0]) {
 			var vfile string
 			if rp.cfg.versionFile == nil {
-				rp.c.git("checkout", "HEAD~")
+				rp.c.Git("checkout", "HEAD~")
 				vfile, err = detectVersionFile(".", currVer)
 				if err != nil {
 					return err
 				}
-				rp.c.git("checkout", releaseBranch)
+				rp.c.Git("checkout", releaseBranch)
 			} else {
 				vfile = rp.cfg.versionFile.String()
 			}
@@ -209,7 +211,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			// we generate release notes in advance.
 			// Get the previous commitish to avoid picking up the merge of the pull
 			// request made by rcpr.
-			targetCommitish, _, err := rp.c.gitE("rev-parse", "HEAD~")
+			targetCommitish, _, err := rp.c.GitE("rev-parse", "HEAD~")
 			if err != nil {
 				return nil
 			}
@@ -223,11 +225,11 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 				return err
 			}
 
-			rp.c.git("tag", nextTag)
+			rp.c.Git("tag", nextTag)
 			if rp.c.err != nil {
 				return rp.c.err
 			}
-			_, _, err = rp.c.gitE("push", "--tags")
+			_, _, err = rp.c.GitE("push", "--tags")
 			if err != nil {
 				return err
 			}
@@ -250,8 +252,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	rcBranch := fmt.Sprintf("rcpr-%s", currVer.Tag())
-	rp.c.gitE("branch", "-D", rcBranch)
-	rp.c.git("checkout", "-b", rcBranch)
+	rp.c.GitE("branch", "-D", rcBranch)
+	rp.c.Git("checkout", "-b", rcBranch)
 
 	head := fmt.Sprintf("%s:%s", rp.owner, rcBranch)
 	pulls, _, err := rp.gh.PullRequests.List(ctx, rp.owner, rp.repo,
@@ -286,16 +288,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			return err
 		}
 	}
-	rp.c.gitE("add", "-f", rp.cfg.conf) // ignore any errors
+	rp.c.GitE("add", "-f", rp.cfg.conf) // ignore any errors
 
 	// TODO To be able to run some kind of change script set by configuration in advance.
 
-	rp.c.git("commit", "--allow-empty", "-am", autoCommitMessage)
+	rp.c.Git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
 	// XXX: Do I need to apply merge commits too?
 	//     (We ommited merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	out, _, err := rp.c.gitE(
+	out, _, err := rp.c.GitE(
 		"log", "--no-merges", "--pretty=format:%h %s", "main.."+rp.remoteName+"/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
@@ -315,12 +317,12 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 			// and apply it as much as possible.
 			for i := len(cherryPicks) - 1; i >= 0; i-- {
 				commitish := cherryPicks[i]
-				_, _, err := rp.c.gitE(
+				_, _, err := rp.c.GitE(
 					"cherry-pick", "--keep-redundant-commits", "--allow-empty", commitish)
 
 				// conflict, etc. / Need error handling in case of non-conflict error?
 				if err != nil {
-					rp.c.gitE("cherry-pick", "--abort")
+					rp.c.GitE("cherry-pick", "--abort")
 				}
 			}
 		}
@@ -361,13 +363,13 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	// If the changelog is not in "keep a changelog" format, or if the file does not exist, re-create everything. Is it rough...?
 	if !changelogReg.MatchString(content) {
 		// We are concerned that depending on the release history, API requests may become more frequent.
-		vers := (&gitsemvers.Semvers{}).VersionStrings()
+		vers := (&gitsemvers.Semvers{GitPath: rp.gitPath}).VersionStrings()
 		logs := []string{"# Changelog\n"}
 		for i, ver := range vers {
 			if i > 10 {
 				break
 			}
-			date, _, _ := rp.c.gitE("log", "-1", "--format=%ai", "--date=iso", ver)
+			date, _, _ := rp.c.GitE("log", "-1", "--format=%ai", "--date=iso", ver)
 			d, _ := time.Parse("2006-01-02 15:04:05 -0700", date)
 			releases, _, _ := rp.gh.Repositories.GenerateReleaseNotes(
 				ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
@@ -382,10 +384,10 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if err := os.WriteFile(changelogMd, []byte(content), 0644); err != nil {
 		return err
 	}
-	rp.c.gitE("add", changelogMd)
-	rp.c.gitE("commit", "-m", autoChangelogMessage)
+	rp.c.GitE("add", changelogMd)
+	rp.c.GitE("commit", "-m", autoChangelogMessage)
 
-	if _, _, err := rp.c.gitE("push", "--force", rp.remoteName, rcBranch); err != nil {
+	if _, _, err := rp.c.GitE("push", "--force", rp.remoteName, rcBranch); err != nil {
 		return err
 	}
 
@@ -435,7 +437,7 @@ var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 func (rp *rcpr) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
 	// So use `git remote show origin` for detecting default branch
-	show, _, err := rp.c.gitE("remote", "show", rp.remoteName)
+	show, _, err := rp.c.GitE("remote", "show", rp.remoteName)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
 	}
@@ -447,7 +449,7 @@ func (rp *rcpr) defaultBranch() (string, error) {
 }
 
 func (rp *rcpr) detectRemote() (string, error) {
-	remotesStr, _, err := rp.c.gitE("remote")
+	remotesStr, _, err := rp.c.GitE("remote")
 	if err != nil {
 		return "", fmt.Errorf("failed to detect remote: %s", err)
 	}

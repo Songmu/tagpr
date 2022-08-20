@@ -10,9 +10,16 @@ import (
 
 type commander struct {
 	outStream, errStream io.Writer
-	dir                  string
+	gitPath, dir         string
 
 	err error
+}
+
+func (c *commander) getGitPath() string {
+	if c.gitPath == "" {
+		return "git"
+	}
+	return c.gitPath
 }
 
 func (c *commander) cmdE(prog string, args ...string) (string, string, error) {
@@ -35,12 +42,12 @@ func (c *commander) cmdE(prog string, args ...string) (string, string, error) {
 	return strings.TrimSpace(outBuf.String()), strings.TrimSpace(errBuf.String()), err
 }
 
-func (c *commander) gitE(args ...string) (string, string, error) {
-	return c.cmdE("git", args...)
+func (c *commander) GitE(args ...string) (string, string, error) {
+	return c.cmdE(c.getGitPath(), args...)
 }
 
-func (c *commander) git(args ...string) (string, string) {
-	return c.cmd("git", args...)
+func (c *commander) Git(args ...string) (string, string) {
+	return c.cmd(c.getGitPath(), args...)
 }
 
 func (c *commander) cmd(prog string, args ...string) (string, string) {
