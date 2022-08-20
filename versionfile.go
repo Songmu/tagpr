@@ -18,25 +18,34 @@ const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,20})`
 
 var (
 	versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
-	// The "testdata" directory is ommited because of the test code for rcpr itself
-	skipDirs = map[string]bool{
-		".git":         true,
+	skipDirs   = map[string]bool{
+		// The "testdata" directory is ommited because of the test code for rcpr itself
 		"testdata":     true,
+		".git":         true,
 		"node_modules": true,
 		"vendor":       true,
 		"third_party":  true,
 		"extlib":       true,
+		"docs":         true,
+		// The directory for storing python test code, but it may be inappropriate to omit this directory
+		// uniformly because it may be used by test libraries for other languages.
+		"tests": true,
 	}
 	skipFiles = map[string]bool{
 		"requirements.txt":  true,
 		"cpanfile.snapshot": true,
 		"package-lock.json": true,
 	}
+	skipExt = map[string]bool{
+		".md":   true,
+		".rst":  true,
+		".adoc": true,
+	}
 )
 
 func isSkipFile(n string) bool {
 	n = strings.ToLower(n)
-	return strings.HasSuffix(n, ".lock") || skipFiles[n]
+	return strings.HasSuffix(n, ".lock") || skipFiles[n] || skipExt[filepath.Ext(n)]
 }
 
 func detectVersionFile(root string, ver *semv) (string, error) {
