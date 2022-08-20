@@ -41,7 +41,6 @@ type config struct {
 	versionFile   *configValue
 	vPrefix       *bool
 
-	c         *commander
 	conf      string
 	gitconfig *gitconfig.Config
 }
