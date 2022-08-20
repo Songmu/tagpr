@@ -42,7 +42,7 @@ type rcpr struct {
 }
 
 func (rp *rcpr) latestSemverTag() string {
-	vers := (&gitsemvers.Semvers{}).VersionStrings()
+	vers := (&gitsemvers.Semvers{GitPath: rp.gitPath}).VersionStrings()
 	if len(vers) > 0 {
 		return vers[0]
 	}
