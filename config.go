@@ -6,7 +6,19 @@ import (
 
 const (
 	defaultConfigFile    = ".rcpr"
-	defaultConfigContent = `# config file for rcpr in git config format
+	defaultConfigContent = `# config file for the rcpr in git config format
+# The rcpr generates the initial configuration, which you can rewrite to suit your environment.
+# CONFIGURATIONS:
+#   rcpr.releaseBranch
+#       Generally, it is "main." It is the branch for releases. The pcpr tracks this branch,
+#       creates or updates a pull request as a release candidate, or tags when they are merged.
+#
+#   rcpr.versinFile
+#       A versioning file containing the semantic version needed to be updated at release.
+#       It will be synchronized with the "git tag".
+#       Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
+#       Sometimes the source code file, such as version.go or Bar.pm, is used.
+#       If you do not want to use versioning files but only git tags, specify the "-" string here.
 [rcpr]
 `
 	envReleaseBranch    = "RCPR_RELEASE_BRANCH"
