@@ -67,14 +67,14 @@ func newConfig(gitPath string) (*config, error) {
 	}
 
 	if rb := os.Getenv(envVersionFile); rb != "" {
-		cfg.releaseBranch = &configValue{
+		cfg.versionFile = &configValue{
 			value:  rb,
 			source: srcEnv,
 		}
 	} else {
 		out, err := cfg.gitconfig.Get(configVersionFile)
 		if err == nil {
-			cfg.releaseBranch = &configValue{
+			cfg.versionFile = &configValue{
 				value:  out,
 				source: srcConfigFile,
 			}
