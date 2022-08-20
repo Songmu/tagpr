@@ -2,8 +2,10 @@ package rcpr
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/Songmu/gitconfig"
+	"github.com/google/go-github/v45/github"
 )
 
 const (
@@ -21,24 +23,30 @@ const (
 #       Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
 #       Sometimes the source code file, such as version.go or Bar.pm, is used.
 #       If you do not want to use versioning files but only git tags, specify the "-" string here.
+#
+#   rcpr.v-prefix
+#       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
 [rcpr]
 `
 	envReleaseBranch    = "RCPR_RELEASE_BRANCH"
 	envVersionFile      = "RCPR_VERSION_FILE"
+	envVPrefix          = "RCPR_VPREFIX"
 	configReleaseBranch = "rcpr.releaseBranch"
 	configVersionFile   = "rcpr.versionFile"
+	configVPrefix       = "rcpr.v-prefix"
 )
 
 type config struct {
 	releaseBranch *configValue
 	versionFile   *configValue
+	vPrefix       *bool
 
 	c         *commander
 	conf      string
 	gitconfig *gitconfig.Config
 }
 
-func newConfig(gitPath string) *config {
+func newConfig(gitPath string) (*config, error) {
 	cfg := &config{
 		conf:      defaultConfigFile,
 		gitconfig: &gitconfig.Config{GitPath: gitPath, File: defaultConfigFile},
@@ -73,7 +81,21 @@ func newConfig(gitPath string) *config {
 			}
 		}
 	}
-	return cfg
+
+	if vPrefix := os.Getenv(envVPrefix); vPrefix != "" {
+		b, err := strconv.ParseBool(vPrefix)
+		if err != nil {
+			return nil, err
+		}
+		cfg.vPrefix = github.Bool(b)
+	} else {
+		b, err := cfg.gitconfig.Bool(configVPrefix)
+		if err != nil {
+			cfg.vPrefix = github.Bool(b)
+		}
+	}
+
+	return cfg, nil
 }
 
 func (cfg *config) set(key, value string) error {
@@ -125,6 +147,14 @@ func (cfg *config) SetVersionFile(fpath string) error {
 		value:  fpath,
 		source: srcDetect,
 	}
+	return nil
+}
+
+func (cfg *config) SetVPrefix(vPrefix bool) error {
+	if err := cfg.set(configVPrefix, strconv.FormatBool(vPrefix)); err != nil {
+		return err
+	}
+	cfg.vPrefix = github.Bool(vPrefix)
 	return nil
 }
 

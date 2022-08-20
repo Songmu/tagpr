@@ -91,7 +91,10 @@ func newRcpr(ctx context.Context, c *commander) (*rcpr, error) {
 			return nil, err
 		}
 	}
-	rp.cfg = newConfig(rp.gitPath)
+	rp.cfg, err = newConfig(rp.gitPath)
+	if err != nil {
+		return nil, err
+	}
 	return rp, nil
 }
 
@@ -134,8 +137,12 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if err != nil {
 		return err
 	}
-	// XXX: Do I need to take care of past tags with and without v-prefixes?
-	// It might be good to be able to enforce presence or absence in a configuration file item.
+
+	if rp.cfg.vPrefix == nil {
+		rp.cfg.SetVPrefix(currVer.vPrefix)
+	} else {
+		currVer.vPrefix = *rp.cfg.vPrefix
+	}
 
 	var releaseBranch string
 	if rp.cfg.releaseBranch != nil {
