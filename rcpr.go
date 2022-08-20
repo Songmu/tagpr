@@ -275,10 +275,8 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		if err != nil {
 			return err
 		}
-		if vfile != "" {
-			if err := rp.cfg.SetVersionFile(vfile); err != nil {
-				return err
-			}
+		if err := rp.cfg.SetVersionFile(vfile); err != nil {
+			return err
 		}
 	} else {
 		vfile = rp.cfg.versionFile.String()
