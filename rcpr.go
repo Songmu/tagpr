@@ -139,7 +139,9 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	}
 
 	if rp.cfg.vPrefix == nil {
-		rp.cfg.SetVPrefix(currVer.vPrefix)
+		if err := rp.cfg.SetVPrefix(currVer.vPrefix); err != nil {
+			return err
+		}
 	} else {
 		currVer.vPrefix = *rp.cfg.vPrefix
 	}
