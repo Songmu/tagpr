@@ -140,7 +140,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		releaseBranch = rp.cfg.releaseBranch.String()
 	}
 	if releaseBranch == "" {
-		releaseBranch, _ := rp.defaultBranch()
+		releaseBranch, _ = rp.defaultBranch()
 		if releaseBranch == "" {
 			releaseBranch = defaultReleaseBranch
 		}
