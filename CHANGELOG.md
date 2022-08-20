@@ -2,6 +2,10 @@
 
 ## [v0.0.10](https://github.com/Songmu/rcpr/compare/v0.0.9...v0.0.10) - 2022-08-20
 - config rcpr.v-prefix by @Songmu in https://github.com/Songmu/rcpr/pull/45
+- release v0.0.10 by @Songmu in https://github.com/Songmu/rcpr/pull/44
+
+## [v0.0.10](https://github.com/Songmu/rcpr/compare/v0.0.9...v0.0.10) - 2022-08-20
+- config rcpr.v-prefix by @Songmu in https://github.com/Songmu/rcpr/pull/45
 
 ## [v0.0.9](https://github.com/Songmu/rcpr/compare/v0.0.8...v0.0.9) - 2022-08-20
 - implement configuration file by @Songmu in https://github.com/Songmu/rcpr/pull/41
