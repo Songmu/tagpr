@@ -51,7 +51,11 @@ func newConfig(gitPath string) (*config, error) {
 		conf:      defaultConfigFile,
 		gitconfig: &gitconfig.Config{GitPath: gitPath, File: defaultConfigFile},
 	}
+	err := cfg.Reload()
+	return cfg, err
+}
 
+func (cfg *config) Reload() error {
 	if rb := os.Getenv(envReleaseBranch); rb != "" {
 		cfg.releaseBranch = &configValue{
 			value:  rb,
@@ -85,7 +89,7 @@ func newConfig(gitPath string) (*config, error) {
 	if vPrefix := os.Getenv(envVPrefix); vPrefix != "" {
 		b, err := strconv.ParseBool(vPrefix)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		cfg.vPrefix = github.Bool(b)
 	} else {
@@ -94,8 +98,7 @@ func newConfig(gitPath string) (*config, error) {
 			cfg.vPrefix = github.Bool(b)
 		}
 	}
-
-	return cfg, nil
+	return nil
 }
 
 func (cfg *config) set(key, value string) error {

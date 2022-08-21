@@ -337,7 +337,11 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 	}
 
-	// TODO: refetch versionfile
+	// Reread the configuration file (.rcpr) as it may have been rewritten during the cherry-pick process.
+	rp.cfg.Reload()
+	if rp.cfg.VersionFile() != nil {
+		vfile = rp.cfg.VersionFile().String()
+	}
 	if vfile != "" {
 		nVer, _ := retrieveVersionFromFile(vfile, nextVer.vPrefix)
 		if nVer != nil && nVer.Naked() != nextVer.Naked() {
