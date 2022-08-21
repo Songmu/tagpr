@@ -26,6 +26,7 @@ const (
 #
 #   rcpr.v-prefix
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
+#       This is only a tagging convention, not how it is described in the version file.
 [rcpr]
 `
 	envReleaseBranch    = "RCPR_RELEASE_BRANCH"
