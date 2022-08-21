@@ -337,6 +337,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 	}
 
+	// TODO: refetch versionfile
 	if vfile != "" {
 		nVer, _ := retrieveVersionFromFile(vfile, nextVer.vPrefix)
 		if nVer != nil && nVer.Naked() != nextVer.Naked() {
