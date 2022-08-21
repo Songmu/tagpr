@@ -24,7 +24,7 @@ const (
 #       Sometimes the source code file, such as version.go or Bar.pm, is used.
 #       If you do not want to use versioning files but only git tags, specify the "-" string here.
 #
-#   rcpr.v-prefix
+#   rcpr.vPrefix
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
 #       This is only a tagging convention, not how it is described in the version file.
 [rcpr]
@@ -34,7 +34,7 @@ const (
 	envVPrefix          = "RCPR_VPREFIX"
 	configReleaseBranch = "rcpr.releaseBranch"
 	configVersionFile   = "rcpr.versionFile"
-	configVPrefix       = "rcpr.v-prefix"
+	configVPrefix       = "rcpr.vPrefix"
 )
 
 type config struct {
