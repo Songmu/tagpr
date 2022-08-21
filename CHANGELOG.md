@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.11](https://github.com/Songmu/rcpr/compare/v0.0.10...v0.0.11) - 2022-08-21
+- fix config key to rcpr.vPrefix from rcpr.v-prefix by @Songmu in https://github.com/Songmu/rcpr/pull/50
+- reload version file after cherry-picking process by @Songmu in https://github.com/Songmu/rcpr/pull/51
+
 ## [v0.0.10](https://github.com/Songmu/rcpr/compare/v0.0.9...v0.0.10) - 2022-08-20
 - config rcpr.v-prefix by @Songmu in https://github.com/Songmu/rcpr/pull/45
 
