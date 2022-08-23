@@ -405,13 +405,36 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
-	// TODO: pull request template
-	title := fmt.Sprintf("release %s", nextVer.Tag())
+	// TODO: pull request template?
+	title := fmt.Sprintf("Release for %s", nextVer.Tag())
+
+	body := fmt.Sprintf(`This pull request is for the release as %[1]s created by [rcpr](https://github.com/Songmu/rcpr).
+
+Merging it will tag %[1]s to the merge commit and create a GitHub release of it.
+
+You can modify this branch %[2]s directly before merging if you want to change the next version number or other files for the release.
+
+<details>
+<summary>How to change the next version as you like</summary>
+
+There are two ways to do it.
+
+- Version file
+    - Edit and commit the version file specified in the .rcpr configuration file to describe the next version
+    - If you want to use another version file, edit the configuration file.
+- Labels convention
+    - Add labels to this pull request like "rcpr:minor" or "rcpr:major"
+    - If no label is added, the patch version is incremented as is.
+</details>
+
+---
+%[3]s
+`, nextVer.Tag(), rcBranch, releases.Body)
 
 	if currRcpr == nil {
 		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
 			Title: github.String(title),
-			Body:  github.String(releases.Body),
+			Body:  github.String(body),
 			Base:  &releaseBranch,
 			Head:  github.String(head),
 		})
@@ -423,7 +446,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 	currRcpr.Title = github.String(title)
-	currRcpr.Body = github.String(mergeBody(*currRcpr.Body, releases.Body))
+	currRcpr.Body = github.String(mergeBody(*currRcpr.Body, body))
 	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *currRcpr.Number, currRcpr)
 	return err
 }
