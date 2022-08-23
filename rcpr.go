@@ -408,9 +408,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	// TODO: pull request template?
 	title := fmt.Sprintf("Release for %s", nextVer.Tag())
 
-	body := fmt.Sprintf(`This pull request is for the release as %[1]s created by [rcpr](https://github.com/Songmu/rcpr).
-
-Merging it will tag %[1]s to the merge commit and create a GitHub release of it.
+	body := fmt.Sprintf(`This pull request is for the next release as %[1]s created by [rcpr](https://github.com/Songmu/rcpr). Merging it will tag %[1]s to the merge commit and create a GitHub release.
 
 You can modify this branch %[2]s directly before merging if you want to change the next version number or other files for the release.
 
@@ -424,7 +422,7 @@ There are two ways to do it.
     - If you want to use another version file, edit the configuration file.
 - Labels convention
     - Add labels to this pull request like "rcpr:minor" or "rcpr:major"
-    - If no label is added, the patch version is incremented as is.
+    - If no conventional labels are added, the patch version is incremented as is.
 </details>
 
 ---
