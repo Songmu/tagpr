@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.12](https://github.com/Songmu/rcpr/compare/v0.0.11...v0.0.12) - 2022-08-24
+- adjust default pull request body by @Songmu in https://github.com/Songmu/rcpr/pull/52
+- fix remote name detection by @Songmu in https://github.com/Songmu/rcpr/pull/54
+
 ## [v0.0.11](https://github.com/Songmu/rcpr/compare/v0.0.10...v0.0.11) - 2022-08-21
 - fix config key to rcpr.vPrefix from rcpr.v-prefix by @Songmu in https://github.com/Songmu/rcpr/pull/50
 - reload version file after cherry-picking process by @Songmu in https://github.com/Songmu/rcpr/pull/51
