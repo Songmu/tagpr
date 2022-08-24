@@ -202,12 +202,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if err != nil {
 		return err
 	}
-	var currRcpr *github.PullRequest
+
+	var (
+		labels   []*github.Label
+		currRcpr *github.PullRequest
+	)
 	if len(pulls) > 0 {
 		currRcpr = pulls[0]
+		labels = currRcpr.Labels
 	}
-
-	nextVer := guessNextSemver(currVer, currRcpr)
+	nextVer := guessNextSemver(currVer, labels)
 
 	var vfile string
 	if rp.cfg.versionFile == nil {
@@ -430,16 +434,14 @@ func (rp *rcpr) detectRemote() (string, error) {
 	return remotes[len(remotes)-1], nil
 }
 
-func guessNextSemver(ver *semv, pr *github.PullRequest) *semv {
+func guessNextSemver(ver *semv, labels []*github.Label) *semv {
 	var isMajor, isMinor bool
-	if pr != nil {
-		for _, l := range pr.Labels {
-			switch l.GetName() {
-			case autoLableName + ":major":
-				isMajor = true
-			case autoLableName + ":minor":
-				isMinor = true
-			}
+	for _, l := range labels {
+		switch l.GetName() {
+		case autoLableName + ":major", autoLableName + "/major":
+			isMajor = true
+		case autoLableName + ":minor", autoLableName + "/minor":
+			isMinor = true
 		}
 	}
 
