@@ -29,6 +29,10 @@ func (rp *rcpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer 
 		err   error
 	)
 	releaseBranch := rp.cfg.releaseBranch.String()
+
+	// Using "HEAD~" to retrieve the one previous commit before merging does not work well in cases
+	// "Rebase and merge" was used. However, we don't care about "Rebase and merge" and only support
+	// "Create a merge commit" and "Squash and merge."
 	if rp.cfg.versionFile == nil {
 		rp.c.Git("checkout", "HEAD~")
 		vfile, err = detectVersionFile(".", currVer)
