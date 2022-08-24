@@ -489,15 +489,16 @@ func (rp *rcpr) detectRemote() (string, error) {
 		return "", fmt.Errorf("failed to detect remote: %s", err)
 	}
 	remotes := strings.Fields(remotesStr)
-	if len(remotes) == 1 {
-		return remotes[0], nil
+	if len(remotes) < 1 {
+		return "", errors.New("failed to detect remote")
 	}
 	for _, r := range remotes {
 		if r == "origin" {
 			return r, nil
 		}
 	}
-	return "", errors.New("failed to detect remote")
+	// the last output is the first added remote
+	return remotes[len(remotes)-1], nil
 }
 
 func guessNextSemver(ver *semv, pr *github.PullRequest) *semv {
