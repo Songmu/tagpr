@@ -260,7 +260,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		}
 	}
 
-	rcBranch := fmt.Sprintf("rcpr-%s", currVer.Tag())
+	rcBranch := fmt.Sprintf("rcpr-from-%s", currVer.Tag())
 	rp.c.GitE("branch", "-D", rcBranch)
 	rp.c.Git("checkout", "-b", rcBranch)
 
