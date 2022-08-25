@@ -52,7 +52,7 @@ func (rp *rcpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer 
 		}
 		nextTag = nextVer.Tag()
 	} else {
-		nextTag = guessNextSemver(currVer, pr.Labels).Tag()
+		nextTag = currVer.GuessNext(pr.Labels).Tag()
 	}
 	previousTag := &latestSemverTag
 	if *previousTag == "" {

@@ -1,6 +1,9 @@
 package rcpr
 
-import "github.com/Masterminds/semver/v3"
+import (
+	"github.com/Masterminds/semver/v3"
+	"github.com/google/go-github/v45/github"
+)
 
 type semv struct {
 	v *semver.Version
@@ -28,4 +31,31 @@ func (sv *semv) Tag() string {
 		return "v" + sv.Naked()
 	}
 	return sv.Naked()
+}
+
+func (sv *semv) GuessNext(labels []*github.Label) *semv {
+	var isMajor, isMinor bool
+	for _, l := range labels {
+		switch l.GetName() {
+		case autoLableName + ":major", autoLableName + "/major":
+			isMajor = true
+		case autoLableName + ":minor", autoLableName + "/minor":
+			isMinor = true
+		}
+	}
+
+	var nextv semver.Version
+	switch {
+	case isMajor:
+		nextv = sv.v.IncMajor()
+	case isMinor:
+		nextv = sv.v.IncMinor()
+	default:
+		nextv = sv.v.IncPatch()
+	}
+
+	return &semv{
+		v:       &nextv,
+		vPrefix: sv.vPrefix,
+	}
 }

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/Songmu/gitsemvers"
 	"github.com/google/go-github/v45/github"
 )
@@ -211,7 +210,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		currRcpr = pulls[0]
 		labels = currRcpr.Labels
 	}
-	nextVer := guessNextSemver(currVer, labels)
+	nextVer := currVer.GuessNext(labels)
 
 	var vfile string
 	if rp.cfg.versionFile == nil {
@@ -432,31 +431,4 @@ func (rp *rcpr) detectRemote() (string, error) {
 	}
 	// the last output is the first added remote
 	return remotes[len(remotes)-1], nil
-}
-
-func guessNextSemver(ver *semv, labels []*github.Label) *semv {
-	var isMajor, isMinor bool
-	for _, l := range labels {
-		switch l.GetName() {
-		case autoLableName + ":major", autoLableName + "/major":
-			isMajor = true
-		case autoLableName + ":minor", autoLableName + "/minor":
-			isMinor = true
-		}
-	}
-
-	var nextv semver.Version
-	switch {
-	case isMajor:
-		nextv = ver.v.IncMajor()
-	case isMinor:
-		nextv = ver.v.IncMinor()
-	default:
-		nextv = ver.v.IncPatch()
-	}
-
-	return &semv{
-		v:       &nextv,
-		vPrefix: ver.vPrefix,
-	}
 }
