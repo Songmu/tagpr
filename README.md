@@ -42,11 +42,15 @@ rcpr short description
 Action Songmu/rcpr@main installs rcpr binary for Linux into /usr/local/bin and run it.
 
 ```yaml
+name: rcpr
+on:
+  push:
+    branches: ["main"]
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: Songmu/rcpr@main
 ```
 
