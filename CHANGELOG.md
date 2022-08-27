@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.0.12](https://github.com/Songmu/rcpr/compare/v0.0.11...v0.0.12) - 2022-08-27
+- adjust default pull request body by @Songmu in https://github.com/Songmu/rcpr/pull/52
+- fix remote name detection by @Songmu in https://github.com/Songmu/rcpr/pull/54
+- change rc branch naming by @Songmu in https://github.com/Songmu/rcpr/pull/55
+- separate out tagging function by @Songmu in https://github.com/Songmu/rcpr/pull/57
+- add convention label variations by @Songmu in https://github.com/Songmu/rcpr/pull/58
+- define semv.GuessNext to clarify access scope by @Songmu in https://github.com/Songmu/rcpr/pull/59
+- add .github/release.yml automatically when it doesn't exist by @Songmu in https://github.com/Songmu/rcpr/pull/60
+- specify a command to change files just before release by config by @Songmu in https://github.com/Songmu/rcpr/pull/61
+- configurable pull request template by @Songmu in https://github.com/Songmu/rcpr/pull/62
+
 ## [v0.0.11](https://github.com/Songmu/rcpr/compare/v0.0.10...v0.0.11) - 2022-08-21
 - fix config key to rcpr.vPrefix from rcpr.v-prefix by @Songmu in https://github.com/Songmu/rcpr/pull/50
 - reload version file after cherry-picking process by @Songmu in https://github.com/Songmu/rcpr/pull/51
