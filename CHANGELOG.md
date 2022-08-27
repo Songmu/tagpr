@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.0.13](https://github.com/Songmu/rcpr/compare/v0.0.12...v0.0.13) - 2022-08-27
+- add actions.yml to support GitHub Actions by @Songmu in https://github.com/Songmu/rcpr/pull/63
+- support to specify multiple version files by comma separated string in conf by @Songmu in https://github.com/Songmu/rcpr/pull/65
+- adjust bumping version file behavior by @Songmu in https://github.com/Songmu/rcpr/pull/66
+- remove generated comment in CHANGELOG.md by @Songmu in https://github.com/Songmu/rcpr/pull/67
+
 ## [v0.0.12](https://github.com/Songmu/rcpr/compare/v0.0.11...v0.0.12) - 2022-08-27
 - adjust default pull request body by @Songmu in https://github.com/Songmu/rcpr/pull/52
 - fix remote name detection by @Songmu in https://github.com/Songmu/rcpr/pull/54
