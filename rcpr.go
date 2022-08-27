@@ -123,13 +123,15 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return printVersion(outStream)
 	}
 
-	// main logic follows
 	rp, err := newRcpr(ctx, &commander{
 		gitPath: "git", outStream: outStream, errStream: errStream, dir: "."})
 	if err != nil {
 		return err
 	}
+	return rp.Run(ctx)
+}
 
+func (rp *rcpr) Run(ctx context.Context) error {
 	latestSemverTag := rp.latestSemverTag()
 	currVerStr := latestSemverTag
 	if currVerStr == "" {
