@@ -1,0 +1,20 @@
+name: rcpr
+description: install and run the rcpr
+inputs:
+  version:
+    description: "A version to install rcpr"
+    required: false
+    default: "v0.0.12"
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        DIRNAME=rcpr_${{ inputs.version }}_linux_amd64
+        cd /tmp
+        curl -sLO https://github.com/Songmu/rcpr/releases/download/${{ inputs.version }}/${DIRNAME}.tar.gz
+        tar zxvf ${DIRNAME}.tar.gz
+        sudo mv ${DIRNAME}/rcpr /usr/local/bin/rcpr
+        rm -rf ${DIRNAME} ${DIRNAME}.zip
+        cd -
+        rcpr
+      shell: bash
