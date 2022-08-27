@@ -13,10 +13,11 @@ var (
 	versionLinkReg    = regexp.MustCompile(`\n\*\*Full Changelog\*\*: (https://.*)$`)
 	semverFromLinkReg = regexp.MustCompile(`.*[./](v?[0-9]+\.[0-9]+\.[0-9]+)`)
 	newContribReg     = regexp.MustCompile(`(?ms)## New Contributors.*\z`)
+	genCommentReg     = regexp.MustCompile(`<!-- Release notes generated using configuration.*?-->`)
 )
 
 func convertKeepAChangelogFormat(md string, d time.Time) string {
-	md = strings.TrimSpace(md)
+	md = strings.TrimSpace(genCommentReg.ReplaceAllString(md, ""))
 
 	var link string
 	md = versionLinkReg.ReplaceAllStringFunc(md, func(match string) string {
