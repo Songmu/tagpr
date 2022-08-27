@@ -183,7 +183,7 @@ func (cfg *config) SetVPrefix(vPrefix bool) error {
 	return nil
 }
 
-func (cfg *config) RelaseBranch() *configValue {
+func (cfg *config) ReleaseBranch() *configValue {
 	return cfg.releaseBranch
 }
 
