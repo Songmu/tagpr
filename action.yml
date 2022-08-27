@@ -4,7 +4,7 @@ inputs:
   version:
     description: "A version to install rcpr"
     required: false
-    default: "v0.0.12"
+    default: "v0.0.13"
 runs:
   using: "composite"
   steps:
