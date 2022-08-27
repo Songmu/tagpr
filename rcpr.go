@@ -227,7 +227,16 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	} else {
 		vfile = rp.cfg.versionFile.String()
 	}
-	// TODO To be able to run some kind of change script set by configuration in advance.
+
+	if com := rp.cfg.Command(); com != nil {
+		prog := com.String()
+		var progArgs []string
+		if strings.ContainsAny(prog, " \n") {
+			prog = "sh"
+			progArgs = []string{"-c", prog}
+		}
+		rp.c.cmdE(prog, progArgs...)
+	}
 
 	if vfile != "" {
 		if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
