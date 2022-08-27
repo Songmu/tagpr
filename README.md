@@ -37,6 +37,19 @@ rcpr short description
 % go install github.com/Songmu/rcpr/cmd/rcpr@latest
 ```
 
+## GitHub Actions
+
+Action Songmu/rcpr@main installs rcpr binary for Linux into /usr/local/bin and run it.
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Songmu/rcpr@main
+```
+
 ## Author
 
 [Songmu](https://github.com/Songmu)
