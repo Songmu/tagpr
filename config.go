@@ -18,7 +18,7 @@ const (
 #       creates or updates a pull request as a release candidate, or tags when they are merged.
 #
 #   rcpr.versinFile
-#       A versioning file containing the semantic version needed to be updated at release.
+#       Versioning file containing the semantic version needed to be updated at release.
 #       It will be synchronized with the "git tag".
 #       Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
 #       Sometimes the source code file, such as version.go or Bar.pm, is used.
@@ -29,23 +29,29 @@ const (
 #       This is only a tagging convention, not how it is described in the version file.
 #
 #   rcpr.command (Optional)
-#       Specify a command to change files just before release.
+#       Command to change files just before release.
+#
+#   rcpr.tmplate (Optional)
+#       Pull request template in go template format
 [rcpr]
 `
 	envReleaseBranch    = "RCPR_RELEASE_BRANCH"
 	envVersionFile      = "RCPR_VERSION_FILE"
 	envVPrefix          = "RCPR_VPREFIX"
 	envCommand          = "RCPR_COMMAND"
+	envTemplate         = "RCPR_TEMPLATE"
 	configReleaseBranch = "rcpr.releaseBranch"
 	configVersionFile   = "rcpr.versionFile"
 	configVPrefix       = "rcpr.vPrefix"
 	configCommand       = "rcpr.command"
+	configTemplate      = "rcpr.template"
 )
 
 type config struct {
 	releaseBranch *configValue
 	versionFile   *configValue
 	command       *configValue
+	template      *configValue
 	vPrefix       *bool
 
 	conf      string
@@ -115,6 +121,21 @@ func (cfg *config) Reload() error {
 		if err == nil {
 			cfg.command = &configValue{
 				value:  command,
+				source: srcConfigFile,
+			}
+		}
+	}
+
+	if tmpl := os.Getenv(envTemplate); tmpl != "" {
+		cfg.template = &configValue{
+			value:  tmpl,
+			source: srcEnv,
+		}
+	} else {
+		template, err := cfg.gitconfig.Get(configTemplate)
+		if err == nil {
+			cfg.template = &configValue{
+				value:  template,
 				source: srcConfigFile,
 			}
 		}
@@ -193,6 +214,10 @@ func (cfg *config) VersionFile() *configValue {
 
 func (cfg *config) Command() *configValue {
 	return cfg.command
+}
+
+func (cfg *config) Template() *configValue {
+	return cfg.template
 }
 
 type configValue struct {
