@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -36,11 +35,6 @@ func convertKeepAChangelogFormat(md string, d time.Time) string {
 	md = newContribReg.ReplaceAllString(md, "")
 
 	return strings.TrimSpace(md) + "\n"
-}
-
-func exists(filename string) bool {
-	_, err := os.Stat(filename)
-	return err == nil
 }
 
 var changelogReg = regexp.MustCompile(`(?i)^# Change\s?log`)

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -226,6 +227,8 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	} else {
 		vfile = rp.cfg.versionFile.String()
 	}
+	// TODO To be able to run some kind of change script set by configuration in advance.
+
 	if vfile != "" {
 		if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
 			return err
@@ -233,7 +236,21 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	}
 	rp.c.GitE("add", "-f", rp.cfg.conf) // ignore any errors
 
-	// TODO To be able to run some kind of change script set by configuration in advance.
+	const releaseYml = ".github/release.yml"
+	// TODO: It would be nice to be able to add an exclude setting even if release.yml already exists.
+	if !exists(releaseYml) {
+		if err := os.MkdirAll(filepath.Dir(releaseYml), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(releaseYml, []byte(`changelog:
+  exclude:
+    labels:
+      - rcpr
+`), 0644); err != nil {
+			return err
+		}
+		rp.c.GitE("add", "-f", releaseYml)
+	}
 
 	rp.c.Git("commit", "--allow-empty", "-am", autoCommitMessage)
 
