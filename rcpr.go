@@ -186,17 +186,21 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	}
 	nextVer := currVer.GuessNext(labels)
 
-	var vfile string
+	var vfiles []string
 	if vf := rp.cfg.VersionFile(); vf != nil {
-		vfile = vf.String()
+		vfiles = strings.Split(vf.String(), ",")
+		for i, v := range vfiles {
+			vfiles[i] = strings.TrimSpace(v)
+		}
 	} else {
-		vfile, err = detectVersionFile(".", currVer)
+		vfile, err := detectVersionFile(".", currVer)
 		if err != nil {
 			return err
 		}
 		if err := rp.cfg.SetVersionFile(vfile); err != nil {
 			return err
 		}
+		vfiles = []string{vfile}
 	}
 
 	if com := rp.cfg.Command(); com != nil {
@@ -209,9 +213,11 @@ func (rp *rcpr) Run(ctx context.Context) error {
 		rp.c.cmdE(prog, progArgs...)
 	}
 
-	if vfile != "" {
-		if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
-			return err
+	if vfiles[0] != "" {
+		for _, vfile := range vfiles {
+			if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
+				return err
+			}
 		}
 	}
 	rp.c.GitE("add", "-f", rp.cfg.conf) // ignore any errors
@@ -271,10 +277,13 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	// Reread the configuration file (.rcpr) as it may have been rewritten during the cherry-pick process.
 	rp.cfg.Reload()
 	if rp.cfg.VersionFile() != nil {
-		vfile = rp.cfg.VersionFile().String()
+		vfiles = strings.Split(rp.cfg.VersionFile().String(), ",")
+		for i, v := range vfiles {
+			vfiles[i] = strings.TrimSpace(v)
+		}
 	}
-	if vfile != "" {
-		nVer, _ := retrieveVersionFromFile(vfile, nextVer.vPrefix)
+	if vfiles[0] != "" {
+		nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer.vPrefix)
 		if nVer != nil && nVer.Naked() != nextVer.Naked() {
 			nextVer = nVer
 		}

@@ -23,6 +23,7 @@ const (
 #       Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
 #       Sometimes the source code file, such as version.go or Bar.pm, is used.
 #       If you do not want to use versioning files but only git tags, specify the "-" string here.
+#       You can specify multiple version files by comma separated strings.
 #
 #   rcpr.vPrefix
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
