@@ -7,7 +7,9 @@ import (
 
 func TestConvertKeepAChangelogFormat(t *testing.T) {
 
-	input := `## What's Changed
+	input := `<!-- Release notes generated using configuration in .github/release.yml at v0.0.12 -->
+
+## What's Changed
 * add github.go for github client by @Songmu in https://github.com/Songmu/rcpr/pull/1
 * create rc pull request when the default branch proceeded by @Songmu in https://github.com/Songmu/rcpr/pull/2
 * dogfooding by @Songmu in https://github.com/Songmu/rcpr/pull/3
