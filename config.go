@@ -27,19 +27,25 @@ const (
 #   rcpr.vPrefix
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
 #       This is only a tagging convention, not how it is described in the version file.
+#
+#   rcpr.command (Optional)
+#       Specify a command to change files just before release.
 [rcpr]
 `
 	envReleaseBranch    = "RCPR_RELEASE_BRANCH"
 	envVersionFile      = "RCPR_VERSION_FILE"
 	envVPrefix          = "RCPR_VPREFIX"
+	envCommand          = "RCPR_COMMAND"
 	configReleaseBranch = "rcpr.releaseBranch"
 	configVersionFile   = "rcpr.versionFile"
 	configVPrefix       = "rcpr.vPrefix"
+	configCommand       = "rcpr.command"
 )
 
 type config struct {
 	releaseBranch *configValue
 	versionFile   *configValue
+	command       *configValue
 	vPrefix       *bool
 
 	conf      string
@@ -98,6 +104,22 @@ func (cfg *config) Reload() error {
 			cfg.vPrefix = github.Bool(b)
 		}
 	}
+
+	if command := os.Getenv(envCommand); command != "" {
+		cfg.command = &configValue{
+			value:  command,
+			source: srcEnv,
+		}
+	} else {
+		command, err := cfg.gitconfig.Get(configCommand)
+		if err == nil {
+			cfg.command = &configValue{
+				value:  command,
+				source: srcConfigFile,
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -161,12 +183,16 @@ func (cfg *config) SetVPrefix(vPrefix bool) error {
 	return nil
 }
 
-func (cfg *config) RelaseBranch() *configValue {
+func (cfg *config) ReleaseBranch() *configValue {
 	return cfg.releaseBranch
 }
 
 func (cfg *config) VersionFile() *configValue {
 	return cfg.versionFile
+}
+
+func (cfg *config) Command() *configValue {
+	return cfg.command
 }
 
 type configValue struct {

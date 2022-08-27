@@ -152,8 +152,8 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	}
 
 	var releaseBranch string
-	if rp.cfg.releaseBranch != nil {
-		releaseBranch = rp.cfg.releaseBranch.String()
+	if r := rp.cfg.ReleaseBranch(); r != nil {
+		releaseBranch = r.String()
 	}
 	if releaseBranch == "" {
 		releaseBranch, _ = rp.defaultBranch()
@@ -216,7 +216,9 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	nextVer := currVer.GuessNext(labels)
 
 	var vfile string
-	if rp.cfg.versionFile == nil {
+	if vf := rp.cfg.VersionFile(); vf != nil {
+		vfile = vf.String()
+	} else {
 		vfile, err = detectVersionFile(".", currVer)
 		if err != nil {
 			return err
@@ -224,10 +226,17 @@ func (rp *rcpr) Run(ctx context.Context) error {
 		if err := rp.cfg.SetVersionFile(vfile); err != nil {
 			return err
 		}
-	} else {
-		vfile = rp.cfg.versionFile.String()
 	}
-	// TODO To be able to run some kind of change script set by configuration in advance.
+
+	if com := rp.cfg.Command(); com != nil {
+		prog := com.String()
+		var progArgs []string
+		if strings.ContainsAny(prog, " \n") {
+			prog = "sh"
+			progArgs = []string{"-c", prog}
+		}
+		rp.c.cmdE(prog, progArgs...)
+	}
 
 	if vfile != "" {
 		if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
