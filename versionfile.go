@@ -165,7 +165,7 @@ func (fl *fileList) list() []string {
 }
 
 func bumpVersionFile(fpath string, from, to *semv) error {
-	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(from.Naked()))
+	verReg, err := regexp.Compile(`(v|\b)` + regexp.QuoteMeta(from.Naked()) + `\b`)
 	if err != nil {
 		return err
 	}
