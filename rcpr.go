@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/Songmu/gitsemvers"
@@ -365,30 +366,31 @@ func (rp *rcpr) Run(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: pull request template?
-	title := fmt.Sprintf("Release for %s", nextVer.Tag())
+	var tmpl *template.Template
+	if t := rp.cfg.Template(); t != nil {
+		tmpTmpl, err := template.ParseFiles(t.String())
+		if err == nil {
+			tmpl = tmpTmpl
+		} else {
+			log.Printf("parse configured template failed: %s\n", err)
+		}
+	}
+	pt := newPRTmpl(tmpl)
+	prText, err := pt.Render(&tmplArg{
+		NextVersion: nextVer.Tag(),
+		RCBranch:    rcBranch,
+		Changelog:   releases.Body,
+	})
+	if err != nil {
+		return err
+	}
 
-	body := fmt.Sprintf(`This pull request is for the next release as %[1]s created by [rcpr](https://github.com/Songmu/rcpr). Merging it will tag %[1]s to the merge commit and create a GitHub release.
-
-You can modify this branch %[2]s directly before merging if you want to change the next version number or other files for the release.
-
-<details>
-<summary>How to change the next version as you like</summary>
-
-There are two ways to do it.
-
-- Version file
-    - Edit and commit the version file specified in the .rcpr configuration file to describe the next version
-    - If you want to use another version file, edit the configuration file.
-- Labels convention
-    - Add labels to this pull request like "rcpr:minor" or "rcpr:major"
-    - If no conventional labels are added, the patch version is incremented as is.
-</details>
-
----
-%[3]s
-`, nextVer.Tag(), rcBranch, releases.Body)
-
+	stuffs := strings.SplitN(strings.TrimSpace(prText), "\n", 2)
+	title := stuffs[0]
+	var body string
+	if len(stuffs) > 1 {
+		body = strings.TrimSpace(stuffs[1])
+	}
 	if currRcpr == nil {
 		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
 			Title: github.String(title),
