@@ -1,4 +1,4 @@
-package rcpr
+package tagpr
 
 import (
 	"context"
@@ -21,12 +21,12 @@ const (
 	gitUser              = "github-actions[bot]"
 	gitEmail             = "github-actions[bot]@users.noreply.github.com"
 	defaultReleaseBranch = "main"
-	autoCommitMessage    = "[rcpr] prepare for the next release"
-	autoChangelogMessage = "[rcpr] update CHANGELOG.md"
-	autoLableName        = "rcpr"
+	autoCommitMessage    = "[tagpr] prepare for the next release"
+	autoChangelogMessage = "[tagpr] update CHANGELOG.md"
+	autoLableName        = "tagpr"
 )
 
-type rcpr struct {
+type tagpr struct {
 	c                       *commander
 	gh                      *github.Client
 	cfg                     *config
@@ -34,7 +34,7 @@ type rcpr struct {
 	remoteName, owner, repo string
 }
 
-func (rp *rcpr) latestSemverTag() string {
+func (rp *tagpr) latestSemverTag() string {
 	vers := (&gitsemvers.Semvers{GitPath: rp.gitPath}).VersionStrings()
 	if len(vers) > 0 {
 		return vers[0]
@@ -42,8 +42,8 @@ func (rp *rcpr) latestSemverTag() string {
 	return ""
 }
 
-func newRcpr(ctx context.Context, c *commander) (*rcpr, error) {
-	rp := &rcpr{c: c, gitPath: c.gitPath}
+func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
+	rp := &tagpr{c: c, gitPath: c.gitPath}
 
 	var err error
 	rp.remoteName, err = rp.detectRemote()
@@ -91,7 +91,7 @@ func newRcpr(ctx context.Context, c *commander) (*rcpr, error) {
 	return rp, nil
 }
 
-func isRcpr(pr *github.PullRequest) bool {
+func isTagPR(pr *github.PullRequest) bool {
 	if pr == nil {
 		return false
 	}
@@ -103,7 +103,7 @@ func isRcpr(pr *github.PullRequest) bool {
 	return false
 }
 
-func (rp *rcpr) Run(ctx context.Context) error {
+func (rp *tagpr) Run(ctx context.Context) error {
 	latestSemverTag := rp.latestSemverTag()
 	currVerStr := latestSemverTag
 	if currVerStr == "" {
@@ -153,16 +153,16 @@ func (rp *rcpr) Run(ctx context.Context) error {
 		rp.c.Git("config", "--local", "user.name", gitUser)
 	}
 
-	// If the latest commit is a merge commit of the pull request by rcpr,
+	// If the latest commit is a merge commit of the pull request by tagpr,
 	// tag the semver to the commit and create a release and exit.
-	if pr, err := rp.latestPullRequest(ctx); err != nil || isRcpr(pr) {
+	if pr, err := rp.latestPullRequest(ctx); err != nil || isTagPR(pr) {
 		if err != nil {
 			return err
 		}
 		return rp.tagRelease(ctx, pr, currVer, latestSemverTag)
 	}
 
-	rcBranch := fmt.Sprintf("rcpr-from-%s", currVer.Tag())
+	rcBranch := fmt.Sprintf("tagpr-from-%s", currVer.Tag())
 	rp.c.GitE("branch", "-D", rcBranch)
 	rp.c.Git("checkout", "-b", rcBranch)
 
@@ -178,11 +178,11 @@ func (rp *rcpr) Run(ctx context.Context) error {
 
 	var (
 		labels   []*github.Label
-		currRcpr *github.PullRequest
+		currTagPR *github.PullRequest
 	)
 	if len(pulls) > 0 {
-		currRcpr = pulls[0]
-		labels = currRcpr.Labels
+		currTagPR = pulls[0]
+		labels = currTagPR.Labels
 	}
 	nextVer := currVer.GuessNext(labels)
 
@@ -231,7 +231,7 @@ func (rp *rcpr) Run(ctx context.Context) error {
 		if err := os.WriteFile(releaseYml, []byte(`changelog:
   exclude:
     labels:
-      - rcpr
+      - tagpr
 `), 0644); err != nil {
 			return err
 		}
@@ -274,7 +274,7 @@ func (rp *rcpr) Run(ctx context.Context) error {
 		}
 	}
 
-	// Reread the configuration file (.rcpr) as it may have been rewritten during the cherry-pick process.
+	// Reread the configuration file (.tagpr) as it may have been rewritten during the cherry-pick process.
 	rp.cfg.Reload()
 	if rp.cfg.VersionFile() != nil {
 		vfiles = strings.Split(rp.cfg.VersionFile().String(), ",")
@@ -370,7 +370,7 @@ func (rp *rcpr) Run(ctx context.Context) error {
 	if len(stuffs) > 1 {
 		body = strings.TrimSpace(stuffs[1])
 	}
-	if currRcpr == nil {
+	if currTagPR == nil {
 		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
 			Title: github.String(title),
 			Body:  github.String(body),
@@ -384,9 +384,9 @@ func (rp *rcpr) Run(ctx context.Context) error {
 			ctx, rp.owner, rp.repo, *pr.Number, []string{autoLableName})
 		return err
 	}
-	currRcpr.Title = github.String(title)
-	currRcpr.Body = github.String(mergeBody(*currRcpr.Body, body))
-	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *currRcpr.Number, currRcpr)
+	currTagPR.Title = github.String(title)
+	currTagPR.Body = github.String(mergeBody(*currTagPR.Body, body))
+	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *currTagPR.Number, currTagPR)
 	return err
 }
 
@@ -411,7 +411,7 @@ func mergeBody(now, update string) string {
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 
-func (rp *rcpr) defaultBranch() (string, error) {
+func (rp *tagpr) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
 	// So use `git remote show origin` for detecting default branch
 	show, _, err := rp.c.GitE("remote", "show", rp.remoteName)
@@ -425,7 +425,7 @@ func (rp *rcpr) defaultBranch() (string, error) {
 	return m[1], nil
 }
 
-func (rp *rcpr) detectRemote() (string, error) {
+func (rp *tagpr) detectRemote() (string, error) {
 	remotesStr, _, err := rp.c.GitE("remote")
 	if err != nil {
 		return "", fmt.Errorf("failed to detect remote: %s", err)

@@ -1,4 +1,4 @@
-package rcpr
+package tagpr
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"github.com/google/go-github/v45/github"
 )
 
-func (rp *rcpr) latestPullRequest(ctx context.Context) (*github.PullRequest, error) {
-	// tag and exit if the HEAD is the merged rcpr
+func (rp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, error) {
+	// tag and exit if the HEAD is the merged tagpr
 	commitish, _, err := rp.c.GitE("rev-parse", "HEAD")
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func (rp *rcpr) latestPullRequest(ctx context.Context) (*github.PullRequest, err
 	return pulls[0], nil
 }
 
-func (rp *rcpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
+func (rp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
 	var (
 		vfile string
 		err   error
@@ -59,10 +59,10 @@ func (rp *rcpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer 
 		previousTag = nil
 	}
 
-	// To avoid putting pull requests created by rcpr itself in the release notes,
+	// To avoid putting pull requests created by tagpr itself in the release notes,
 	// we generate release notes in advance.
 	// Get the previous commitish to avoid picking up the merge of the pull
-	// request made by rcpr.
+	// request made by tagpr.
 	targetCommitish, _, err := rp.c.GitE("rev-parse", "HEAD~")
 	if err != nil {
 		return nil

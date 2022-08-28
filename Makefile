@@ -1,6 +1,6 @@
 VERSION = $(shell godzil show-version)
 CURRENT_REVISION = $(shell git rev-parse --short HEAD)
-BUILD_LDFLAGS = "-s -w -X github.com/Songmu/rcpr.revision=$(CURRENT_REVISION)"
+BUILD_LDFLAGS = "-s -w -X github.com/Songmu/tagpr.revision=$(CURRENT_REVISION)"
 u := $(if $(update),-u)
 
 .PHONY: deps
@@ -18,11 +18,11 @@ test:
 
 .PHONY: build
 build:
-	go build -ldflags=$(BUILD_LDFLAGS) ./cmd/rcpr
+	go build -ldflags=$(BUILD_LDFLAGS) ./cmd/tagpr
 
 .PHONY: install
 install:
-	go install -ldflags=$(BUILD_LDFLAGS) ./cmd/rcpr
+	go install -ldflags=$(BUILD_LDFLAGS) ./cmd/tagpr
 
 .PHONY: release
 release: devel-deps

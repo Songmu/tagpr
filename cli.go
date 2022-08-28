@@ -1,4 +1,4 @@
-package rcpr
+package tagpr
 
 import (
 	"context"
@@ -8,14 +8,14 @@ import (
 	"log"
 )
 
-const cmdName = "rcpr"
+const cmdName = "tagpr"
 
 func printVersion(out io.Writer) error {
 	_, err := fmt.Fprintf(out, "%s v%s (rev:%s)\n", cmdName, version, revision)
 	return err
 }
 
-// Run the rcpr
+// Run the tagpr
 func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) error {
 	log.SetOutput(errStream)
 	fs := flag.NewFlagSet(
@@ -29,7 +29,7 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return printVersion(outStream)
 	}
 
-	rp, err := newRcpr(ctx, &commander{
+	rp, err := newTagPR(ctx, &commander{
 		gitPath: "git", outStream: outStream, errStream: errStream, dir: "."})
 	if err != nil {
 		return err

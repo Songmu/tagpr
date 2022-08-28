@@ -1,10 +1,10 @@
-name: rcpr
+name: tagpr
 on:
   push:
     branches:
     - "main"
 jobs:
-  rcpr:
+  tagpr:
     runs-on: ubuntu-latest
     steps:
     - name: setup go
@@ -17,6 +17,6 @@ jobs:
         token: ${{ secrets.GH_PAT }}
     - run: |
         make install
-        rcpr
+        tagpr
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}

@@ -1,4 +1,4 @@
 changelog:
   exclude:
     labels:
-      - rcpr
+      - tagpr
