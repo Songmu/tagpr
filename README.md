@@ -11,37 +11,14 @@ tagpr
 [license]: https://github.com/Songmu/tagpr/blob/main/LICENSE
 [PkgGoDev]: https://pkg.go.dev/github.com/Songmu/tagpr
 
-tagpr short description
+The `tagpr` automatically creates and updates a pull request for unreleased items, tag them when they are merged, and create releases.
 
 ## Synopsis
 
-```go
-// simple usage here
-```
-
-## Description
-
-## Installation
-
-```console
-# Install the latest version. (Install it into ./bin/ by default).
-% curl -sfL https://raw.githubusercontent.com/Songmu/tagpr/main/install.sh | sh -s
-
-# Specify installation directory ($(go env GOPATH)/bin/) and version.
-% curl -sfL https://raw.githubusercontent.com/Songmu/tagpr/main/install.sh | sh -s -- -b $(go env GOPATH)/bin [vX.Y.Z]
-
-# In alpine linux (as it does not come with curl by default)
-% wget -O - -q https://raw.githubusercontent.com/Songmu/tagpr/main/install.sh | sh -s [vX.Y.Z]
-
-# go install
-% go install github.com/Songmu/tagpr/cmd/tagpr@latest
-```
-
-## GitHub Actions
-
-Action Songmu/tagpr@main installs tagpr binary for Linux into /usr/local/bin and run it.
+The `tagpr` is designed to run on github actions.
 
 ```yaml
+# .github/workflows/tagpr.yml
 name: tagpr
 on:
   push:
@@ -53,6 +30,35 @@ jobs:
       - uses: actions/checkout@v3
       - uses: Songmu/tagpr@main
 ```
+
+## Description
+By using `tagpr`, the release flow can be visible and the maintainer can simply merge pull requests to complete the release.
+
+## Configuration
+
+Describe the settings in the .tagpr file directly under the repository. This is automatically created the first time tagpr is run, but feel free to adjust it. The following configuration items are available
+
+### tagpr.releaseBranch
+Generally, it is "main." It is the branch for releases. The pcpr tracks this branch,
+creates or updates a pull request as a release candidate, or tags when they are merged.
+
+### tagpr.versinFile
+Versioning file containing the semantic version needed to be updated at release.
+It will be synchronized with the "git tag".
+Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
+Sometimes the source code file, such as version.go or Bar.pm, is used.
+If you do not want to use versioning files but only git tags, specify the "-" string here.
+You can specify multiple version files by comma separated strings.
+
+### tagpr.vPrefix
+Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
+This is only a tagging convention, not how it is described in the version file.
+
+### tagpr.command (Optional)
+Command to change files just before release.
+
+### tagpr.tmplate (Optional)
+Pull request template in go template format
 
 ## Author
 
