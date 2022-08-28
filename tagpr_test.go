@@ -1,4 +1,4 @@
-package rcpr
+package tagpr
 
 import (
 	"testing"

@@ -1,4 +1,4 @@
-module github.com/Songmu/rcpr
+module github.com/Songmu/tagpr
 
 go 1.19
 

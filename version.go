@@ -1,4 +1,4 @@
-package rcpr
+package tagpr
 
 const version = "0.0.12"
 

@@ -1,20 +1,20 @@
-name: rcpr
-description: install and run the rcpr
+name: tagpr
+description: install and run the tagpr
 inputs:
   version:
-    description: "A version to install rcpr"
+    description: "A version to install tagpr"
     required: false
     default: "v0.0.12"
 runs:
   using: "composite"
   steps:
     - run: |
-        DIRNAME=rcpr_${{ inputs.version }}_linux_amd64
+        DIRNAME=tagpr_${{ inputs.version }}_linux_amd64
         cd /tmp
-        curl -sLO https://github.com/Songmu/rcpr/releases/download/${{ inputs.version }}/${DIRNAME}.tar.gz
+        curl -sLO https://github.com/Songmu/tagpr/releases/download/${{ inputs.version }}/${DIRNAME}.tar.gz
         tar zxvf ${DIRNAME}.tar.gz
-        sudo mv ${DIRNAME}/rcpr /usr/local/bin/rcpr
+        sudo mv ${DIRNAME}/tagpr /usr/local/bin/tagpr
         rm -rf ${DIRNAME} ${DIRNAME}.zip
         cd -
-        rcpr
+        tagpr
       shell: bash

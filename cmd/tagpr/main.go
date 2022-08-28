@@ -6,12 +6,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/Songmu/rcpr"
+	"github.com/Songmu/tagpr"
 )
 
 func main() {
 	log.SetFlags(0)
-	err := rcpr.Run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)
+	err := tagpr.Run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)
 	if err != nil && err != flag.ErrHelp {
 		log.Println(err)
 		exitCode := 1

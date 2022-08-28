@@ -1,4 +1,4 @@
-package rcpr
+package tagpr
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,20})`
 var (
 	versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
 	skipDirs   = map[string]bool{
-		// The "testdata" directory is ommited because of the test code for rcpr itself
+		// The "testdata" directory is ommited because of the test code for tagpr itself
 		"testdata":     true,
 		".git":         true,
 		"node_modules": true,
@@ -55,7 +55,7 @@ func detectVersionFile(root string, ver *semv) (string, error) {
 	}
 
 	errorCb := func(fpath string, err error) error {
-		// When running a rcpr binary under the repository root, "text file busy" occurred,
+		// When running a tagpr binary under the repository root, "text file busy" occurred,
 		// so I did error handling as this, but it did not solve the problem, and it is a special case,
 		// so we may not need to do the check in particular.
 		if os.IsPermission(err) || errors.Is(err, syscall.ETXTBSY) {

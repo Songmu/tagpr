@@ -1,4 +1,4 @@
-package rcpr
+package tagpr
 
 import (
 	"os"
@@ -9,15 +9,15 @@ import (
 )
 
 const (
-	defaultConfigFile    = ".rcpr"
-	defaultConfigContent = `# config file for the rcpr in git config format
-# The rcpr generates the initial configuration, which you can rewrite to suit your environment.
+	defaultConfigFile    = ".tagpr"
+	defaultConfigContent = `# config file for the tagpr in git config format
+# The tagpr generates the initial configuration, which you can rewrite to suit your environment.
 # CONFIGURATIONS:
-#   rcpr.releaseBranch
+#   tagpr.releaseBranch
 #       Generally, it is "main." It is the branch for releases. The pcpr tracks this branch,
 #       creates or updates a pull request as a release candidate, or tags when they are merged.
 #
-#   rcpr.versinFile
+#   tagpr.versinFile
 #       Versioning file containing the semantic version needed to be updated at release.
 #       It will be synchronized with the "git tag".
 #       Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
@@ -25,27 +25,27 @@ const (
 #       If you do not want to use versioning files but only git tags, specify the "-" string here.
 #       You can specify multiple version files by comma separated strings.
 #
-#   rcpr.vPrefix
+#   tagpr.vPrefix
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
 #       This is only a tagging convention, not how it is described in the version file.
 #
-#   rcpr.command (Optional)
+#   tagpr.command (Optional)
 #       Command to change files just before release.
 #
-#   rcpr.tmplate (Optional)
+#   tagpr.tmplate (Optional)
 #       Pull request template in go template format
-[rcpr]
+[tagpr]
 `
-	envReleaseBranch    = "RCPR_RELEASE_BRANCH"
-	envVersionFile      = "RCPR_VERSION_FILE"
-	envVPrefix          = "RCPR_VPREFIX"
-	envCommand          = "RCPR_COMMAND"
-	envTemplate         = "RCPR_TEMPLATE"
-	configReleaseBranch = "rcpr.releaseBranch"
-	configVersionFile   = "rcpr.versionFile"
-	configVPrefix       = "rcpr.vPrefix"
-	configCommand       = "rcpr.command"
-	configTemplate      = "rcpr.template"
+	envReleaseBranch    = "TAGPR_RELEASE_BRANCH"
+	envVersionFile      = "TAGPR_VERSION_FILE"
+	envVPrefix          = "TAGPR_VPREFIX"
+	envCommand          = "TAGPR_COMMAND"
+	envTemplate         = "TAGPR_TEMPLATE"
+	configReleaseBranch = "tagpr.releaseBranch"
+	configVersionFile   = "tagpr.versionFile"
+	configVPrefix       = "tagpr.vPrefix"
+	configCommand       = "tagpr.command"
+	configTemplate      = "tagpr.template"
 )
 
 type config struct {
