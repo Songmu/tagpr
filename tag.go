@@ -6,14 +6,14 @@ import (
 	"github.com/google/go-github/v45/github"
 )
 
-func (rp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, error) {
+func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, error) {
 	// tag and exit if the HEAD is the merged tagpr
-	commitish, _, err := rp.c.GitE("rev-parse", "HEAD")
+	commitish, _, err := tp.c.GitE("rev-parse", "HEAD")
 	if err != nil {
 		return nil, err
 	}
-	pulls, _, err := rp.gh.PullRequests.ListPullRequestsWithCommit(
-		ctx, rp.owner, rp.repo, commitish, nil)
+	pulls, _, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
+		ctx, tp.owner, tp.repo, commitish, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -23,25 +23,25 @@ func (rp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, er
 	return pulls[0], nil
 }
 
-func (rp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
+func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
 	var (
 		vfile string
 		err   error
 	)
-	releaseBranch := rp.cfg.releaseBranch.String()
+	releaseBranch := tp.cfg.releaseBranch.String()
 
 	// Using "HEAD~" to retrieve the one previous commit before merging does not work well in cases
 	// "Rebase and merge" was used. However, we don't care about "Rebase and merge" and only support
 	// "Create a merge commit" and "Squash and merge."
-	if rp.cfg.versionFile == nil {
-		rp.c.Git("checkout", "HEAD~")
+	if tp.cfg.versionFile == nil {
+		tp.c.Git("checkout", "HEAD~")
 		vfile, err = detectVersionFile(".", currVer)
 		if err != nil {
 			return err
 		}
-		rp.c.Git("checkout", releaseBranch)
+		tp.c.Git("checkout", releaseBranch)
 	} else {
-		vfile = rp.cfg.versionFile.String()
+		vfile = tp.cfg.versionFile.String()
 	}
 
 	var nextTag string
@@ -63,12 +63,12 @@ func (rp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	// we generate release notes in advance.
 	// Get the previous commitish to avoid picking up the merge of the pull
 	// request made by tagpr.
-	targetCommitish, _, err := rp.c.GitE("rev-parse", "HEAD~")
+	targetCommitish, _, err := tp.c.GitE("rev-parse", "HEAD~")
 	if err != nil {
 		return nil
 	}
-	releases, _, err := rp.gh.Repositories.GenerateReleaseNotes(
-		ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
+	releases, _, err := tp.gh.Repositories.GenerateReleaseNotes(
+		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
 			TagName:         nextTag,
 			PreviousTagName: previousTag,
 			TargetCommitish: &targetCommitish,
@@ -77,18 +77,18 @@ func (rp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return err
 	}
 
-	rp.c.Git("tag", nextTag)
-	if rp.c.err != nil {
-		return rp.c.err
+	tp.c.Git("tag", nextTag)
+	if tp.c.err != nil {
+		return tp.c.err
 	}
-	_, _, err = rp.c.GitE("push", "--tags")
+	_, _, err = tp.c.GitE("push", "--tags")
 	if err != nil {
 		return err
 	}
 
 	// Don't use GenerateReleaseNote flag and use pre generated one
-	_, _, err = rp.gh.Repositories.CreateRelease(
-		ctx, rp.owner, rp.repo, &github.RepositoryRelease{
+	_, _, err = tp.gh.Repositories.CreateRelease(
+		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
 			TagName:         &nextTag,
 			TargetCommitish: &releaseBranch,
 			Name:            &releases.Name,

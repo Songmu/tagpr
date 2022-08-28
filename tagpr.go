@@ -34,8 +34,8 @@ type tagpr struct {
 	remoteName, owner, repo string
 }
 
-func (rp *tagpr) latestSemverTag() string {
-	vers := (&gitsemvers.Semvers{GitPath: rp.gitPath}).VersionStrings()
+func (tp *tagpr) latestSemverTag() string {
+	vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
 	if len(vers) > 0 {
 		return vers[0]
 	}
@@ -43,14 +43,14 @@ func (rp *tagpr) latestSemverTag() string {
 }
 
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
-	rp := &tagpr{c: c, gitPath: c.gitPath}
+	tp := &tagpr{c: c, gitPath: c.gitPath}
 
 	var err error
-	rp.remoteName, err = rp.detectRemote()
+	tp.remoteName, err = tp.detectRemote()
 	if err != nil {
 		return nil, err
 	}
-	remoteURL, _, err := rp.c.GitE("config", "remote."+rp.remoteName+".url")
+	remoteURL, _, err := tp.c.GitE("config", "remote."+tp.remoteName+".url")
 	if err != nil {
 		return nil, err
 	}
@@ -62,33 +62,33 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	if len(m) < 2 {
 		return nil, fmt.Errorf("failed to detect owner and repo from remote URL")
 	}
-	rp.owner = m[0]
+	tp.owner = m[0]
 	repo := m[1]
 	if u.Scheme == "ssh" || u.Scheme == "git" {
 		repo = strings.TrimSuffix(repo, ".git")
 	}
-	rp.repo = repo
+	tp.repo = repo
 
 	cli, err := ghClient(ctx, "", u.Hostname())
 	if err != nil {
 		return nil, err
 	}
-	rp.gh = cli
+	tp.gh = cli
 
-	isShallow, _, err := rp.c.GitE("rev-parse", "--is-shallow-repository")
+	isShallow, _, err := tp.c.GitE("rev-parse", "--is-shallow-repository")
 	if err != nil {
 		return nil, err
 	}
 	if isShallow == "true" {
-		if _, _, err := rp.c.GitE("fetch", "--unshallow"); err != nil {
+		if _, _, err := tp.c.GitE("fetch", "--unshallow"); err != nil {
 			return nil, err
 		}
 	}
-	rp.cfg, err = newConfig(rp.gitPath)
+	tp.cfg, err = newConfig(tp.gitPath)
 	if err != nil {
 		return nil, err
 	}
-	return rp, nil
+	return tp, nil
 }
 
 func isTagPR(pr *github.PullRequest) bool {
@@ -103,8 +103,8 @@ func isTagPR(pr *github.PullRequest) bool {
 	return false
 }
 
-func (rp *tagpr) Run(ctx context.Context) error {
-	latestSemverTag := rp.latestSemverTag()
+func (tp *tagpr) Run(ctx context.Context) error {
+	latestSemverTag := tp.latestSemverTag()
 	currVerStr := latestSemverTag
 	if currVerStr == "" {
 		currVerStr = "v0.0.0"
@@ -114,29 +114,29 @@ func (rp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 
-	if rp.cfg.vPrefix == nil {
-		if err := rp.cfg.SetVPrefix(currVer.vPrefix); err != nil {
+	if tp.cfg.vPrefix == nil {
+		if err := tp.cfg.SetVPrefix(currVer.vPrefix); err != nil {
 			return err
 		}
 	} else {
-		currVer.vPrefix = *rp.cfg.vPrefix
+		currVer.vPrefix = *tp.cfg.vPrefix
 	}
 
 	var releaseBranch string
-	if r := rp.cfg.ReleaseBranch(); r != nil {
+	if r := tp.cfg.ReleaseBranch(); r != nil {
 		releaseBranch = r.String()
 	}
 	if releaseBranch == "" {
-		releaseBranch, _ = rp.defaultBranch()
+		releaseBranch, _ = tp.defaultBranch()
 		if releaseBranch == "" {
 			releaseBranch = defaultReleaseBranch
 		}
-		if err := rp.cfg.SetRelaseBranch(releaseBranch); err != nil {
+		if err := tp.cfg.SetRelaseBranch(releaseBranch); err != nil {
 			return err
 		}
 	}
 
-	branch, _, err := rp.c.GitE("symbolic-ref", "--short", "HEAD")
+	branch, _, err := tp.c.GitE("symbolic-ref", "--short", "HEAD")
 	if err != nil {
 		return fmt.Errorf("failed to git symbolic-ref: %w", err)
 	}
@@ -146,28 +146,28 @@ func (rp *tagpr) Run(ctx context.Context) error {
 	}
 
 	// XXX: should care GIT_*_NAME etc?
-	if _, _, err := rp.c.GitE("config", "user.email"); err != nil {
-		rp.c.Git("config", "--local", "user.email", gitEmail)
+	if _, _, err := tp.c.GitE("config", "user.email"); err != nil {
+		tp.c.Git("config", "--local", "user.email", gitEmail)
 	}
-	if _, _, err := rp.c.GitE("config", "user.name"); err != nil {
-		rp.c.Git("config", "--local", "user.name", gitUser)
+	if _, _, err := tp.c.GitE("config", "user.name"); err != nil {
+		tp.c.Git("config", "--local", "user.name", gitUser)
 	}
 
 	// If the latest commit is a merge commit of the pull request by tagpr,
 	// tag the semver to the commit and create a release and exit.
-	if pr, err := rp.latestPullRequest(ctx); err != nil || isTagPR(pr) {
+	if pr, err := tp.latestPullRequest(ctx); err != nil || isTagPR(pr) {
 		if err != nil {
 			return err
 		}
-		return rp.tagRelease(ctx, pr, currVer, latestSemverTag)
+		return tp.tagRelease(ctx, pr, currVer, latestSemverTag)
 	}
 
 	rcBranch := fmt.Sprintf("tagpr-from-%s", currVer.Tag())
-	rp.c.GitE("branch", "-D", rcBranch)
-	rp.c.Git("checkout", "-b", rcBranch)
+	tp.c.GitE("branch", "-D", rcBranch)
+	tp.c.Git("checkout", "-b", rcBranch)
 
-	head := fmt.Sprintf("%s:%s", rp.owner, rcBranch)
-	pulls, _, err := rp.gh.PullRequests.List(ctx, rp.owner, rp.repo,
+	head := fmt.Sprintf("%s:%s", tp.owner, rcBranch)
+	pulls, _, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
 		&github.PullRequestListOptions{
 			Head: head,
 			Base: releaseBranch,
@@ -177,7 +177,7 @@ func (rp *tagpr) Run(ctx context.Context) error {
 	}
 
 	var (
-		labels   []*github.Label
+		labels    []*github.Label
 		currTagPR *github.PullRequest
 	)
 	if len(pulls) > 0 {
@@ -187,7 +187,7 @@ func (rp *tagpr) Run(ctx context.Context) error {
 	nextVer := currVer.GuessNext(labels)
 
 	var vfiles []string
-	if vf := rp.cfg.VersionFile(); vf != nil {
+	if vf := tp.cfg.VersionFile(); vf != nil {
 		vfiles = strings.Split(vf.String(), ",")
 		for i, v := range vfiles {
 			vfiles[i] = strings.TrimSpace(v)
@@ -197,20 +197,20 @@ func (rp *tagpr) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := rp.cfg.SetVersionFile(vfile); err != nil {
+		if err := tp.cfg.SetVersionFile(vfile); err != nil {
 			return err
 		}
 		vfiles = []string{vfile}
 	}
 
-	if com := rp.cfg.Command(); com != nil {
+	if com := tp.cfg.Command(); com != nil {
 		prog := com.String()
 		var progArgs []string
 		if strings.ContainsAny(prog, " \n") {
 			prog = "sh"
 			progArgs = []string{"-c", prog}
 		}
-		rp.c.cmdE(prog, progArgs...)
+		tp.c.cmdE(prog, progArgs...)
 	}
 
 	if vfiles[0] != "" {
@@ -220,7 +220,7 @@ func (rp *tagpr) Run(ctx context.Context) error {
 			}
 		}
 	}
-	rp.c.GitE("add", "-f", rp.cfg.conf) // ignore any errors
+	tp.c.GitE("add", "-f", tp.cfg.conf) // ignore any errors
 
 	const releaseYml = ".github/release.yml"
 	// TODO: It would be nice to be able to add an exclude setting even if release.yml already exists.
@@ -235,16 +235,16 @@ func (rp *tagpr) Run(ctx context.Context) error {
 `), 0644); err != nil {
 			return err
 		}
-		rp.c.GitE("add", "-f", releaseYml)
+		tp.c.GitE("add", "-f", releaseYml)
 	}
 
-	rp.c.Git("commit", "--allow-empty", "-am", autoCommitMessage)
+	tp.c.Git("commit", "--allow-empty", "-am", autoCommitMessage)
 
 	// cherry-pick if the remote branch is exists and changed
 	// XXX: Do I need to apply merge commits too?
 	//     (We ommited merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	out, _, err := rp.c.GitE(
-		"log", "--no-merges", "--pretty=format:%h %s", "main.."+rp.remoteName+"/"+rcBranch)
+	out, _, err := tp.c.GitE(
+		"log", "--no-merges", "--pretty=format:%h %s", "main.."+tp.remoteName+"/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
@@ -263,21 +263,21 @@ func (rp *tagpr) Run(ctx context.Context) error {
 			// and apply it as much as possible.
 			for i := len(cherryPicks) - 1; i >= 0; i-- {
 				commitish := cherryPicks[i]
-				_, _, err := rp.c.GitE(
+				_, _, err := tp.c.GitE(
 					"cherry-pick", "--keep-redundant-commits", "--allow-empty", commitish)
 
 				// conflict, etc. / Need error handling in case of non-conflict error?
 				if err != nil {
-					rp.c.GitE("cherry-pick", "--abort")
+					tp.c.GitE("cherry-pick", "--abort")
 				}
 			}
 		}
 	}
 
 	// Reread the configuration file (.tagpr) as it may have been rewritten during the cherry-pick process.
-	rp.cfg.Reload()
-	if rp.cfg.VersionFile() != nil {
-		vfiles = strings.Split(rp.cfg.VersionFile().String(), ",")
+	tp.cfg.Reload()
+	if tp.cfg.VersionFile() != nil {
+		vfiles = strings.Split(tp.cfg.VersionFile().String(), ",")
 		for i, v := range vfiles {
 			vfiles[i] = strings.TrimSpace(v)
 		}
@@ -292,8 +292,8 @@ func (rp *tagpr) Run(ctx context.Context) error {
 	if *previousTag == "" {
 		previousTag = nil
 	}
-	releases, _, err := rp.gh.Repositories.GenerateReleaseNotes(
-		ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
+	releases, _, err := tp.gh.Repositories.GenerateReleaseNotes(
+		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
 			TagName:         nextVer.Tag(),
 			PreviousTagName: previousTag,
 			TargetCommitish: &releaseBranch,
@@ -317,16 +317,16 @@ func (rp *tagpr) Run(ctx context.Context) error {
 	// If the changelog is not in "keep a changelog" format, or if the file does not exist, re-create everything. Is it rough...?
 	if !changelogReg.MatchString(content) {
 		// We are concerned that depending on the release history, API requests may become more frequent.
-		vers := (&gitsemvers.Semvers{GitPath: rp.gitPath}).VersionStrings()
+		vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
 		logs := []string{"# Changelog\n"}
 		for i, ver := range vers {
 			if i > 10 {
 				break
 			}
-			date, _, _ := rp.c.GitE("log", "-1", "--format=%ai", "--date=iso", ver)
+			date, _, _ := tp.c.GitE("log", "-1", "--format=%ai", "--date=iso", ver)
 			d, _ := time.Parse("2006-01-02 15:04:05 -0700", date)
-			releases, _, _ := rp.gh.Repositories.GenerateReleaseNotes(
-				ctx, rp.owner, rp.repo, &github.GenerateNotesOptions{
+			releases, _, _ := tp.gh.Repositories.GenerateReleaseNotes(
+				ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
 					TagName: ver,
 				})
 			logs = append(logs, strings.TrimSpace(convertKeepAChangelogFormat(releases.Body, d))+"\n")
@@ -338,15 +338,15 @@ func (rp *tagpr) Run(ctx context.Context) error {
 	if err := os.WriteFile(changelogMd, []byte(content), 0644); err != nil {
 		return err
 	}
-	rp.c.GitE("add", changelogMd)
-	rp.c.GitE("commit", "-m", autoChangelogMessage)
+	tp.c.GitE("add", changelogMd)
+	tp.c.GitE("commit", "-m", autoChangelogMessage)
 
-	if _, _, err := rp.c.GitE("push", "--force", rp.remoteName, rcBranch); err != nil {
+	if _, _, err := tp.c.GitE("push", "--force", tp.remoteName, rcBranch); err != nil {
 		return err
 	}
 
 	var tmpl *template.Template
-	if t := rp.cfg.Template(); t != nil {
+	if t := tp.cfg.Template(); t != nil {
 		tmpTmpl, err := template.ParseFiles(t.String())
 		if err == nil {
 			tmpl = tmpTmpl
@@ -371,7 +371,7 @@ func (rp *tagpr) Run(ctx context.Context) error {
 		body = strings.TrimSpace(stuffs[1])
 	}
 	if currTagPR == nil {
-		pr, _, err := rp.gh.PullRequests.Create(ctx, rp.owner, rp.repo, &github.NewPullRequest{
+		pr, _, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, &github.NewPullRequest{
 			Title: github.String(title),
 			Body:  github.String(body),
 			Base:  &releaseBranch,
@@ -380,13 +380,13 @@ func (rp *tagpr) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		_, _, err = rp.gh.Issues.AddLabelsToIssue(
-			ctx, rp.owner, rp.repo, *pr.Number, []string{autoLableName})
+		_, _, err = tp.gh.Issues.AddLabelsToIssue(
+			ctx, tp.owner, tp.repo, *pr.Number, []string{autoLableName})
 		return err
 	}
 	currTagPR.Title = github.String(title)
 	currTagPR.Body = github.String(mergeBody(*currTagPR.Body, body))
-	_, _, err = rp.gh.PullRequests.Edit(ctx, rp.owner, rp.repo, *currTagPR.Number, currTagPR)
+	_, _, err = tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
 	return err
 }
 
@@ -411,22 +411,22 @@ func mergeBody(now, update string) string {
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 
-func (rp *tagpr) defaultBranch() (string, error) {
+func (tp *tagpr) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
 	// So use `git remote show origin` for detecting default branch
-	show, _, err := rp.c.GitE("remote", "show", rp.remoteName)
+	show, _, err := tp.c.GitE("remote", "show", tp.remoteName)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
 	}
 	m := headBranchReg.FindStringSubmatch(show)
 	if len(m) < 2 {
-		return "", fmt.Errorf("failed to detect default branch from remote: %s", rp.remoteName)
+		return "", fmt.Errorf("failed to detect default branch from remote: %s", tp.remoteName)
 	}
 	return m[1], nil
 }
 
-func (rp *tagpr) detectRemote() (string, error) {
-	remotesStr, _, err := rp.c.GitE("remote")
+func (tp *tagpr) detectRemote() (string, error) {
+	remotesStr, _, err := tp.c.GitE("remote")
 	if err != nil {
 		return "", fmt.Errorf("failed to detect remote: %s", err)
 	}

@@ -29,10 +29,10 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return printVersion(outStream)
 	}
 
-	rp, err := newTagPR(ctx, &commander{
+	tp, err := newTagPR(ctx, &commander{
 		gitPath: "git", outStream: outStream, errStream: errStream, dir: "."})
 	if err != nil {
 		return err
 	}
-	return rp.Run(ctx)
+	return tp.Run(ctx)
 }
