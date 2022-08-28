@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.0.13](https://github.com/Songmu/tagpr/compare/v0.0.12...v0.0.13) - 2022-08-28
+- add actions.yml to support GitHub Actions by @Songmu in https://github.com/Songmu/tagpr/pull/63
+- support to specify multiple version files by comma separated string in conf by @Songmu in https://github.com/Songmu/tagpr/pull/65
+- adjust bumping version file behavior by @Songmu in https://github.com/Songmu/tagpr/pull/66
+- remove generated comment in CHANGELOG.md by @Songmu in https://github.com/Songmu/tagpr/pull/67
+- rename tool name to tagpr from rcpr by @Songmu in https://github.com/Songmu/tagpr/pull/68
+
 ## [v0.0.12](https://github.com/Songmu/tagpr/compare/v0.0.11...v0.0.12) - 2022-08-27
 - adjust default pull request body by @Songmu in https://github.com/Songmu/tagpr/pull/52
 - fix remote name detection by @Songmu in https://github.com/Songmu/tagpr/pull/54
