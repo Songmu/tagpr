@@ -2,6 +2,7 @@ package tagpr
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/go-github/v45/github"
 )
@@ -41,7 +42,8 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		}
 		tp.c.Git("checkout", releaseBranch)
 	} else {
-		vfile = tp.cfg.versionFile.String()
+		vfiles := strings.Split(tp.cfg.versionFile.String(), ",")
+		vfile = strings.TrimSpace(vfiles[0])
 	}
 
 	var nextTag string
