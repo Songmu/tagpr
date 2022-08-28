@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.0.14](https://github.com/Songmu/tagpr/compare/v0.0.13...v0.0.14) - 2022-08-28
+- fix version file detection in releasing by @Songmu in https://github.com/Songmu/tagpr/pull/70
+
 ## [v0.0.13](https://github.com/Songmu/tagpr/compare/v0.0.12...v0.0.13) - 2022-08-28
 - add actions.yml to support GitHub Actions by @Songmu in https://github.com/Songmu/tagpr/pull/63
 - support to specify multiple version files by comma separated string in conf by @Songmu in https://github.com/Songmu/tagpr/pull/65
