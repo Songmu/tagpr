@@ -357,7 +357,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	pt := newPRTmpl(tmpl)
 	prText, err := pt.Render(&tmplArg{
 		NextVersion: nextVer.Tag(),
-		RCBranch:    rcBranch,
+		Branch:      rcBranch,
 		Changelog:   releases.Body,
 	})
 	if err != nil {
