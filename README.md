@@ -29,6 +29,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Songmu/tagpr@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Description
