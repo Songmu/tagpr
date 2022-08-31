@@ -4,11 +4,12 @@ go 1.19
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/Songmu/gh2changelog v0.0.1
 	github.com/Songmu/gitconfig v0.1.1
-	github.com/Songmu/gitsemvers v0.0.2
+	github.com/Songmu/gitsemvers v0.0.3
 	github.com/google/go-github/v45 v45.2.0
 	github.com/saracen/walker v0.1.3
-	golang.org/x/oauth2 v0.0.0-20220808172628-8227340efae7
+	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
 )
 
 require (
