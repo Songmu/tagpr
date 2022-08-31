@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.0.15](https://github.com/Songmu/tagpr/compare/v0.0.14...v0.0.15) - 2022-08-31
+- enhance docs by @Songmu in https://github.com/Songmu/tagpr/pull/72
+- adjust template args by @Songmu in https://github.com/Songmu/tagpr/pull/74
+- introduce github.com/Songmu/gh2changelog by @Songmu in https://github.com/Songmu/tagpr/pull/75
+
 ## [v0.0.14](https://github.com/Songmu/tagpr/compare/v0.0.13...v0.0.14) - 2022-08-28
 - fix version file detection in releasing by @Songmu in https://github.com/Songmu/tagpr/pull/70
 
