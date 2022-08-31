@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
-	"time"
 
+	"github.com/Songmu/gh2changelog"
 	"github.com/Songmu/gitsemvers"
 	"github.com/google/go-github/v45/github"
 )
@@ -288,56 +288,33 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			nextVer = nVer
 		}
 	}
-	previousTag := &latestSemverTag
-	if *previousTag == "" {
-		previousTag = nil
-	}
-	releases, _, err := tp.gh.Repositories.GenerateReleaseNotes(
-		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
-			TagName:         nextVer.Tag(),
-			PreviousTagName: previousTag,
-			TargetCommitish: &releaseBranch,
-		})
+
+	gch, err := gh2changelog.New(ctx,
+		gh2changelog.GitPath(tp.gitPath),
+		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
+		gh2changelog.GitHubClient(tp.gh),
+	)
 	if err != nil {
 		return err
 	}
 
-	changelog := convertKeepAChangelogFormat(releases.Body, time.Now())
 	changelogMd := "CHANGELOG.md"
-
-	var content string
-	if exists(changelogMd) {
-		byt, err := os.ReadFile(changelogMd)
+	changelog, orig, err := gch.Draft(ctx, nextVer.Tag())
+	if err != nil {
+		return err
+	}
+	if !exists(changelogMd) {
+		logs, _, err := gch.Changelogs(ctx, 20)
 		if err != nil {
 			return err
 		}
-		content = strings.TrimSpace(string(byt)) + "\n"
+		changelog = strings.Join(
+			append([]string{changelog}, logs...), "\n")
 	}
-
-	// If the changelog is not in "keep a changelog" format, or if the file does not exist, re-create everything. Is it rough...?
-	if !changelogReg.MatchString(content) {
-		// We are concerned that depending on the release history, API requests may become more frequent.
-		vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
-		logs := []string{"# Changelog\n"}
-		for i, ver := range vers {
-			if i > 10 {
-				break
-			}
-			date, _, _ := tp.c.GitE("log", "-1", "--format=%ai", "--date=iso", ver)
-			d, _ := time.Parse("2006-01-02 15:04:05 -0700", date)
-			releases, _, _ := tp.gh.Repositories.GenerateReleaseNotes(
-				ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
-					TagName: ver,
-				})
-			logs = append(logs, strings.TrimSpace(convertKeepAChangelogFormat(releases.Body, d))+"\n")
-		}
-		content = strings.Join(logs, "\n")
-	}
-
-	content = insertNewChangelog(content, changelog)
-	if err := os.WriteFile(changelogMd, []byte(content), 0644); err != nil {
+	if _, err := gch.Update(changelog, 0); err != nil {
 		return err
 	}
+
 	tp.c.GitE("add", changelogMd)
 	tp.c.GitE("commit", "-m", autoChangelogMessage)
 
@@ -358,7 +335,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	prText, err := pt.Render(&tmplArg{
 		NextVersion: nextVer.Tag(),
 		Branch:      rcBranch,
-		Changelog:   releases.Body,
+		Changelog:   orig,
 	})
 	if err != nil {
 		return err
