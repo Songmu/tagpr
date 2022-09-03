@@ -24,13 +24,34 @@ on:
   push:
     branches: ["main"]
 jobs:
-  deploy:
+  tagpr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: Songmu/tagpr@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v3
+    - uses: Songmu/tagpr@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+If you do not want to use the token provided by GitHub Actions, do the following This is useful if you want to trigger another action with a tag.
+It would be safer to issue the token in conjunction with the GitHub App instead of a personal access token.
+
+```yaml
+name: tagpr
+on:
+  push:
+    branches:
+    - main
+jobs:
+  tagpr:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GH_PAT }}
+    - uses: Songmu/tagpr@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 ```
 
 ## Description
