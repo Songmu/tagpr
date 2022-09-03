@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.0](https://github.com/Songmu/tagpr/compare/v0.0.15...v0.1.0) - 2022-09-03
+- update dependency by @Songmu in https://github.com/Songmu/tagpr/pull/76
+- update README.md by @Songmu in https://github.com/Songmu/tagpr/pull/78
+
 ## [v0.0.15](https://github.com/Songmu/tagpr/compare/v0.0.14...v0.0.15) - 2022-08-31
 - enhance docs by @Songmu in https://github.com/Songmu/tagpr/pull/72
 - adjust template args by @Songmu in https://github.com/Songmu/tagpr/pull/74
