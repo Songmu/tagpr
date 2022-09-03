@@ -4,15 +4,16 @@ go 1.19
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/Songmu/gh2changelog v0.0.2
-	github.com/Songmu/gitconfig v0.1.1
+	github.com/Songmu/gh2changelog v0.0.3
+	github.com/Songmu/gitconfig v0.2.0
 	github.com/Songmu/gitsemvers v0.0.3
-	github.com/google/go-github/v45 v45.2.0
+	github.com/google/go-github/v47 v47.0.0
 	github.com/saracen/walker v0.1.3
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
 )
 
 require (
+	github.com/cli/go-gh v0.1.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/goccy/go-yaml v1.9.5 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -28,4 +29,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
