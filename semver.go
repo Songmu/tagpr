@@ -2,7 +2,7 @@ package tagpr
 
 import (
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 )
 
 type semv struct {

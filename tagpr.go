@@ -11,10 +11,11 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/Songmu/gh2changelog"
 	"github.com/Songmu/gitsemvers"
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 )
 
 const (
@@ -299,7 +300,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	changelogMd := "CHANGELOG.md"
-	changelog, orig, err := gch.Draft(ctx, nextVer.Tag())
+	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
 	if err != nil {
 		return err
 	}
