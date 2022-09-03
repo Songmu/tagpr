@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/Songmu/gh2changelog"
 	"github.com/Songmu/gitsemvers"
@@ -299,7 +300,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	changelogMd := "CHANGELOG.md"
-	changelog, orig, err := gch.Draft(ctx, nextVer.Tag())
+	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
 	if err != nil {
 		return err
 	}
