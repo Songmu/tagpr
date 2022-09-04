@@ -51,7 +51,7 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	remoteURL, _, err := tp.c.GitE("config", "remote."+tp.remoteName+".url")
+	remoteURL, _, err := tp.c.Git("config", "remote."+tp.remoteName+".url")
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +76,12 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	}
 	tp.gh = cli
 
-	isShallow, _, err := tp.c.GitE("rev-parse", "--is-shallow-repository")
+	isShallow, _, err := tp.c.Git("rev-parse", "--is-shallow-repository")
 	if err != nil {
 		return nil, err
 	}
 	if isShallow == "true" {
-		if _, _, err := tp.c.GitE("fetch", "--unshallow"); err != nil {
+		if _, _, err := tp.c.Git("fetch", "--unshallow"); err != nil {
 			return nil, err
 		}
 	}
@@ -137,7 +137,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
-	branch, _, err := tp.c.GitE("symbolic-ref", "--short", "HEAD")
+	branch, _, err := tp.c.Git("symbolic-ref", "--short", "HEAD")
 	if err != nil {
 		return fmt.Errorf("failed to git symbolic-ref: %w", err)
 	}
@@ -147,11 +147,15 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	// XXX: should care GIT_*_NAME etc?
-	if _, _, err := tp.c.GitE("config", "user.email"); err != nil {
-		tp.c.Git("config", "--local", "user.email", gitEmail)
+	if _, _, err := tp.c.Git("config", "user.email"); err != nil {
+		if _, _, err := tp.c.Git("config", "--local", "user.email", gitEmail); err != nil {
+			return err
+		}
 	}
-	if _, _, err := tp.c.GitE("config", "user.name"); err != nil {
-		tp.c.Git("config", "--local", "user.name", gitUser)
+	if _, _, err := tp.c.Git("config", "user.name"); err != nil {
+		if _, _, err := tp.c.Git("config", "--local", "user.name", gitUser); err != nil {
+			return err
+		}
 	}
 
 	// If the latest commit is a merge commit of the pull request by tagpr,
@@ -164,8 +168,10 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	rcBranch := fmt.Sprintf("tagpr-from-%s", currVer.Tag())
-	tp.c.GitE("branch", "-D", rcBranch)
-	tp.c.Git("checkout", "-b", rcBranch)
+	tp.c.Git("branch", "-D", rcBranch)
+	if _, _, err := tp.c.Git("checkout", "-b", rcBranch); err != nil {
+		return err
+	}
 
 	head := fmt.Sprintf("%s:%s", tp.owner, rcBranch)
 	pulls, _, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
@@ -211,7 +217,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			prog = "sh"
 			progArgs = []string{"-c", prog}
 		}
-		tp.c.cmdE(prog, progArgs...)
+		tp.c.Cmd(prog, progArgs...)
 	}
 
 	if vfiles[0] != "" {
@@ -221,7 +227,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			}
 		}
 	}
-	tp.c.GitE("add", "-f", tp.cfg.conf) // ignore any errors
+	tp.c.Git("add", "-f", tp.cfg.conf) // ignore any errors
 
 	const releaseYml = ".github/release.yml"
 	// TODO: It would be nice to be able to add an exclude setting even if release.yml already exists.
@@ -236,15 +242,17 @@ func (tp *tagpr) Run(ctx context.Context) error {
 `), 0644); err != nil {
 			return err
 		}
-		tp.c.GitE("add", "-f", releaseYml)
+		tp.c.Git("add", "-f", releaseYml)
 	}
 
-	tp.c.Git("commit", "--allow-empty", "-am", autoCommitMessage)
+	if _, _, err := tp.c.Git("commit", "--allow-empty", "-am", autoCommitMessage); err != nil {
+		return err
+	}
 
 	// cherry-pick if the remote branch is exists and changed
 	// XXX: Do I need to apply merge commits too?
 	//     (We ommited merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	out, _, err := tp.c.GitE(
+	out, _, err := tp.c.Git(
 		"log", "--no-merges", "--pretty=format:%h %s", "main.."+tp.remoteName+"/"+rcBranch)
 	if err == nil {
 		var cherryPicks []string
@@ -264,12 +272,12 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			// and apply it as much as possible.
 			for i := len(cherryPicks) - 1; i >= 0; i-- {
 				commitish := cherryPicks[i]
-				_, _, err := tp.c.GitE(
+				_, _, err := tp.c.Git(
 					"cherry-pick", "--keep-redundant-commits", "--allow-empty", commitish)
 
 				// conflict, etc. / Need error handling in case of non-conflict error?
 				if err != nil {
-					tp.c.GitE("cherry-pick", "--abort")
+					tp.c.Git("cherry-pick", "--abort")
 				}
 			}
 		}
@@ -316,10 +324,10 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 
-	tp.c.GitE("add", changelogMd)
-	tp.c.GitE("commit", "-m", autoChangelogMessage)
+	tp.c.Git("add", changelogMd)
+	tp.c.Git("commit", "-m", autoChangelogMessage)
 
-	if _, _, err := tp.c.GitE("push", "--force", tp.remoteName, rcBranch); err != nil {
+	if _, _, err := tp.c.Git("push", "--force", tp.remoteName, rcBranch); err != nil {
 		return err
 	}
 
@@ -392,7 +400,7 @@ var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 func (tp *tagpr) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
 	// So use `git remote show origin` for detecting default branch
-	show, _, err := tp.c.GitE("remote", "show", tp.remoteName)
+	show, _, err := tp.c.Git("remote", "show", tp.remoteName)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
 	}
@@ -404,7 +412,7 @@ func (tp *tagpr) defaultBranch() (string, error) {
 }
 
 func (tp *tagpr) detectRemote() (string, error) {
-	remotesStr, _, err := tp.c.GitE("remote")
+	remotesStr, _, err := tp.c.Git("remote")
 	if err != nil {
 		return "", fmt.Errorf("failed to detect remote: %s", err)
 	}

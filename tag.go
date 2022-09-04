@@ -9,7 +9,7 @@ import (
 
 func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, error) {
 	// tag and exit if the HEAD is the merged tagpr
-	commitish, _, err := tp.c.GitE("rev-parse", "HEAD")
+	commitish, _, err := tp.c.Git("rev-parse", "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -35,12 +35,16 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	// "Rebase and merge" was used. However, we don't care about "Rebase and merge" and only support
 	// "Create a merge commit" and "Squash and merge."
 	if tp.cfg.versionFile == nil {
-		tp.c.Git("checkout", "HEAD~")
+		if _, _, err := tp.c.Git("checkout", "HEAD~"); err != nil {
+			return err
+		}
 		vfile, err = detectVersionFile(".", currVer)
 		if err != nil {
 			return err
 		}
-		tp.c.Git("checkout", releaseBranch)
+		if _, _, err := tp.c.Git("checkout", releaseBranch); err != nil {
+			return err
+		}
 	} else {
 		vfiles := strings.Split(tp.cfg.versionFile.String(), ",")
 		vfile = strings.TrimSpace(vfiles[0])
@@ -65,7 +69,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	// we generate release notes in advance.
 	// Get the previous commitish to avoid picking up the merge of the pull
 	// request made by tagpr.
-	targetCommitish, _, err := tp.c.GitE("rev-parse", "HEAD~")
+	targetCommitish, _, err := tp.c.Git("rev-parse", "HEAD~")
 	if err != nil {
 		return nil
 	}
@@ -79,11 +83,10 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return err
 	}
 
-	tp.c.Git("tag", nextTag)
-	if tp.c.err != nil {
-		return tp.c.err
+	if _, _, err := tp.c.Git("tag", nextTag); err != nil {
+		return err
 	}
-	_, _, err = tp.c.GitE("push", "--tags")
+	_, _, err = tp.c.Git("push", "--tags")
 	if err != nil {
 		return err
 	}
