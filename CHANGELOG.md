@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.1](https://github.com/Songmu/tagpr/compare/v0.1.0...v0.1.1) - 2022-09-04
+- adjust internal interfaces of commander by @Songmu in https://github.com/Songmu/tagpr/pull/79
+- fix version file detection in perl by @Songmu in https://github.com/Songmu/tagpr/pull/81
+
 ## [v0.1.0](https://github.com/Songmu/tagpr/compare/v0.0.15...v0.1.0) - 2022-09-03
 - update dependency by @Songmu in https://github.com/Songmu/tagpr/pull/76
 - update README.md by @Songmu in https://github.com/Songmu/tagpr/pull/78
