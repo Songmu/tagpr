@@ -1,0 +1,203 @@
+Revision history for Perl extension Riji
+
+{{$NEXT}}
+
+v1.0.0 2022-01-02T06:45:13Z
+    - v1 grand release
+
+v0.9.15 2022-01-02T06:25:28Z
+    - No code changes
+    - Enhance documents
+    - change default branch to main from master
+
+v0.9.14 2022-01-01T19:08:47Z
+    - No code changes, adjust CI/CD only
+
+v0.9.13 2022-01-01T18:59:31Z
+    - No code changes, adjust CI/CD only
+
+v0.9.12 2022-01-01T18:08:50Z
+    - No code changes, adjust CI/CD only
+
+v0.9.11 2022-01-01T18:01:53Z
+    - Add Dockerfile
+    - In riji publish, take care of the case where the host of the target URL is undefined
+
+v0.9.10 2021-05-30T15:52:48Z
+    - adjust atom format
+
+v0.9.9 2021-05-29T15:52:24Z
+    - fix default branch detection for following newer Git
+    - fix author field in Atom
+
+v0.9.8 2016-04-17T08:29:51Z
+
+    - depends on MIME::Base32 1.301 or later and fix code around incompatible changes of it. fix #19
+
+v0.9.7 2015-04-12T12:55:49Z
+
+    - support Front-matter
+
+v0.9.6 2015-04-11T17:07:51Z
+
+    - [Experimental] support functions.pl for user defined functions
+
+v0.9.5 2015-03-21T13:12:01Z
+
+    - allow dot for entry filename
+    - use XML::FeedPP::Util::epoch_to_w3cdtf() for build published element in Atom
+
+v0.9.4 2015-03-18T07:08:40Z
+
+    - remove entry title from content element in Atom
+
+v0.9.3 2015-03-18T03:09:31Z
+
+    - specify type="html" to content element in Atom explicitly for avoiding garble
+
+v0.9.2 2015-01-25T08:22:53Z
+
+    - depend on App::Wallflower 1.005 or later and simplify the code
+    - remove deps on File::Which, use IPC::Cmd::can_run() instaad
+    - fixing deps
+
+v0.9.1 2015-01-12T09:22:39Z
+
+    - fix failing tests in where Riji is not installed
+    - depends on Path::Tiny 0.0061 or later
+
+v0.9.0 2015-01-12T07:12:41Z
+
+    - [Incompatible] riji new-entry/publish/server fails unless riji.yml exists
+    - remove Alpha declaration
+    - add Riji::Model::Article#permalink
+    - enhancement tests
+    - switch Module::Build::Tiny for packaging
+
+v0.4.2 2015-01-08T07:20:32Z
+
+    - explicitly defined Riji->base_dir which is current directory
+    - [bugfix] skip scanning mailto: links in publish phase
+    - suppress exception in publish phase
+
+v0.4.1 2015-01-07T09:43:50Z
+
+    - [bunfix] Fix wrong date format in Atom (hitode909++)
+    - it is enough just to use URI->new_abs so remove deps Path::Canonical
+
+v0.4.0 2015-01-03T15:43:38Z
+
+    - `git publish` is prohibited only when `entry_dir` is dirty index, not all files in repository
+    - [Experimental] entry directory can have subdirectories now
+
+v0.3.2 2015-01-02T15:41:48Z
+
+    - riji setup now generates .gitignore and cpanfile
+    - depend on Path::Canonical
+    - announce --force option when `riji publish` failed
+
+v0.3.1 2015-01-02T07:34:52Z
+
+    - [bugfix] care relative links
+
+v0.3.0 2015-01-01T18:53:51Z
+
+    - depends on Puncheur v0.3.0 or later
+    - remove urgency replacing urls processes
+    - add Riji::CLI::Publish::Scanner
+    - fix Article#site_path and remove Entry#site_path
+    - move `url` from Entry to Article.
+
+v0.2.0 2014-12-26T06:39:52Z
+
+    - [Experimental][feature] riji publish --force (trapple++)
+    - change version declaration way
+
+0.1.3 2014-08-06T10:15:59Z
+
+    - `git symbolic-ref --short` is available after git 1.7.10, so care older version when publishing.
+
+0.1.2 2014-08-06T08:51:04Z
+
+    - stable sort order of Blog::tags()
+
+0.1.1 2014-05-23T10:50:25Z
+
+    - create dir unless article/entry (monmon++)
+
+0.1.0 2014-05-17T08:17:13Z
+
+    - depends on Puncheur 0.1.0
+
+0.0.14 2014-05-06T04:29:06Z
+
+    - [bugfix] Set more exact repository path if when `base_dir` is different from `repo_dir` (karupanerura)
+
+0.0.13 2014-01-12T03:43:21Z
+
+    - [bugfix] riji publish failed in some Operating systems which has case-sensitive filesystem (tsucchi)
+
+0.0.12 2013-12-30T05:41:44Z
+
+    - add repository status checks when `riji publish`
+
+0.0.11 2013-10-08T17:05:49Z
+
+    - add $config->{markup} (now, you can use Text::Markdown::Hoedown! etc.)
+
+0.0.10 2013-09-10T03:17:24Z
+
+    - refactor CLI::Publish/CLI::Setup
+    - refactor tag handling in Model::Entry
+    - fix Entry#file_history
+
+0.0.9 2013-08-15T14:39:55Z
+
+    - depend on App::Wallflower for `riji publish`
+
+0.0.8 2013-08-10T06:40:35Z
+
+    - depend on Text::Markdown::Discount 0.10 and use `with_html5_tags()`
+    - parse === --- style h1 h2 as blog entry title
+
+0.0.7 2013-08-05T13:06:37Z
+
+    - fix deps
+    - support multibyte tags (Experimental)
+
+0.0.6 2013-08-03T15:22:56Z
+
+    - fix deps
+    - fix infinite loop in CLI::NewEntry
+
+0.0.5 2013-08-01T17:09:23Z
+
+    - update default template
+    - include another template file in md file
+
+0.0.4 2013-07-29T16:54:18Z
+
+    - set max_wait to 5 seconds for Net::EmptyPort::wait_port in CLI::Publish
+    - add $config->{publish_dir}
+    - arrangement cpanfile
+    - not git init if .git exists
+    - add $config->{branch}
+    - fix template
+
+0.0.3 2013-07-29T10:45:14Z
+
+    - add subcommand `% riji new-entry`
+    - fix permissions of files generated by `% riji setup`
+    - fix templates (uri_for handling)
+
+0.0.2 2013-07-29T00:49:06Z
+
+    - add uri attrribute to generator element in Atom
+    - update repository information
+    - not use 5.010, use feature ':5.10' instead
+    - use strict and remove use utf8
+
+0.0.1 2013-07-28T17:49:58Z
+
+    - original version
+

@@ -14,7 +14,7 @@ import (
 	"github.com/saracen/walker"
 )
 
-const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,20})`
+const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,50})`
 
 var (
 	versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
@@ -75,13 +75,13 @@ func detectVersionFile(root string, ver *semv) (string, error) {
 		if !fi.Mode().IsRegular() || isSkipFile(fi.Name()) {
 			return nil
 		}
-		joinedPath := filepath.Join(root, fpath)
-		bs, err := os.ReadFile(joinedPath)
+		bs, err := os.ReadFile(fpath)
 		if err != nil {
 			return errorCb(fpath, err)
 		}
 		if verReg.Match(bs) {
-			fl.append(filepath.ToSlash(joinedPath))
+			f, _ := filepath.Rel(root, fpath)
+			fl.append(filepath.ToSlash(f))
 		}
 		return nil
 	}, walker.WithErrorCallback(errorCb)); err != nil {
@@ -121,7 +121,7 @@ func versionFile(files []string) (string, string) {
 		case "pom.xml":
 			return f, "java"
 		case "meta.json":
-			if meta != "" {
+			if meta == "" {
 				meta = f
 			}
 		}
