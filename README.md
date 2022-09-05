@@ -2,12 +2,10 @@ tagpr
 =======
 
 [![Test Status](https://github.com/Songmu/tagpr/workflows/test/badge.svg?branch=main)][actions]
-[![Coverage Status](https://codecov.io/gh/Songmu/tagpr/branch/main/graph/badge.svg)][codecov]
 [![MIT License](https://img.shields.io/github/license/Songmu/tagpr)][license]
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/Songmu/tagpr)][PkgGoDev]
 
 [actions]: https://github.com/Songmu/tagpr/actions?workflow=test
-[codecov]: https://codecov.io/gh/Songmu/tagpr
 [license]: https://github.com/Songmu/tagpr/blob/main/LICENSE
 [PkgGoDev]: https://pkg.go.dev/github.com/Songmu/tagpr
 
