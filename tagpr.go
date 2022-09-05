@@ -25,6 +25,7 @@ const (
 	autoCommitMessage    = "[tagpr] prepare for the next release"
 	autoChangelogMessage = "[tagpr] update CHANGELOG.md"
 	autoLableName        = "tagpr"
+	branchPrefix         = "tagpr-from-"
 )
 
 type tagpr struct {
@@ -93,7 +94,7 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 }
 
 func isTagPR(pr *github.PullRequest) bool {
-	if pr == nil {
+	if pr == nil || pr.Head == nil || pr.Head.Ref == nil || !strings.HasPrefix(*pr.Head.Ref, branchPrefix) {
 		return false
 	}
 	for _, label := range pr.Labels {
@@ -167,7 +168,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return tp.tagRelease(ctx, pr, currVer, latestSemverTag)
 	}
 
-	rcBranch := fmt.Sprintf("tagpr-from-%s", currVer.Tag())
+	rcBranch := fmt.Sprintf("%s%s", branchPrefix, currVer.Tag())
 	tp.c.Git("branch", "-D", rcBranch)
 	if _, _, err := tp.c.Git("checkout", "-b", rcBranch); err != nil {
 		return err
