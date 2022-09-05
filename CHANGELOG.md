@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.1.2](https://github.com/Songmu/tagpr/compare/v0.1.1...v0.1.2) - 2022-09-05
+- strict commit detection logic for tagging targets, just in case by @Songmu in https://github.com/Songmu/tagpr/pull/82
+
 ## [v0.1.1](https://github.com/Songmu/tagpr/compare/v0.1.0...v0.1.1) - 2022-09-04
 - adjust internal interfaces of commander by @Songmu in https://github.com/Songmu/tagpr/pull/79
 - fix version file detection in perl by @Songmu in https://github.com/Songmu/tagpr/pull/81
