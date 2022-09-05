@@ -4,7 +4,7 @@ inputs:
   version:
     description: "A version to install tagpr"
     required: false
-    default: "v0.1.2"
+    default: "v0.1.3"
 runs:
   using: "composite"
   steps:

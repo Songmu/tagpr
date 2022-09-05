@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.1.3](https://github.com/Songmu/tagpr/compare/v0.1.2...v0.1.3) - 2022-09-05
+- Fix a typo by @nghialv in https://github.com/Songmu/tagpr/pull/84
+
 ## [v0.1.2](https://github.com/Songmu/tagpr/compare/v0.1.1...v0.1.2) - 2022-09-05
 - strict commit detection logic for tagging targets, just in case by @Songmu in https://github.com/Songmu/tagpr/pull/82
 
