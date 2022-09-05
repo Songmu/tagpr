@@ -63,7 +63,7 @@ Describe the settings in the .tagpr file directly under the repository. This is 
 Generally, it is "main." It is the branch for releases. The pcpr tracks this branch,
 creates or updates a pull request as a release candidate, or tags when they are merged.
 
-### tagpr.versinFile
+### tagpr.versionFile
 Versioning file containing the semantic version needed to be updated at release.
 It will be synchronized with the "git tag".
 Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
