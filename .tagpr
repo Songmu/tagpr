@@ -14,12 +14,7 @@
 #
 #   tagpr.vPrefix
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
-#
-#   tagpr.changelog
-#       Flag whether or not changelog is added or changed during the release.
-#
 [tagpr]
 	vPrefix = true
-	changelog = true
 	releaseBranch = main
 	versionFile = version.go,action.yml
