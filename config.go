@@ -29,6 +29,9 @@ const (
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
 #       This is only a tagging convention, not how it is described in the version file.
 #
+#   tagpr.changelog (Optional)
+#       Flag whether or not changelog is added or changed during the release.
+#
 #   tagpr.command (Optional)
 #       Command to change files just before release.
 #
@@ -39,11 +42,13 @@ const (
 	envReleaseBranch    = "TAGPR_RELEASE_BRANCH"
 	envVersionFile      = "TAGPR_VERSION_FILE"
 	envVPrefix          = "TAGPR_VPREFIX"
+	envChangelog        = "TAGPR_CHANGELOG"
 	envCommand          = "TAGPR_COMMAND"
 	envTemplate         = "TAGPR_TEMPLATE"
 	configReleaseBranch = "tagpr.releaseBranch"
 	configVersionFile   = "tagpr.versionFile"
 	configVPrefix       = "tagpr.vPrefix"
+	configChangelog     = "tagpr.changelog"
 	configCommand       = "tagpr.command"
 	configTemplate      = "tagpr.template"
 )
@@ -54,6 +59,7 @@ type config struct {
 	command       *configValue
 	template      *configValue
 	vPrefix       *bool
+	changelog     *bool
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -109,6 +115,19 @@ func (cfg *config) Reload() error {
 		b, err := cfg.gitconfig.Bool(configVPrefix)
 		if err == nil {
 			cfg.vPrefix = github.Bool(b)
+		}
+	}
+
+	if changelog := os.Getenv(envChangelog); changelog != "" {
+		b, err := strconv.ParseBool(changelog)
+		if err != nil {
+			return err
+		}
+		cfg.changelog = github.Bool(b)
+	} else {
+		b, err := cfg.gitconfig.Bool(configChangelog)
+		if err == nil {
+			cfg.changelog = github.Bool(b)
 		}
 	}
 

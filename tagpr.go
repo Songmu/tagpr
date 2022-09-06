@@ -308,25 +308,28 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 
-	changelogMd := "CHANGELOG.md"
 	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
 	if err != nil {
 		return err
 	}
-	if !exists(changelogMd) {
-		logs, _, err := gch.Changelogs(ctx, 20)
-		if err != nil {
+
+	if tp.cfg.changelog == nil || *tp.cfg.changelog {
+		changelogMd := "CHANGELOG.md"
+		if !exists(changelogMd) {
+			logs, _, err := gch.Changelogs(ctx, 20)
+			if err != nil {
+				return err
+			}
+			changelog = strings.Join(
+				append([]string{changelog}, logs...), "\n")
+		}
+		if _, err := gch.Update(changelog, 0); err != nil {
 			return err
 		}
-		changelog = strings.Join(
-			append([]string{changelog}, logs...), "\n")
-	}
-	if _, err := gch.Update(changelog, 0); err != nil {
-		return err
-	}
 
-	tp.c.Git("add", changelogMd)
-	tp.c.Git("commit", "-m", autoChangelogMessage)
+		tp.c.Git("add", changelogMd)
+		tp.c.Git("commit", "-m", autoChangelogMessage)
+	}
 
 	if _, _, err := tp.c.Git("push", "--force", tp.remoteName, rcBranch); err != nil {
 		return err
