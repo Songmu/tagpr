@@ -299,21 +299,22 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
-	if tp.cfg.changelog == nil || *tp.cfg.changelog {
-		gch, err := gh2changelog.New(ctx,
-			gh2changelog.GitPath(tp.gitPath),
-			gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
-			gh2changelog.GitHubClient(tp.gh),
-		)
-		if err != nil {
-			return err
-		}
+	gch, err := gh2changelog.New(ctx,
+		gh2changelog.GitPath(tp.gitPath),
+		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
+		gh2changelog.GitHubClient(tp.gh),
+	)
+	if err != nil {
+		return err
+	}
 
+	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
+	if err != nil {
+		return err
+	}
+
+	if tp.cfg.changelog == nil || *tp.cfg.changelog {
 		changelogMd := "CHANGELOG.md"
-		changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
-		if err != nil {
-			return err
-		}
 		if !exists(changelogMd) {
 			logs, _, err := gch.Changelogs(ctx, 20)
 			if err != nil {
