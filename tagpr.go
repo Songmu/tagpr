@@ -299,34 +299,36 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
-	gch, err := gh2changelog.New(ctx,
-		gh2changelog.GitPath(tp.gitPath),
-		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
-		gh2changelog.GitHubClient(tp.gh),
-	)
-	if err != nil {
-		return err
-	}
-
-	changelogMd := "CHANGELOG.md"
-	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
-	if err != nil {
-		return err
-	}
-	if !exists(changelogMd) {
-		logs, _, err := gch.Changelogs(ctx, 20)
+	if tp.cfg.changelog == nil || *tp.cfg.changelog {
+		gch, err := gh2changelog.New(ctx,
+			gh2changelog.GitPath(tp.gitPath),
+			gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
+			gh2changelog.GitHubClient(tp.gh),
+		)
 		if err != nil {
 			return err
 		}
-		changelog = strings.Join(
-			append([]string{changelog}, logs...), "\n")
-	}
-	if _, err := gch.Update(changelog, 0); err != nil {
-		return err
-	}
 
-	tp.c.Git("add", changelogMd)
-	tp.c.Git("commit", "-m", autoChangelogMessage)
+		changelogMd := "CHANGELOG.md"
+		changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
+		if err != nil {
+			return err
+		}
+		if !exists(changelogMd) {
+			logs, _, err := gch.Changelogs(ctx, 20)
+			if err != nil {
+				return err
+			}
+			changelog = strings.Join(
+				append([]string{changelog}, logs...), "\n")
+		}
+		if _, err := gch.Update(changelog, 0); err != nil {
+			return err
+		}
+
+		tp.c.Git("add", changelogMd)
+		tp.c.Git("commit", "-m", autoChangelogMessage)
+	}
 
 	if _, _, err := tp.c.Git("push", "--force", tp.remoteName, rcBranch); err != nil {
 		return err

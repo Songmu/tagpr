@@ -29,6 +29,9 @@ const (
 #       Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)
 #       This is only a tagging convention, not how it is described in the version file.
 #
+#   tagpr.changelog (Optional)
+#       Flag whether or not changelog is added or changed during the release.
+#
 #   tagpr.command (Optional)
 #       Command to change files just before release.
 #
@@ -54,6 +57,7 @@ type config struct {
 	command       *configValue
 	template      *configValue
 	vPrefix       *bool
+	changelog     *bool
 
 	conf      string
 	gitconfig *gitconfig.Config
