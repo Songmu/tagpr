@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.2.0](https://github.com/Songmu/tagpr/compare/v0.1.3...v0.2.0) - 2022-09-06
+- feat: Add flag to turn on or off creating/modifying CHANGELOG.md by @siketyan in https://github.com/Songmu/tagpr/pull/86
+
 ## [v0.1.3](https://github.com/Songmu/tagpr/compare/v0.1.2...v0.1.3) - 2022-09-05
 - Fix a typo by @nghialv in https://github.com/Songmu/tagpr/pull/84
 
