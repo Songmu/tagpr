@@ -179,7 +179,14 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	mergedFeatureHeadShas := strings.Split(shasStr, "\n")
+	var mergedFeatureHeadShas []string
+	for _, line := range strings.Split(shasStr, "\n") {
+		stuff := strings.Fields(line)
+		if len(stuff) < 2 {
+			continue
+		}
+		mergedFeatureHeadShas = append(mergedFeatureHeadShas, stuff[1])
+	}
 	prShasStr, _, err := tp.c.Git("ls-remote", tp.remoteName, "refs/pull/*/head")
 	if err != nil {
 		return err
