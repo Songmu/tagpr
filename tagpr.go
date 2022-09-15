@@ -213,7 +213,15 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			}
 		}
 	}
-
+	// When "--abbrev" is specified, the length of the each line of the stdout isn't fixed.
+	// It is just a minimum length, and if the commit cannot be uniquely identified with
+	// that length, a longer commit hash will be displayed.
+	// We specify this option to minimize the length of the query string, but we use
+	// "--abbrev=7" because the SHA syntax of the search API requires a string of at
+	// least 7 characters.
+	// ref. https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-commit-sha
+	// This is done because there is a length limit on the API query string, and we want
+	// to create a string with the minimum possible length.
 	shasStr, _, err = tp.c.Git("log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
 		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
 	if err != nil {
@@ -221,8 +229,14 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
 	query := queryBase
-
+	// Make bulk requests with multiple SHAs of the maximum possible length.
+	// If multiple SHAs are specified, the issue search API will treat it like an OR search,
+	// and all the pull requests will be searched.
+	// This is difficult to read from the current documentation, but that is the current
+	// behavior and GitHub support has responded that this is the spec.
 	for _, sha := range strings.Split(shasStr, "\n") {
+		// Longer than 256 characters are not supported in the query.
+		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
 		if len(query)+1+len(sha) >= 256 {
 			tmpIssues, err := tp.searchIssues(ctx, query)
 			if err != nil {
@@ -541,6 +555,9 @@ func (tp *tagpr) detectRemote() (string, error) {
 }
 
 func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issue, error) {
+	// Fortunately, we don't need to take care of the page count in response, because
+	// the default value of per_page is 30 and we can't specify more than 30 commits due to
+	// the length limit specification of the query string.
 	issues, _, err := tp.gh.Search.Issues(ctx, query, nil)
 	if err != nil {
 		return nil, err
