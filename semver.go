@@ -1,8 +1,6 @@
 package tagpr
 
-import (
-	"github.com/Masterminds/semver/v3"
-)
+import "github.com/Masterminds/semver/v3"
 
 type semv struct {
 	v *semver.Version
