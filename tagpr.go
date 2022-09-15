@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -108,7 +109,13 @@ func isTagPR(pr *github.PullRequest) bool {
 func (tp *tagpr) Run(ctx context.Context) error {
 	latestSemverTag := tp.latestSemverTag()
 	currVerStr := latestSemverTag
+	fromCommitish := "refs/tags/" + currVerStr
 	if currVerStr == "" {
+		var err error
+		fromCommitish, _, err = tp.c.Git("rev-list", "--max-parents=0", "HEAD")
+		if err != nil {
+			return err
+		}
 		currVerStr = "v0.0.0"
 	}
 	currVer, err := newSemver(currVerStr)
@@ -167,6 +174,83 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 		return tp.tagRelease(ctx, pr, currVer, latestSemverTag)
 	}
+	shasStr, _, err := tp.c.Git("log", "--merges", "--pretty=format:%P",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+	if err != nil {
+		return err
+	}
+	mergedFeatureHeadShas := strings.Split(shasStr, "\n")
+	prShasStr, _, err := tp.c.Git("ls-remote", tp.remoteName, "refs/pull/*/head")
+	if err != nil {
+		return err
+	}
+	var prIssues []*github.Issue
+	for _, line := range strings.Split(prShasStr, "\n") {
+		stuff := strings.Fields(line)
+		if len(stuff) != 2 {
+			continue
+		}
+		sha, ref := stuff[0], stuff[1]
+		for _, mergedSha := range mergedFeatureHeadShas {
+			if strings.HasPrefix(sha, mergedSha) {
+				prNumStr := strings.Trim(ref, "head/rfspul")
+				prNum, err := strconv.Atoi(prNumStr)
+				if err != nil {
+					continue
+				}
+				issue, _, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
+				if err != nil {
+					return err
+				}
+				prIssues = append(prIssues, issue)
+			}
+		}
+	}
+
+	shasStr, _, err = tp.c.Git("log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+	if err != nil {
+		return err
+	}
+	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
+	query := queryBase
+
+	for _, sha := range strings.Split(shasStr, "\n") {
+		if len(query)+1+len(sha) >= 256 {
+			tmpIssues, err := tp.searchIssues(ctx, query)
+			if err != nil {
+				return err
+			}
+			prIssues = append(prIssues, tmpIssues...)
+		}
+		query += " " + sha
+	}
+	if query != queryBase {
+		tmpIssues, err := tp.searchIssues(ctx, query)
+		if err != nil {
+			return err
+		}
+		prIssues = append(prIssues, tmpIssues...)
+	}
+
+	var nextMinor, nextMajor bool
+	for _, issue := range prIssues {
+		for _, l := range issue.Labels {
+			switch l.GetName() {
+			case "tagpr:minor", "tagpr/minor", "minor":
+				nextMinor = true
+			case "tagpr:major", "tagpr/major", "major":
+				nextMajor = true
+			}
+		}
+	}
+	var nextLabels []string
+	if nextMinor {
+		nextLabels = append(nextLabels, "tagpr:minor")
+	}
+	if nextMajor {
+		nextLabels = append(nextLabels, "tagpr:major")
+	}
 
 	rcBranch := fmt.Sprintf("%s%s", branchPrefix, currVer.Tag())
 	tp.c.Git("branch", "-D", rcBranch)
@@ -185,15 +269,26 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	var (
-		labels    []*github.Label
+		labels    []string
 		currTagPR *github.PullRequest
 	)
 	if len(pulls) > 0 {
 		currTagPR = pulls[0]
-		labels = currTagPR.Labels
+		for _, l := range currTagPR.Labels {
+			labels = append(labels, l.GetName())
+		}
 	}
-	nextVer := currVer.GuessNext(labels)
-
+	nextVer := currVer.GuessNext(append(labels, nextLabels...))
+	var addingLabels []string
+OUT:
+	for _, l := range nextLabels {
+		for _, l2 := range labels {
+			if l == l2 {
+				continue OUT
+			}
+		}
+		addingLabels = append(addingLabels, l)
+	}
 	var vfiles []string
 	if vf := tp.cfg.VersionFile(); vf != nil {
 		vfiles = strings.Split(vf.String(), ",")
@@ -370,13 +465,18 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		addingLabels = append(addingLabels, autoLableName)
 		_, _, err = tp.gh.Issues.AddLabelsToIssue(
-			ctx, tp.owner, tp.repo, *pr.Number, []string{autoLableName})
+			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
 		return err
 	}
 	currTagPR.Title = github.String(title)
 	currTagPR.Body = github.String(mergeBody(*currTagPR.Body, body))
 	_, _, err = tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
+	if len(addingLabels) > 0 {
+		_, _, err = tp.gh.Issues.AddLabelsToIssue(
+			ctx, tp.owner, tp.repo, *currTagPR.Number, addingLabels)
+	}
 	return err
 }
 
@@ -431,4 +531,12 @@ func (tp *tagpr) detectRemote() (string, error) {
 	}
 	// the last output is the first added remote
 	return remotes[len(remotes)-1], nil
+}
+
+func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issue, error) {
+	issues, _, err := tp.gh.Search.Issues(ctx, query, nil)
+	if err != nil {
+		return nil, err
+	}
+	return issues.Issues, nil
 }
