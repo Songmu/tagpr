@@ -1,9 +1,6 @@
 package tagpr
 
-import (
-	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v47/github"
-)
+import "github.com/Masterminds/semver/v3"
 
 type semv struct {
 	v *semver.Version
@@ -33,10 +30,10 @@ func (sv *semv) Tag() string {
 	return sv.Naked()
 }
 
-func (sv *semv) GuessNext(labels []*github.Label) *semv {
+func (sv *semv) GuessNext(labels []string) *semv {
 	var isMajor, isMinor bool
 	for _, l := range labels {
-		switch l.GetName() {
+		switch l {
 		case autoLableName + ":major", autoLableName + "/major":
 			isMajor = true
 		case autoLableName + ":minor", autoLableName + "/minor":
