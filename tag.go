@@ -29,12 +29,12 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		vfile string
 		err   error
 	)
-	releaseBranch := tp.cfg.releaseBranch.String()
+	releaseBranch := tp.cfg.ReleaseBranch()
 
 	// Using "HEAD~" to retrieve the one previous commit before merging does not work well in cases
 	// "Rebase and merge" was used. However, we don't care about "Rebase and merge" and only support
 	// "Create a merge commit" and "Squash and merge."
-	if tp.cfg.versionFile == nil {
+	if tp.cfg.VersionFile() == "" {
 		if _, _, err := tp.c.Git("checkout", "HEAD~"); err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 			return err
 		}
 	} else {
-		vfiles := strings.Split(tp.cfg.versionFile.String(), ",")
+		vfiles := strings.Split(tp.cfg.VersionFile(), ",")
 		vfile = strings.TrimSpace(vfiles[0])
 	}
 

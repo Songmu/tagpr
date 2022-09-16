@@ -131,10 +131,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		currVer.vPrefix = *tp.cfg.vPrefix
 	}
 
-	var releaseBranch string
-	if r := tp.cfg.ReleaseBranch(); r != nil {
-		releaseBranch = r.String()
-	}
+	releaseBranch := tp.cfg.ReleaseBranch()
 	if releaseBranch == "" {
 		releaseBranch, _ = tp.defaultBranch()
 		if releaseBranch == "" {
@@ -311,8 +308,8 @@ OUT:
 		addingLabels = append(addingLabels, l)
 	}
 	var vfiles []string
-	if vf := tp.cfg.VersionFile(); vf != nil {
-		vfiles = strings.Split(vf.String(), ",")
+	if vf := tp.cfg.VersionFile(); vf != "" {
+		vfiles = strings.Split(vf, ",")
 		for i, v := range vfiles {
 			vfiles[i] = strings.TrimSpace(v)
 		}
@@ -327,12 +324,11 @@ OUT:
 		vfiles = []string{vfile}
 	}
 
-	if com := tp.cfg.Command(); com != nil {
-		prog := com.String()
+	if prog := tp.cfg.Command(); prog != "" {
 		var progArgs []string
 		if strings.ContainsAny(prog, " \n") {
-			prog = "sh"
 			progArgs = []string{"-c", prog}
+			prog = "sh"
 		}
 		tp.c.Cmd(prog, progArgs...)
 	}
@@ -402,8 +398,8 @@ OUT:
 
 	// Reread the configuration file (.tagpr) as it may have been rewritten during the cherry-pick process.
 	tp.cfg.Reload()
-	if tp.cfg.VersionFile() != nil {
-		vfiles = strings.Split(tp.cfg.VersionFile().String(), ",")
+	if tp.cfg.VersionFile() != "" {
+		vfiles = strings.Split(tp.cfg.VersionFile(), ",")
 		for i, v := range vfiles {
 			vfiles[i] = strings.TrimSpace(v)
 		}
@@ -452,8 +448,8 @@ OUT:
 	}
 
 	var tmpl *template.Template
-	if t := tp.cfg.Template(); t != nil {
-		tmpTmpl, err := template.ParseFiles(t.String())
+	if t := tp.cfg.Template(); t != "" {
+		tmpTmpl, err := template.ParseFiles(t)
 		if err == nil {
 			tmpl = tmpTmpl
 		} else {
