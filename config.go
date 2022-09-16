@@ -54,10 +54,10 @@ const (
 )
 
 type config struct {
-	releaseBranch *configValue
-	versionFile   *configValue
-	command       *configValue
-	template      *configValue
+	releaseBranch *string
+	versionFile   *string
+	command       *string
+	template      *string
 	vPrefix       *bool
 	changelog     *bool
 
@@ -76,32 +76,20 @@ func newConfig(gitPath string) (*config, error) {
 
 func (cfg *config) Reload() error {
 	if rb := os.Getenv(envReleaseBranch); rb != "" {
-		cfg.releaseBranch = &configValue{
-			value:  rb,
-			source: srcEnv,
-		}
+		cfg.releaseBranch = github.String(rb)
 	} else {
 		out, err := cfg.gitconfig.Get(configReleaseBranch)
 		if err == nil {
-			cfg.releaseBranch = &configValue{
-				value:  out,
-				source: srcConfigFile,
-			}
+			cfg.releaseBranch = github.String(out)
 		}
 	}
 
 	if rb := os.Getenv(envVersionFile); rb != "" {
-		cfg.versionFile = &configValue{
-			value:  rb,
-			source: srcEnv,
-		}
+		cfg.versionFile = github.String(rb)
 	} else {
 		out, err := cfg.gitconfig.Get(configVersionFile)
 		if err == nil {
-			cfg.versionFile = &configValue{
-				value:  out,
-				source: srcConfigFile,
-			}
+			cfg.versionFile = github.String(out)
 		}
 	}
 
@@ -132,32 +120,20 @@ func (cfg *config) Reload() error {
 	}
 
 	if command := os.Getenv(envCommand); command != "" {
-		cfg.command = &configValue{
-			value:  command,
-			source: srcEnv,
-		}
+		cfg.command = github.String(command)
 	} else {
 		command, err := cfg.gitconfig.Get(configCommand)
 		if err == nil {
-			cfg.command = &configValue{
-				value:  command,
-				source: srcConfigFile,
-			}
+			cfg.command = github.String(command)
 		}
 	}
 
 	if tmpl := os.Getenv(envTemplate); tmpl != "" {
-		cfg.template = &configValue{
-			value:  tmpl,
-			source: srcEnv,
-		}
+		cfg.template = github.String(tmpl)
 	} else {
-		template, err := cfg.gitconfig.Get(configTemplate)
+		tmpl, err := cfg.gitconfig.Get(configTemplate)
 		if err == nil {
-			cfg.template = &configValue{
-				value:  template,
-				source: srcConfigFile,
-			}
+			cfg.template = github.String(tmpl)
 		}
 	}
 
@@ -188,7 +164,7 @@ func (cfg *config) initializeFile() error {
 	if err := os.RemoveAll(cfg.conf); err != nil {
 		return err
 	}
-	if err := os.WriteFile(cfg.conf, []byte(defaultConfigContent), 0666); err != nil {
+	if err := os.WriteFile(cfg.conf, []byte(defaultConfigContent), 0644); err != nil {
 		return err
 	}
 	return nil
@@ -198,10 +174,7 @@ func (cfg *config) SetRelaseBranch(br string) error {
 	if err := cfg.set(configReleaseBranch, br); err != nil {
 		return err
 	}
-	cfg.releaseBranch = &configValue{
-		value:  br,
-		source: srcDetect,
-	}
+	cfg.releaseBranch = github.String(br)
 	return nil
 }
 
@@ -209,10 +182,7 @@ func (cfg *config) SetVersionFile(fpath string) error {
 	if err := cfg.set(configVersionFile, fpath); err != nil {
 		return err
 	}
-	cfg.versionFile = &configValue{
-		value:  fpath,
-		source: srcDetect,
-	}
+	cfg.versionFile = github.String(fpath)
 	return nil
 }
 
@@ -224,42 +194,25 @@ func (cfg *config) SetVPrefix(vPrefix bool) error {
 	return nil
 }
 
-func (cfg *config) ReleaseBranch() *configValue {
-	return cfg.releaseBranch
-}
-
-func (cfg *config) VersionFile() *configValue {
-	return cfg.versionFile
-}
-
-func (cfg *config) Command() *configValue {
-	return cfg.command
-}
-
-func (cfg *config) Template() *configValue {
-	return cfg.template
-}
-
-type configValue struct {
-	value  string
-	source configSource
-}
-
-func (cv *configValue) String() string {
-	if cv.value == "-" {
+func stringify(pstr *string) string {
+	if pstr == nil || *pstr == "-" {
 		return ""
 	}
-	return cv.value
+	return *pstr
 }
 
-func (cv *configValue) Empty() bool {
-	return cv.String() == ""
+func (cfg *config) ReleaseBranch() string {
+	return stringify(cfg.releaseBranch)
 }
 
-type configSource int
+func (cfg *config) VersionFile() string {
+	return stringify(cfg.versionFile)
+}
 
-const (
-	srcEnv configSource = iota
-	srcConfigFile
-	srcDetect
-)
+func (cfg *config) Command() string {
+	return stringify(cfg.command)
+}
+
+func (cfg *config) Template() string {
+	return stringify(cfg.template)
+}
