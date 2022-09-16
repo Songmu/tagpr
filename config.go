@@ -3,6 +3,7 @@ package tagpr
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/Songmu/gitconfig"
 	"github.com/google/go-github/v47/github"
@@ -37,6 +38,10 @@ const (
 #
 #   tagpr.tmplate (Optional)
 #       Pull request template in go template format
+#
+#   tagpr.release (Optional)
+#       GitHub Release creation behavior after tagging [yes, draft, no]
+#       If this value is not set, the release is to be created.
 [tagpr]
 `
 	envReleaseBranch    = "TAGPR_RELEASE_BRANCH"
@@ -45,12 +50,14 @@ const (
 	envChangelog        = "TAGPR_CHANGELOG"
 	envCommand          = "TAGPR_COMMAND"
 	envTemplate         = "TAGPR_TEMPLATE"
+	envRelease          = "TAGPR_RELEASE"
 	configReleaseBranch = "tagpr.releaseBranch"
 	configVersionFile   = "tagpr.versionFile"
 	configVPrefix       = "tagpr.vPrefix"
 	configChangelog     = "tagpr.changelog"
 	configCommand       = "tagpr.command"
 	configTemplate      = "tagpr.template"
+	configRelease       = "tagpr.release"
 )
 
 type config struct {
@@ -58,6 +65,7 @@ type config struct {
 	versionFile   *string
 	command       *string
 	template      *string
+	release       *string
 	vPrefix       *bool
 	changelog     *bool
 
@@ -134,6 +142,15 @@ func (cfg *config) Reload() error {
 		tmpl, err := cfg.gitconfig.Get(configTemplate)
 		if err == nil {
 			cfg.template = github.String(tmpl)
+		}
+	}
+
+	if rel := os.Getenv(envRelease); rel != "" {
+		cfg.release = github.String(rel)
+	} else {
+		rel, err := cfg.gitconfig.Get(configRelease)
+		if err == nil {
+			cfg.release = github.String(rel)
 		}
 	}
 
@@ -215,4 +232,14 @@ func (cfg *config) Command() string {
 
 func (cfg *config) Template() string {
 	return stringify(cfg.template)
+}
+
+func (cfg *config) Release() string {
+	rel := strings.ToLower(stringify(cfg.release))
+	switch rel {
+	case "yes", "draft", "no":
+		return rel
+	default:
+		return "yes"
+	}
 }
