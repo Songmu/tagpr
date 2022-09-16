@@ -95,18 +95,18 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return err
 	}
 
-	// Don't use GenerateReleaseNote flag and use pre generated one
-	_, _, err = tp.gh.Repositories.CreateRelease(
-		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
-			TagName:         &nextTag,
-			TargetCommitish: &releaseBranch,
-			Name:            &releases.Name,
-			Body:            &releases.Body,
-			// I want to make it as a draft release by default, but it is difficult to get a draft release
-			// from another tool via API, and there is no tool supports it, so I will make it as a normal
-			// release. In the future, there may be an option to create it as a Draft, or conversely,
-			// an option not to create a release.
-			// Draft: github.Bool(true),
-		})
-	return err
+	if rel := tp.cfg.Release(); rel == "no" {
+		return nil
+	} else {
+		// Don't use GenerateReleaseNote flag and use pre generated one
+		_, _, err = tp.gh.Repositories.CreateRelease(
+			ctx, tp.owner, tp.repo, &github.RepositoryRelease{
+				TagName:         &nextTag,
+				TargetCommitish: &releaseBranch,
+				Name:            &releases.Name,
+				Body:            &releases.Body,
+				Draft:           github.Bool(rel == "draft"),
+			})
+		return err
+	}
 }
