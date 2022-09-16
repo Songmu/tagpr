@@ -327,8 +327,8 @@ OUT:
 	if prog := tp.cfg.Command(); prog != "" {
 		var progArgs []string
 		if strings.ContainsAny(prog, " \n") {
-			prog = "sh"
 			progArgs = []string{"-c", prog}
+			prog = "sh"
 		}
 		tp.c.Cmd(prog, progArgs...)
 	}
