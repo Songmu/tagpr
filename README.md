@@ -84,6 +84,10 @@ Command to change files just before release.
 ### tagpr.tmplate (Optional)
 Pull request template in go template format
 
+### tagpr.release (Optional)
+GitHub Release creation behavior after tagging `[yes, draft, no]`
+If this value is not set, the release is to be created.
+
 ## Author
 
 [Songmu](https://github.com/Songmu)
