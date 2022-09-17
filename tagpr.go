@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -35,6 +36,7 @@ type tagpr struct {
 	cfg                     *config
 	gitPath                 string
 	remoteName, owner, repo string
+	out                     io.Writer
 }
 
 func (tp *tagpr) latestSemverTag() string {
@@ -46,7 +48,7 @@ func (tp *tagpr) latestSemverTag() string {
 }
 
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
-	tp := &tagpr{c: c, gitPath: c.gitPath}
+	tp := &tagpr{c: c, gitPath: c.gitPath, out: c.outStream}
 
 	var err error
 	tp.remoteName, err = tp.detectRemote()
