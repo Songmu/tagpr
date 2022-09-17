@@ -263,9 +263,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	for _, issue := range prIssues {
 		for _, l := range issue.Labels {
 			switch l.GetName() {
-			case "tagpr:minor", "tagpr/minor", "minor":
+			case "minor":
 				nextMinor = true
-			case "tagpr:major", "tagpr/major", "major":
+			case "major":
 				nextMajor = true
 			}
 		}
