@@ -22,3 +22,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         files: dist/*
+    - uses: haya14busa/action-update-semver@v1
+      with:
+        major_version_tag_only: true

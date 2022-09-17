@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: Songmu/tagpr@main
+    - uses: Songmu/tagpr@v0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -47,7 +47,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         token: ${{ secrets.GH_PAT }}
-    - uses: Songmu/tagpr@main
+    - uses: Songmu/tagpr@v0
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 ```
