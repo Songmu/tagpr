@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.3.0](https://github.com/Songmu/tagpr/compare/v0.2.0...v0.3.0) - 2022-09-17
+- add convention labels from labels of existing pull requests by @Songmu in https://github.com/Songmu/tagpr/pull/93
+- refine around type config by @Songmu in https://github.com/Songmu/tagpr/pull/94
+- add tagpr.release setting to adjust creating GitHub Release behavior by @Songmu in https://github.com/Songmu/tagpr/pull/95
+- true/false/draft for tapgr.release config by @Songmu in https://github.com/Songmu/tagpr/pull/96
+- GitHub Actions friendly outputs by @Songmu in https://github.com/Songmu/tagpr/pull/97
+
 ## [v0.2.0](https://github.com/Songmu/tagpr/compare/v0.1.3...v0.2.0) - 2022-09-06
 - feat: Add flag to turn on or off creating/modifying CHANGELOG.md by @siketyan in https://github.com/Songmu/tagpr/pull/86
 
