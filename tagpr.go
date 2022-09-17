@@ -2,8 +2,10 @@ package tagpr
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -35,6 +37,7 @@ type tagpr struct {
 	cfg                     *config
 	gitPath                 string
 	remoteName, owner, repo string
+	out                     io.Writer
 }
 
 func (tp *tagpr) latestSemverTag() string {
@@ -46,7 +49,7 @@ func (tp *tagpr) latestSemverTag() string {
 }
 
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
-	tp := &tagpr{c: c, gitPath: c.gitPath}
+	tp := &tagpr{c: c, gitPath: c.gitPath, out: c.outStream}
 
 	var err error
 	tp.remoteName, err = tp.detectRemote()
@@ -169,7 +172,12 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return tp.tagRelease(ctx, pr, currVer, latestSemverTag)
+		if err := tp.tagRelease(ctx, pr, currVer, latestSemverTag); err != nil {
+			return err
+		}
+		b, _ := json.Marshal(pr)
+		fmt.Fprintf(tp.out, "::set-output name=pull_request::%s\n", string(b))
+		return nil
 	}
 	shasStr, _, err := tp.c.Git("log", "--merges", "--pretty=format:%P",
 		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
@@ -485,16 +493,37 @@ OUT:
 		addingLabels = append(addingLabels, autoLableName)
 		_, _, err = tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
-		return err
+		if err != nil {
+			return err
+		}
+		tmpPr, _, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
+		if err == nil {
+			pr = tmpPr
+		}
+		b, _ := json.Marshal(pr)
+		fmt.Fprintf(tp.out, "::set-output name=pull_request::%s\n", string(b))
+		return nil
 	}
 	currTagPR.Title = github.String(title)
 	currTagPR.Body = github.String(mergeBody(*currTagPR.Body, body))
-	_, _, err = tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
-	if len(addingLabels) > 0 {
-		_, _, err = tp.gh.Issues.AddLabelsToIssue(
-			ctx, tp.owner, tp.repo, *currTagPR.Number, addingLabels)
+	pr, _, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
+	if err != nil {
+		return err
 	}
-	return err
+	if len(addingLabels) > 0 {
+		_, _, err := tp.gh.Issues.AddLabelsToIssue(
+			ctx, tp.owner, tp.repo, *currTagPR.Number, addingLabels)
+		if err != nil {
+			return err
+		}
+		tmpPr, _, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
+		if err == nil {
+			pr = tmpPr
+		}
+	}
+	b, _ := json.Marshal(pr)
+	fmt.Fprintf(tp.out, "::set-output name=pull_request::%s\n", string(b))
+	return nil
 }
 
 var (
