@@ -17,6 +17,7 @@ jobs:
         token: ${{ secrets.GH_PAT }}
     - run: |
         make install
+        echo '::echo::on'
         tagpr
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
