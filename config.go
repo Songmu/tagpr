@@ -40,7 +40,7 @@ const (
 #       Pull request template in go template format
 #
 #   tagpr.release (Optional)
-#       GitHub Release creation behavior after tagging [yes, draft, no]
+#       GitHub Release creation behavior after tagging [true, draft, false]
 #       If this value is not set, the release is to be created.
 [tagpr]
 `
@@ -234,12 +234,18 @@ func (cfg *config) Template() string {
 	return stringify(cfg.template)
 }
 
-func (cfg *config) Release() string {
+func (cfg *config) Release() bool {
 	rel := strings.ToLower(stringify(cfg.release))
-	switch rel {
-	case "yes", "draft", "no":
-		return rel
-	default:
-		return "yes"
+	if rel == "draft" || rel == "" {
+		return true
 	}
+	b, err := strconv.ParseBool(rel)
+	if err != nil {
+		return true
+	}
+	return b
+}
+
+func (cfg *config) ReleaseDraft() bool {
+	return strings.ToLower(stringify(cfg.release)) == "draft"
 }

@@ -95,18 +95,17 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return err
 	}
 
-	if rel := tp.cfg.Release(); rel == "no" {
+	if !tp.cfg.Release() {
 		return nil
-	} else {
-		// Don't use GenerateReleaseNote flag and use pre generated one
-		_, _, err = tp.gh.Repositories.CreateRelease(
-			ctx, tp.owner, tp.repo, &github.RepositoryRelease{
-				TagName:         &nextTag,
-				TargetCommitish: &releaseBranch,
-				Name:            &releases.Name,
-				Body:            &releases.Body,
-				Draft:           github.Bool(rel == "draft"),
-			})
-		return err
 	}
+	// Don't use GenerateReleaseNote flag and use pre generated one
+	_, _, err = tp.gh.Repositories.CreateRelease(
+		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
+			TagName:         &nextTag,
+			TargetCommitish: &releaseBranch,
+			Name:            &releases.Name,
+			Body:            &releases.Body,
+			Draft:           github.Bool(tp.cfg.ReleaseDraft()),
+		})
+	return err
 }
