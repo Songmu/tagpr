@@ -9,12 +9,9 @@ runs:
   using: "composite"
   steps:
     - run: |
-        DIRNAME=tagpr_${{ inputs.version }}_linux_amd64
-        cd /tmp
-        curl -sLO https://github.com/Songmu/tagpr/releases/download/${{ inputs.version }}/${DIRNAME}.tar.gz
-        tar zxvf ${DIRNAME}.tar.gz
-        sudo mv ${DIRNAME}/tagpr /usr/local/bin/tagpr
-        rm -rf ${DIRNAME} ${DIRNAME}.zip
-        cd -
+        cd "${GITHUB_WORKSPACE}" || exit 1
+        TEMP_PATH="$(mktemp -d)"
+        PATH="${TEMP_PATH}:$PATH"
+        curl -sfL https://raw.githubusercontent.com/Songmu/goshodo/main/install.sh | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
         tagpr
       shell: bash
