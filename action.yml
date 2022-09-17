@@ -12,6 +12,6 @@ runs:
         cd "${GITHUB_WORKSPACE}" || exit 1
         TEMP_PATH="$(mktemp -d)"
         PATH="${TEMP_PATH}:$PATH"
-        curl -sfL https://raw.githubusercontent.com/Songmu/goshodo/main/install.sh | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
+        curl -sfL https://raw.githubusercontent.com/Songmu/tagpr/main/install.sh | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
         tagpr
       shell: bash
