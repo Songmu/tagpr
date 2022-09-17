@@ -22,8 +22,3 @@ jobs:
         tagpr
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-    - uses: haya14busa/action-update-semver@v1
-      if: "steps.tagpr.outputs.tag != ''"
-      with:
-        tag: ${{ steps.tagpr.outputs.tag }}
-        major_version_tag_only: true
