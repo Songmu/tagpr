@@ -240,6 +240,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	// This is difficult to read from the current documentation, but that is the current
 	// behavior and GitHub support has responded that this is the spec.
 	for _, sha := range strings.Split(shasStr, "\n") {
+		if strings.TrimSpace(sha) == "" {
+			continue
+		}
 		// Longer than 256 characters are not supported in the query.
 		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
 		if len(query)+1+len(sha) >= 256 {
@@ -378,6 +381,9 @@ OUT:
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
 			m := strings.SplitN(line, " ", 2)
 			if len(m) < 2 {
 				continue
