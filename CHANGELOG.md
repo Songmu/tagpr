@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.2](https://github.com/Songmu/tagpr/compare/v0.3.1...v0.3.2) - 2022-09-17
+- add vN tag after uploading artifacts by @Songmu in https://github.com/Songmu/tagpr/pull/103
+- update dependencies by @Songmu in https://github.com/Songmu/tagpr/pull/105
+
 ## [v0.3.1](https://github.com/Songmu/tagpr/compare/v0.3.0...v0.3.1) - 2022-09-17
 - update docs by @Songmu in https://github.com/Songmu/tagpr/pull/99
 - adjust label convention by @Songmu in https://github.com/Songmu/tagpr/pull/101
