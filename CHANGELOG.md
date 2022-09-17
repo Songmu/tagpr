@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.3.1](https://github.com/Songmu/tagpr/compare/v0.3.0...v0.3.1) - 2022-09-17
+- update docs by @Songmu in https://github.com/Songmu/tagpr/pull/99
+- adjust label convention by @Songmu in https://github.com/Songmu/tagpr/pull/101
+- fix label convention by @Songmu in https://github.com/Songmu/tagpr/pull/102
+
 ## [v0.3.0](https://github.com/Songmu/tagpr/compare/v0.2.0...v0.3.0) - 2022-09-17
 - add convention labels from labels of existing pull requests by @Songmu in https://github.com/Songmu/tagpr/pull/93
 - refine around type config by @Songmu in https://github.com/Songmu/tagpr/pull/94
