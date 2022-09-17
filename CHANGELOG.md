@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.3.3](https://github.com/Songmu/tagpr/compare/v0.3.2...v0.3.3) - 2022-09-17
+- use install.sh in action.yml by @Songmu in https://github.com/Songmu/tagpr/pull/106
+
 ## [v0.3.2](https://github.com/Songmu/tagpr/compare/v0.3.1...v0.3.2) - 2022-09-17
 - add vN tag after uploading artifacts by @Songmu in https://github.com/Songmu/tagpr/pull/103
 - update dependencies by @Songmu in https://github.com/Songmu/tagpr/pull/105
