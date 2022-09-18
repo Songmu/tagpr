@@ -14,11 +14,15 @@ import (
 	"github.com/saracen/walker"
 )
 
-const versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,50})`
+const (
+	versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,50})`
+	semverRegBase  = `([0-9]+\.[0-9]+\.[0-9]+)`
+)
 
 var (
-	versionReg = regexp.MustCompile(versionRegBase + `([0-9]+\.[0-9]+\.[0-9]+)`)
-	skipDirs   = map[string]bool{
+	versionReg         = regexp.MustCompile(versionRegBase + semverRegBase)
+	versionRegFallback = regexp.MustCompile(semverRegBase)
+	skipDirs           = map[string]bool{
 		// The "testdata" directory is ommited because of the test code for tagpr itself
 		"testdata":     true,
 		".git":         true,
@@ -190,11 +194,16 @@ func retrieveVersionFromFile(fpath string, vPrefix bool) (*semv, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := versionReg.FindSubmatch(bs)
-	if len(m) < 3 {
-		return nil, fmt.Errorf("no version detected from file: %s", fpath)
+	var ver string
+	if m := versionReg.FindSubmatch(bs); len(m) >= 3 {
+		ver = string(m[2])
+	} else {
+		m := versionRegFallback.FindSubmatch(bs)
+		if len(m) < 2 {
+			return nil, fmt.Errorf("no version detected from file: %s", fpath)
+		}
+		ver = string(m[1])
 	}
-	ver := string(m[2])
 	if vPrefix {
 		ver = "v" + ver
 	}

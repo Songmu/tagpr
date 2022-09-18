@@ -35,6 +35,16 @@ func TestRetrieveVersionFile(t *testing.T) {
 	if ver.Naked() != version {
 		t.Errorf("detected: %s, expected: %s", ver.Naked(), version)
 	}
+
+	ver, err = retrieveVersionFromFile("testdata/vfile1", true)
+	if e, g := "v1.2.3", ver.Tag(); e != g {
+		t.Errorf("got: %s, expected: %s", g, e)
+	}
+
+	ver, err = retrieveVersionFromFile("testdata/vfile2", false)
+	if e, g := "1.3.5", ver.Tag(); e != g {
+		t.Errorf("got: %s, expected: %s", g, e)
+	}
 }
 
 func TestDetectVersionFile(t *testing.T) {
