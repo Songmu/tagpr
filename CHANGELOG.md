@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.3.4](https://github.com/Songmu/tagpr/compare/v0.3.3...v0.3.4) - 2022-09-18
+- fix retrievingVersionFromFile by @Songmu in https://github.com/Songmu/tagpr/pull/108
+
 ## [v0.3.3](https://github.com/Songmu/tagpr/compare/v0.3.2...v0.3.3) - 2022-09-17
 - use install.sh in action.yml by @Songmu in https://github.com/Songmu/tagpr/pull/106
 
