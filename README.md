@@ -9,7 +9,7 @@ tagpr
 [license]: https://github.com/Songmu/tagpr/blob/main/LICENSE
 [PkgGoDev]: https://pkg.go.dev/github.com/Songmu/tagpr
 
-The `tagpr` automatically creates and updates a pull request for unreleased items, tag them when they are merged, and create releases.
+The `tagpr` clarify the release flow. It automatically creates and updates a pull request for unreleased items, tag them when they are merged, and create releases.
 
 ## Synopsis
 
@@ -57,7 +57,7 @@ By using `tagpr`, the release flow can be visible and the maintainer can simply 
 
 ## Configuration
 
-Describe the settings in the .tagpr file directly under the repository. This is automatically created the first time tagpr is run, but feel free to adjust it. The following configuration items are available
+Describe the settings in the .tagpr file directly under the repository in gitconfig format. This is automatically created the first time tagpr is run, but feel free to adjust it. The following configuration items are available
 
 ### tagpr.releaseBranch
 Generally, it is "main." It is the branch for releases. The pcpr tracks this branch,
