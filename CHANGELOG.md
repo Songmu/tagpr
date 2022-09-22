@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.3.5](https://github.com/Songmu/tagpr/compare/v0.3.4...v0.3.5) - 2022-09-22
+- introduce tibdex/github-app-token by @Songmu in https://github.com/Songmu/tagpr/pull/110
+
 ## [v0.3.4](https://github.com/Songmu/tagpr/compare/v0.3.3...v0.3.4) - 2022-09-18
 - fix retrievingVersionFromFile by @Songmu in https://github.com/Songmu/tagpr/pull/108
 
