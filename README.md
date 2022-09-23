@@ -32,7 +32,10 @@ jobs:
 ```
 
 If you do not want to use the token provided by GitHub Actions, do the following This is useful if you want to trigger another action with a tag.
-It would be safer to issue the token in conjunction with the GitHub App instead of a personal access token.
+
+ref. <https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow>
+
+For simplicity, we include an example of specifying a personal access token here. However, issuing the temporary token in conjunction with the GitHub App would be safer than a personal access token.
 
 ```yaml
 name: tagpr
@@ -55,8 +58,9 @@ jobs:
 ## Description
 By using `tagpr`, the release flow can be visible and the maintainer can simply merge pull requests to complete the release.
 
-## Configuration
+The release can be made easier and clearer because it can be put into a flow where the release is completed by pressing the merge button on a pull request that is automatically created.
 
+## Configuration
 Describe the settings in the .tagpr file directly under the repository in gitconfig format. This is automatically created the first time tagpr is run, but feel free to adjust it. The following configuration items are available
 
 ### tagpr.releaseBranch
@@ -87,6 +91,27 @@ Pull request template in go template format
 ### tagpr.release (Optional)
 GitHub Release creation behavior after tagging `[true, draft, false]`  
 If this value is not set, the release is to be created.
+
+## Outputs for GitHub Actions
+
+The tagpr produces output to be used in conjunction with subsequent GitHub Actions jobs.
+
+- `pull_request`: Information of the pull request created by tagpr in JSON format
+- `tag`: Tag strings are output only if the tagpr has tagged
+
+It is useful to see if tag is available and to run tasks after release. The following is an example of running action-update-semver after release.
+
+```yaml
+- uses: actions/checkout@v3
+- id: tagpr
+  uses: Songmu/tagpr@v0
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+- uses: haya14busa/action-update-semver
+  if: "steps.tagpr.outputs.tag != ''"
+  with:
+    tag: ${{ steps.tagpr.outputs.tag }}
+```
 
 ## Author
 
