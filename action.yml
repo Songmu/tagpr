@@ -1,4 +1,5 @@
-name: tagpr
+name: Automate pull request generation and tagging for releases using tagpr
+author: Songmu
 description: install and run the tagpr
 inputs:
   version:
@@ -8,10 +9,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: |
-        cd "${GITHUB_WORKSPACE}" || exit 1
-        TEMP_PATH="$(mktemp -d)"
-        PATH="${TEMP_PATH}:$PATH"
-        curl -sfL https://raw.githubusercontent.com/Songmu/tagpr/main/install.sh | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
-        tagpr
-      shell: bash
+  - run: |
+      cd "${GITHUB_WORKSPACE}" || exit 1
+      TEMP_PATH="$(mktemp -d)"
+      PATH="${TEMP_PATH}:$PATH"
+      curl -sfL https://raw.githubusercontent.com/Songmu/tagpr/main/install.sh | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
+      tagpr
+    shell: bash
+branding:
+  icon: 'git-pull-request'
+  color: 'blue'
