@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: Songmu/tagpr@v0
+    - uses: Songmu/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -50,7 +50,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         token: ${{ secrets.GH_PAT }}
-    - uses: Songmu/tagpr@v0
+    - uses: Songmu/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 ```
@@ -134,7 +134,7 @@ It is useful to see if tag is available and to run tasks after release. The foll
 ```yaml
 - uses: actions/checkout@v3
 - id: tagpr
-  uses: Songmu/tagpr@v0
+  uses: Songmu/tagpr@v1
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 - uses: haya14busa/action-update-semver
