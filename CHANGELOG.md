@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.0.0](https://github.com/Songmu/tagpr/compare/v0.3.5...v1.0.0) - 2022-09-23
+- ready for v1 by @Songmu in https://github.com/Songmu/tagpr/pull/112
+- add Versioning Rules section into README.md by @Songmu in https://github.com/Songmu/tagpr/pull/114
+
 ## [v0.3.5](https://github.com/Songmu/tagpr/compare/v0.3.4...v0.3.5) - 2022-09-22
 - introduce tibdex/github-app-token by @Songmu in https://github.com/Songmu/tagpr/pull/110
 
