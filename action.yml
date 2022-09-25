@@ -6,10 +6,19 @@ inputs:
     description: "A version to install tagpr"
     required: false
     default: "v1.0.0"
+outputs:
+  tag:
+    description: "The semver tag, which is output only when the tagpr has tagged"
+    value: ${{ steps.tagpr.outputs.tag }}
+  pull_request:
+    description: "Information of the pull request created by tagpr in JSON format"
+    value: ${{ steps.tagpr.outputs.pull_request }}
 runs:
   using: "composite"
   steps:
-  - run: |
+  - name: tagpr
+    id: tagpr
+    run: |
       cd "${GITHUB_WORKSPACE}" || exit 1
       TEMP_PATH="$(mktemp -d)"
       PATH="${TEMP_PATH}:$PATH"
