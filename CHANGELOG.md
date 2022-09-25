@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.0.1](https://github.com/Songmu/tagpr/compare/v1.0.0...v1.0.1) - 2022-09-25
+- declare outputs properly in action.yml by @Songmu in https://github.com/Songmu/tagpr/pull/116
+
 ## [v1.0.0](https://github.com/Songmu/tagpr/compare/v0.3.5...v1.0.0) - 2022-09-23
 - ready for v1 by @Songmu in https://github.com/Songmu/tagpr/pull/112
 - add Versioning Rules section into README.md by @Songmu in https://github.com/Songmu/tagpr/pull/114
