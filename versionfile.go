@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,50})`
+	versionRegBase = `(?i)((?:^|[^-_0-9a-zA-Z])version[^-_0-9a-zA-Z].{0,50}?)`
 	semverRegBase  = `([0-9]+\.[0-9]+\.[0-9]+)`
 )
 
