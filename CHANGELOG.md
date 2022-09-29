@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.0.2](https://github.com/Songmu/tagpr/compare/v1.0.1...v1.0.2) - 2022-09-29
+- Correction of version number detection over 2 digits by @Songmu in https://github.com/Songmu/tagpr/pull/119
+
 ## [v1.0.1](https://github.com/Songmu/tagpr/compare/v1.0.0...v1.0.1) - 2022-09-25
 - declare outputs properly in action.yml by @Songmu in https://github.com/Songmu/tagpr/pull/116
 
