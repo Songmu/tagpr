@@ -94,7 +94,7 @@ b74ef35
 def3db8
 c0fc143
 `,
-			"repo:k2tzumi/runn is:pr is:closed 1a8bb97 1b7691b a9462b9 4d2b5e9 9ce4268 1eccbf8 1c3fbfc 968ade5 531c782 780bb71 6025fbf cc369ba a1f3e39 792bc85 3e3c4e1 37832de ac97702 d742186 217eb5d 0f900f7 5ef33d1 1d2ec15 2f37752 066ad7b 2e19b14 52b3706 f5134ae ea39bbf 76b0630 ee3c6e6 2336be4 423a209 63caa74",
+			"repo:k2tzumi/runn is:pr is:closed 1a8bb97 1b7691b a9462b9 4d2b5e9 9ce4268 1eccbf8 1c3fbfc 968ade5 531c782 780bb71 6025fbf cc369ba a1f3e39 792bc85 3e3c4e1 37832de ac97702 d742186 217eb5d 0f900f7 5ef33d1 1d2ec15 2f37752 066ad7b 2e19b14 52b3706 f5134ae",
 		},
 	}
 	for _, tt := range tests {
