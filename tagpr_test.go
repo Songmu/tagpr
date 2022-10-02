@@ -23,6 +23,12 @@ func TestBuildSearchIssuesQuery(t *testing.T) {
 			"repo:/Songmu/tagpr is:pr is:closed",
 		},
 		{
+			"repo:/Songmu/tagpr is:pr is:closed",
+			`aeed69aa554533dcb4332a1778e4771165a909b5
+`,
+			"repo:/Songmu/tagpr is:pr is:closed aeed69aa554533dcb4332a1778e4771165a909b5",
+		},
+		{
 			"repo:k2tzumi/runn is:pr is:closed",
 			`1a8bb97
 1b7691b
