@@ -233,29 +233,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
-	query := queryBase
-	// Make bulk requests with multiple SHAs of the maximum possible length.
-	// If multiple SHAs are specified, the issue search API will treat it like an OR search,
-	// and all the pull requests will be searched.
-	// This is difficult to read from the current documentation, but that is the current
-	// behavior and GitHub support has responded that this is the spec.
-	for _, sha := range strings.Split(shasStr, "\n") {
-		if strings.TrimSpace(sha) == "" {
-			continue
-		}
-		// Longer than 256 characters are not supported in the query.
-		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
-		if len(query)+1+len(sha) >= 256 {
-			tmpIssues, err := tp.searchIssues(ctx, query)
-			if err != nil {
-				return err
-			}
-			prIssues = append(prIssues, tmpIssues...)
-			query = queryBase
-		}
-		query += " " + sha
-	}
-	if query != queryBase {
+	for _, query := range buildChunkSearchIssuesQuery(queryBase, shasStr) {
 		tmpIssues, err := tp.searchIssues(ctx, query)
 		if err != nil {
 			return err
@@ -595,4 +573,29 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 		return nil, err
 	}
 	return issues.Issues, nil
+}
+
+func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries []string) {
+	query := queryBase
+	// Make bulk requests with multiple SHAs of the maximum possible length.
+	// If multiple SHAs are specified, the issue search API will treat it like an OR search,
+	// and all the pull requests will be searched.u
+	// This is difficult to read from the current documentation, but that is the current
+	// behavior and GitHub support has responded that this is the spec.
+	for _, sha := range strings.Split(shasStr, "\n") {
+		if strings.TrimSpace(sha) == "" {
+			continue
+		}
+		// Longer than 256 characters are not supported in the query.
+		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
+		if len(query)+1+len(sha) >= 256 {
+			chunkQueries = append(chunkQueries, query)
+			query = queryBase
+
+			continue
+		}
+		query += " " + sha
+	}
+
+	return chunkQueries
 }
