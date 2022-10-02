@@ -251,6 +251,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 				return err
 			}
 			prIssues = append(prIssues, tmpIssues...)
+			query = queryBase
 		}
 		query += " " + sha
 	}
