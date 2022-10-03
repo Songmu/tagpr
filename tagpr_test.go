@@ -18,7 +18,7 @@ func TestBuildChunkSearchIssuesQuery(t *testing.T) {
 		},
 		{
 			"repo:/Songmu/tagpr is:pr is:closed",
-			`i
+			`
 			`,
 			nil,
 		},
