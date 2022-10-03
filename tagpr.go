@@ -597,5 +597,9 @@ func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries
 		query += " " + sha
 	}
 
+	if query != queryBase {
+		chunkQueries = append(chunkQueries, query)
+	}
+
 	return chunkQueries
 }
