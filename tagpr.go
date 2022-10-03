@@ -591,8 +591,6 @@ func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries
 		if len(query)+1+len(sha) >= 256 {
 			chunkQueries = append(chunkQueries, query)
 			query = queryBase
-
-			continue
 		}
 		query += " " + sha
 	}
