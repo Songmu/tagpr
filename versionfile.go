@@ -97,6 +97,8 @@ func detectVersionFile(root string, ver *semv) (string, error) {
 	return f, nil
 }
 
+// The second argument returns the language name in lowercase, but this is a temporary interface
+// and is not currently used anywhere.
 func versionFile(files []string) (string, string) {
 	if len(files) < 1 {
 		return "", ""
@@ -122,6 +124,8 @@ func versionFile(files []string) (string, string) {
 			return f, "python"
 		case "package.json":
 			return f, "node"
+		case "manifest.json": // for chrome extension
+			return f, "javascript"
 		case "pom.xml":
 			return f, "java"
 		case "meta.json":
