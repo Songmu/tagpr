@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.0.4](https://github.com/Songmu/tagpr/compare/v1.0.3...v1.0.4) - 2022-10-07
+- SearchIssues related testing and refactoring by @k2tzumi in https://github.com/Songmu/tagpr/pull/121
+- Add manifest.json as a priority item in the version file search. by @Songmu in https://github.com/Songmu/tagpr/pull/126
+
 ## [v1.0.3](https://github.com/Songmu/tagpr/compare/v1.0.2...v1.0.3) - 2022-10-02
 - [fix] reset query variable after requesting while fetching squashed issues by @Songmu in https://github.com/Songmu/tagpr/pull/122
 
