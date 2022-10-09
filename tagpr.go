@@ -303,7 +303,7 @@ OUT:
 		for i, v := range vfiles {
 			vfiles[i] = strings.TrimSpace(v)
 		}
-	} else {
+	} else if tp.cfg.versionFile == nil {
 		vfile, err := detectVersionFile(".", currVer)
 		if err != nil {
 			return err
