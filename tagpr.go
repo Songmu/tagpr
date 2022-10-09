@@ -323,7 +323,7 @@ OUT:
 		tp.c.Cmd(prog, progArgs...)
 	}
 
-	if vfiles[0] != "" {
+	if len(vfiles) > 0 && vfiles[0] != "" {
 		for _, vfile := range vfiles {
 			if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
 				return err
@@ -397,7 +397,7 @@ OUT:
 			vfiles[i] = strings.TrimSpace(v)
 		}
 	}
-	if vfiles[0] != "" {
+	if len(vfiles) > 0 && vfiles[0] != "" {
 		nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer.vPrefix)
 		if nVer != nil && nVer.Naked() != nextVer.Naked() {
 			nextVer = nVer
