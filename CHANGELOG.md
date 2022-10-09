@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.0.6](https://github.com/Songmu/tagpr/compare/v1.0.5...v1.0.6) - 2022-10-09
+- [bugfix] Care the case if you do not use a version file by @Songmu in https://github.com/Songmu/tagpr/pull/131
+
 ## [v1.0.5](https://github.com/Songmu/tagpr/compare/v1.0.4...v1.0.5) - 2022-10-09
 - don't update versionFile configuration if .tagpr file already exists by @Songmu in https://github.com/Songmu/tagpr/pull/127
 
