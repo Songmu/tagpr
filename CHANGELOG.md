@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.0.5](https://github.com/Songmu/tagpr/compare/v1.0.4...v1.0.5) - 2022-10-09
+- don't update versionFile configuration if .tagpr file already exists by @Songmu in https://github.com/Songmu/tagpr/pull/127
+
 ## [v1.0.4](https://github.com/Songmu/tagpr/compare/v1.0.3...v1.0.4) - 2022-10-07
 - SearchIssues related testing and refactoring by @k2tzumi in https://github.com/Songmu/tagpr/pull/121
 - Add manifest.json as a priority item in the version file search. by @Songmu in https://github.com/Songmu/tagpr/pull/126
