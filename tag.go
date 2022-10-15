@@ -2,7 +2,6 @@ package tagpr
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/google/go-github/v47/github"
@@ -95,8 +94,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprintf(tp.out, "::set-output name=tag::%s\n", nextTag)
+	tp.setOutput("tag", nextTag)
 
 	if !tp.cfg.Release() {
 		return nil

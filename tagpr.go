@@ -176,7 +176,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			return err
 		}
 		b, _ := json.Marshal(pr)
-		fmt.Fprintf(tp.out, "::set-output name=pull_request::%s\n", string(b))
+		tp.setOutput("pull_request", string(b))
 		return nil
 	}
 	shasStr, _, err := tp.c.Git("log", "--merges", "--pretty=format:%P",
@@ -486,7 +486,7 @@ OUT:
 			pr = tmpPr
 		}
 		b, _ := json.Marshal(pr)
-		fmt.Fprintf(tp.out, "::set-output name=pull_request::%s\n", string(b))
+		tp.setOutput("pull_request", string(b))
 		return nil
 	}
 	currTagPR.Title = github.String(title)
@@ -507,7 +507,7 @@ OUT:
 		}
 	}
 	b, _ := json.Marshal(pr)
-	fmt.Fprintf(tp.out, "::set-output name=pull_request::%s\n", string(b))
+	tp.setOutput("pull_request", string(b))
 	return nil
 }
 
