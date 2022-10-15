@@ -11,6 +11,20 @@ func exists(filename string) bool {
 }
 
 func (tp *tagpr) setOutput(name, value string) error {
-	_, err := fmt.Fprintf(tp.out, "::set-output name=%s::%s\n", name, value)
+	return setOutput(name, value)
+}
+
+func setOutput(name, value string) error {
+	fpath, ok := os.LookupEnv("GITHUB_OUTPUT")
+	if !ok {
+		return nil
+	}
+	f, err := os.OpenFile(fpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(fmt.Sprintf("%s=%s\n", name, value))
 	return err
 }
