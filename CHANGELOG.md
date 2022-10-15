@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.0.7](https://github.com/Songmu/tagpr/compare/v1.0.6...v1.0.7) - 2022-10-15
+- SetOutput in GitHub Actions with new way by @Songmu in https://github.com/Songmu/tagpr/pull/134
+
 ## [v1.0.6](https://github.com/Songmu/tagpr/compare/v1.0.5...v1.0.6) - 2022-10-09
 - [bugfix] Care the case if you do not use a version file by @Songmu in https://github.com/Songmu/tagpr/pull/131
 
