@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.0.8](https://github.com/Songmu/tagpr/compare/v1.0.7...v1.0.8) - 2022-12-17
+- Fix a typo by @T-Toshiya in https://github.com/Songmu/tagpr/pull/137
+
 ## [v1.0.7](https://github.com/Songmu/tagpr/compare/v1.0.6...v1.0.7) - 2022-10-15
 - SetOutput in GitHub Actions with new way by @Songmu in https://github.com/Songmu/tagpr/pull/134
 
