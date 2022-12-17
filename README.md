@@ -94,7 +94,7 @@ If there is a discrepancy between the version file and the conventional labels a
 Describe the settings in the .tagpr file directly under the repository in gitconfig format. This is automatically created the first time tagpr is run, but feel free to adjust it. The following configuration items are available
 
 ### tagpr.releaseBranch
-Generally, it is "main." It is the branch for releases. The pcpr tracks this branch,
+Generally, it is "main." It is the branch for releases. The tagpr tracks this branch,
 creates or updates a pull request as a release candidate, or tags when they are merged.
 
 ### tagpr.versionFile

@@ -2,7 +2,7 @@
 # The tagpr generates the initial configuration, which you can rewrite to suit your environment.
 # CONFIGURATIONS:
 #   tagpr.releaseBranch
-#       Generally, it is "main." It is the branch for releases. The pcpr tracks this branch,
+#       Generally, it is "main." It is the branch for releases. The tagpr tracks this branch,
 #       creates or updates a pull request as a release candidate, or tags when they are merged.
 #
 #   tagpr.versionFile
