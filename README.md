@@ -115,7 +115,7 @@ Flag whether or not changelog is added or changed during the release.
 ### tagpr.command (Optional)
 Command to change files just before release.
 
-### tagpr.tmplate (Optional)
+### tagpr.template (Optional)
 Pull request template in go template format
 
 ### tagpr.release (Optional)

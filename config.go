@@ -36,7 +36,7 @@ const (
 #   tagpr.command (Optional)
 #       Command to change files just before release.
 #
-#   tagpr.tmplate (Optional)
+#   tagpr.template (Optional)
 #       Pull request template in go template format
 #
 #   tagpr.release (Optional)
