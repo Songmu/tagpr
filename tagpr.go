@@ -241,24 +241,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		prIssues = append(prIssues, tmpIssues...)
 	}
 
-	var nextMinor, nextMajor bool
-	for _, issue := range prIssues {
-		for _, l := range issue.Labels {
-			switch l.GetName() {
-			case "minor":
-				nextMinor = true
-			case "major":
-				nextMajor = true
-			}
-		}
-	}
-	var nextLabels []string
-	if nextMinor {
-		nextLabels = append(nextLabels, "tagpr:minor")
-	}
-	if nextMajor {
-		nextLabels = append(nextLabels, "tagpr:major")
-	}
+	nextLabels := tp.generatenNextLabels(prIssues)
 
 	rcBranch := fmt.Sprintf("%s%s", branchPrefix, currVer.Tag())
 	tp.c.Git("branch", "-D", rcBranch)
@@ -573,6 +556,29 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 		return nil, err
 	}
 	return issues.Issues, nil
+}
+
+func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
+	var nextMinor, nextMajor bool
+	for _, issue := range prIssues {
+		for _, l := range issue.Labels {
+			switch l.GetName() {
+			case "minor":
+				nextMinor = true
+			case "major":
+				nextMajor = true
+			}
+		}
+	}
+	var nextLabels []string
+	if nextMinor {
+		nextLabels = append(nextLabels, "tagpr:minor")
+	}
+	if nextMajor {
+		nextLabels = append(nextLabels, "tagpr:major")
+	}
+
+	return nextLabels
 }
 
 func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries []string) {
