@@ -559,13 +559,15 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 }
 
 func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
+	majorLabels := tp.cfg.MajorLabels()
+	minorLabels := tp.cfg.MinorLabels()
 	var nextMinor, nextMajor bool
 	for _, issue := range prIssues {
 		for _, l := range issue.Labels {
-			switch l.GetName() {
-			case "minor":
+			if contains(minorLabels, l.GetName()) {
 				nextMinor = true
-			case "major":
+			}
+			if contains(majorLabels, l.GetName()) {
 				nextMajor = true
 			}
 		}
@@ -606,4 +608,13 @@ func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries
 	}
 
 	return chunkQueries
+}
+
+func contains(elems []string, v string) bool {
+	for _, s := range elems {
+		if s == v {
+			return true
+		}
+	}
+	return false
 }
