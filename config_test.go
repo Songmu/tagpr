@@ -3,6 +3,7 @@ package tagpr
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -33,6 +34,12 @@ func TestConfig(t *testing.T) {
 		t.Error(err)
 	}
 	if e, g := "", cfg.VersionFile(); e != g {
+		t.Errorf("got: %s, expext: %s", g, e)
+	}
+	if e, g := []string{"major"}, cfg.MajorLabels(); !reflect.DeepEqual(e, g) {
+		t.Errorf("got: %s, expext: %s", g, e)
+	}
+	if e, g := []string{"minor"}, cfg.MinorLabels(); !reflect.DeepEqual(e, g) {
 		t.Errorf("got: %s, expext: %s", g, e)
 	}
 
