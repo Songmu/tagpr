@@ -42,8 +42,17 @@ const (
 #   tagpr.release (Optional)
 #       GitHub Release creation behavior after tagging [true, draft, false]
 #       If this value is not set, the release is to be created.
+#
+#   tagpr.majorLabels (Optional)
+#       Label of major update targets. Default is [major]
+#
+#   tagpr.minorLabels (Optional)
+#       Label of minor update targets. Default is [minor]
+#
 [tagpr]
 `
+	defaultMajorLabels  = "major"
+	defaultMinorLabels  = "minor"
 	envReleaseBranch    = "TAGPR_RELEASE_BRANCH"
 	envVersionFile      = "TAGPR_VERSION_FILE"
 	envVPrefix          = "TAGPR_VPREFIX"
@@ -51,6 +60,8 @@ const (
 	envCommand          = "TAGPR_COMMAND"
 	envTemplate         = "TAGPR_TEMPLATE"
 	envRelease          = "TAGPR_RELEASE"
+	envMajorLabels      = "TAGPR_MAJOR_LABELS"
+	envMinorLabels      = "TAGPR_MAINOR_LABELS"
 	configReleaseBranch = "tagpr.releaseBranch"
 	configVersionFile   = "tagpr.versionFile"
 	configVPrefix       = "tagpr.vPrefix"
@@ -58,6 +69,8 @@ const (
 	configCommand       = "tagpr.command"
 	configTemplate      = "tagpr.template"
 	configRelease       = "tagpr.release"
+	configMajorLabels   = "tagpr.majorLabels"
+	configMinorLabels   = "tagpr.minorLabels"
 )
 
 type config struct {
@@ -68,6 +81,8 @@ type config struct {
 	release       *string
 	vPrefix       *bool
 	changelog     *bool
+	majorLabels   *string
+	minorLabels   *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -151,6 +166,28 @@ func (cfg *config) Reload() error {
 		rel, err := cfg.gitconfig.Get(configRelease)
 		if err == nil {
 			cfg.release = github.String(rel)
+		}
+	}
+
+	if major := os.Getenv(envMajorLabels); major != "" {
+		cfg.majorLabels = github.String(major)
+	} else {
+		major, err := cfg.gitconfig.Get(configMajorLabels)
+		if err == nil {
+			cfg.majorLabels = github.String(major)
+		} else {
+			cfg.majorLabels = github.String(defaultMajorLabels)
+		}
+	}
+
+	if minor := os.Getenv(envMinorLabels); minor != "" {
+		cfg.minorLabels = github.String(minor)
+	} else {
+		minor, err := cfg.gitconfig.Get(configMinorLabels)
+		if err == nil {
+			cfg.minorLabels = github.String(minor)
+		} else {
+			cfg.minorLabels = github.String(defaultMinorLabels)
 		}
 	}
 
@@ -248,4 +285,24 @@ func (cfg *config) Release() bool {
 
 func (cfg *config) ReleaseDraft() bool {
 	return strings.ToLower(stringify(cfg.release)) == "draft"
+}
+
+func (cfg *config) MajorLabels() []string {
+	labels := strings.Split(stringify(cfg.majorLabels), ",")
+
+	for i, v := range labels {
+		labels[i] = strings.TrimSpace(v)
+	}
+
+	return labels
+}
+
+func (cfg *config) MinorLabels() []string {
+	labels := strings.Split(stringify(cfg.minorLabels), ",")
+
+	for i, v := range labels {
+		labels[i] = strings.TrimSpace(v)
+	}
+
+	return labels
 }

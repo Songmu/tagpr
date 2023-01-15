@@ -122,6 +122,12 @@ Pull request template in go template format
 GitHub Release creation behavior after tagging `[true, draft, false]`  
 If this value is not set, the release is to be created.
 
+### tagpr.majorLabels (Optional)
+Label of major update targets. Default is [major]
+
+### tagpr.minorLabels (Optional)
+Label of minor update targets. Default is [minor]
+
 ## Outputs for GitHub Actions
 
 The tagpr produces output to be used in conjunction with subsequent GitHub Actions jobs.

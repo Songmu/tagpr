@@ -1,8 +1,14 @@
 package tagpr
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/google/go-github/v47/github"
 )
 
 func TestBuildChunkSearchIssuesQuery(t *testing.T) {
@@ -140,5 +146,178 @@ f5134ae
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("got:\n%s,\nwant:\n%s", got, tt.want)
 		}
+	}
+}
+
+func TestGeneratenNextLabels(t *testing.T) {
+	major := "major"
+	minor := "minor"
+	enhancement := "enhancement"
+	breakingChange := "breaking-change"
+
+	tests := map[string]struct {
+		labels      []*github.Label
+		majorLabels string
+		minorLabels string
+		want        []string
+	}{
+		"onlyMajor": {
+			[]*github.Label{newGithubLabel(&major)},
+			"",
+			"",
+			[]string{"tagpr:major"},
+		},
+		"onlyMinor": {
+			[]*github.Label{newGithubLabel(&minor)},
+			"",
+			"",
+			[]string{"tagpr:minor"},
+		},
+		"other": {
+			[]*github.Label{newGithubLabel(new(string))},
+			"",
+			"",
+			[]string{},
+		},
+		"enhancement": {
+			[]*github.Label{newGithubLabel(&enhancement)},
+			"",
+			"",
+			[]string{},
+		},
+		"breakingChange": {
+			[]*github.Label{newGithubLabel(&breakingChange)},
+			"",
+			"",
+			[]string{},
+		},
+		"empty": {
+			[]*github.Label{},
+			"",
+			"",
+			[]string{},
+		},
+		"majorAndMinor": {
+			[]*github.Label{newGithubLabel(&major), newGithubLabel(&minor)},
+			"",
+			"",
+			[]string{"tagpr:minor", "tagpr:major"},
+		},
+		"minorAndMajor": {
+			[]*github.Label{newGithubLabel(&minor), newGithubLabel(&major)},
+			"",
+			"",
+			[]string{"tagpr:minor", "tagpr:major"},
+		},
+		"Set breakingChange to majorLabels": {
+			[]*github.Label{newGithubLabel(&breakingChange)},
+			breakingChange,
+			"",
+			[]string{"tagpr:major"},
+		},
+		"Set enhancement to minorLabels": {
+			[]*github.Label{newGithubLabel(&enhancement)},
+			"",
+			enhancement,
+			[]string{"tagpr:minor"},
+		},
+		"Include in majorLabels to breakingChange": {
+			[]*github.Label{newGithubLabel(&breakingChange)},
+			fmt.Sprintf("other, %s", breakingChange),
+			"",
+			[]string{"tagpr:major"},
+		},
+		"Include in minorLabels to enhancement": {
+			[]*github.Label{newGithubLabel(&enhancement)},
+			"",
+			fmt.Sprintf(" %s,other", enhancement),
+			[]string{"tagpr:minor"},
+		},
+		"Invalid default label": {
+			[]*github.Label{newGithubLabel(&major), newGithubLabel(&minor)},
+			breakingChange,
+			enhancement,
+			[]string{},
+		},
+		"Include default label": {
+			[]*github.Label{newGithubLabel(&major), newGithubLabel(&enhancement)},
+			"major,breaking-change",
+			"minor,enhancement",
+			[]string{"tagpr:minor", "tagpr:major"},
+		},
+	}
+
+	for name, tt := range tests {
+		tt := tt
+		t.Run(name, func(t *testing.T) {
+			if tt.majorLabels != "" {
+				t.Setenv(envMajorLabels, tt.majorLabels)
+			}
+			if tt.minorLabels != "" {
+				t.Setenv(envMinorLabels, tt.minorLabels)
+			}
+			tp, err := newTagPR(context.Background(), &commander{
+				gitPath: "git", outStream: os.Stdout, errStream: os.Stderr, dir: "."},
+			)
+			if err != nil {
+				t.Error(err)
+			}
+
+			prIssues := []*github.Issue{
+				{
+					ID:                new(int64),
+					Number:            new(int),
+					State:             new(string),
+					Locked:            new(bool),
+					Title:             new(string),
+					Body:              new(string),
+					AuthorAssociation: new(string),
+					User:              &github.User{},
+					Labels:            tt.labels,
+					Assignee:          &github.User{},
+					Comments:          new(int),
+					ClosedAt:          &time.Time{},
+					CreatedAt:         &time.Time{},
+					UpdatedAt:         &time.Time{},
+					ClosedBy:          &github.User{},
+					URL:               new(string),
+					HTMLURL:           new(string),
+					CommentsURL:       new(string),
+					EventsURL:         new(string),
+					LabelsURL:         new(string),
+					RepositoryURL:     new(string),
+					Milestone:         &github.Milestone{},
+					PullRequestLinks:  &github.PullRequestLinks{},
+					Repository:        &github.Repository{},
+					Reactions:         &github.Reactions{},
+					Assignees:         []*github.User{},
+					NodeID:            new(string),
+					TextMatches:       []*github.TextMatch{},
+					ActiveLockReason:  new(string),
+				},
+			}
+
+			got := tp.generatenNextLabels(prIssues)
+
+			if len(got) == 0 && len(tt.want) == 0 {
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got:\n%s,\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func newGithubLabel(name *string) *github.Label {
+	return &github.Label{
+		ID:          new(int64),
+		URL:         new(string),
+		Name:        name,
+		Color:       new(string),
+		Description: new(string),
+		Default:     new(bool),
+		NodeID:      new(string),
 	}
 }
