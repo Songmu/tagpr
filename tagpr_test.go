@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v49/github"
 )
 
 func TestBuildChunkSearchIssuesQuery(t *testing.T) {

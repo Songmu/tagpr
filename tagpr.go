@@ -18,7 +18,7 @@ import (
 
 	"github.com/Songmu/gh2changelog"
 	"github.com/Songmu/gitsemvers"
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v49/github"
 )
 
 const (
