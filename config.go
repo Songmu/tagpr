@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/Songmu/gitconfig"
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v49/github"
 )
 
 const (
