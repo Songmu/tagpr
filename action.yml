@@ -5,7 +5,7 @@ inputs:
   version:
     description: "A version to install tagpr"
     required: false
-    default: "v1.0.8"
+    default: "v1.1.0"
 outputs:
   tag:
     description: "The semver tag, which is output only when the tagpr has tagged"

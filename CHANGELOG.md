@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.1.0](https://github.com/Songmu/tagpr/compare/v1.0.8...v1.1.0) - 2023-01-15
+- Fixing typo in config's `tagpr.tmplate` by @k2tzumi in https://github.com/Songmu/tagpr/pull/140
+- feat: Alternative labels for minor and major labels can be specified by @k2tzumi in https://github.com/Songmu/tagpr/pull/142
+- update deps by @Songmu in https://github.com/Songmu/tagpr/pull/143
+
 ## [v1.0.8](https://github.com/Songmu/tagpr/compare/v1.0.7...v1.0.8) - 2022-12-17
 - Fix a typo by @T-Toshiya in https://github.com/Songmu/tagpr/pull/137
 
