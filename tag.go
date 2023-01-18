@@ -45,7 +45,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		if _, _, err := tp.c.Git("checkout", releaseBranch); err != nil {
 			return err
 		}
-	} else {
+	} else if tp.cfg.VersionFile() != "-" {
 		vfiles := strings.Split(tp.cfg.VersionFile(), ",")
 		vfile = strings.TrimSpace(vfiles[0])
 	}
