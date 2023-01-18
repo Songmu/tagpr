@@ -260,7 +260,10 @@ func (cfg *config) ReleaseBranch() string {
 }
 
 func (cfg *config) VersionFile() string {
-	return stringify(cfg.versionFile)
+	if cfg.versionFile == nil {
+		return ""
+	}
+	return *cfg.versionFile
 }
 
 func (cfg *config) Command() string {
