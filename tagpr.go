@@ -281,7 +281,7 @@ OUT:
 		addingLabels = append(addingLabels, l)
 	}
 	var vfiles []string
-	if vf := tp.cfg.VersionFile(); vf != "" {
+	if vf := tp.cfg.VersionFile(); vf != "" && vf != "-" {
 		vfiles = strings.Split(vf, ",")
 		for i, v := range vfiles {
 			vfiles[i] = strings.TrimSpace(v)
@@ -374,7 +374,7 @@ OUT:
 
 	// Reread the configuration file (.tagpr) as it may have been rewritten during the cherry-pick process.
 	tp.cfg.Reload()
-	if tp.cfg.VersionFile() != "" {
+	if tp.cfg.VersionFile() != "" && tp.cfg.VersionFile() != "-" {
 		vfiles = strings.Split(tp.cfg.VersionFile(), ",")
 		for i, v := range vfiles {
 			vfiles[i] = strings.TrimSpace(v)
