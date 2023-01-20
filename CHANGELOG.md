@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.1.2](https://github.com/Songmu/tagpr/compare/v1.1.1...v1.1.2) - 2023-01-20
+- fix: Bug fixes related to #144 by @toritori0318 in https://github.com/Songmu/tagpr/pull/148
+
 ## [v1.1.1](https://github.com/Songmu/tagpr/compare/v1.1.0...v1.1.1) - 2023-01-18
 - fix: skip version file detection by @toritori0318 in https://github.com/Songmu/tagpr/pull/145
 
