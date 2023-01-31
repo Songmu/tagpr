@@ -143,7 +143,7 @@ It is useful to see if tag is available and to run tasks after release. The foll
   uses: Songmu/tagpr@v1
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-- uses: haya14busa/action-update-semver
+- uses: haya14busa/action-update-semver@v1
   if: "steps.tagpr.outputs.tag != ''"
   with:
     tag: ${{ steps.tagpr.outputs.tag }}
