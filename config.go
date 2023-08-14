@@ -74,15 +74,18 @@ const (
 )
 
 type config struct {
-	releaseBranch *string
-	versionFile   *string
-	command       *string
-	template      *string
-	release       *string
-	vPrefix       *bool
-	changelog     *bool
-	majorLabels   *string
-	minorLabels   *string
+	releaseBranch   *string
+	versionRegexp   *string
+	versionFormat   *string
+	defaultVariable *string
+	versionFile     *string
+	command         *string
+	template        *string
+	release         *string
+	vPrefix         *bool
+	changelog       *bool
+	majorLabels     *string
+	minorLabels     *string
 
 	conf      string
 	gitconfig *gitconfig.Config

@@ -52,7 +52,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 
 	var nextTag string
 	if vfile != "" {
-		nextVer, err := retrieveVersionFromFile(vfile, currVer.vPrefix)
+		nextVer, err := retrieveVersionFromFile(vfile, currVer.vPrefix, tp.cfg.defaultVariable)
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		for _, l := range pr.Labels {
 			labels = append(labels, l.GetName())
 		}
-		nextTag = currVer.GuessNext(labels).Tag()
+		nextTag = currVer.GuessNext(labels, tp.cfg.defaultVariable).Tag()
 	}
 	previousTag := &latestSemverTag
 	if *previousTag == "" {

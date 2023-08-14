@@ -40,10 +40,28 @@ type tagpr struct {
 	out                     io.Writer
 }
 
-func (tp *tagpr) latestSemverTag() string {
-	vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
-	if len(vers) > 0 {
-		return vers[0]
+func (tp *tagpr) latestVerTag() string {
+	if tp.cfg.versionRegexp == nil {
+		vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
+		if len(vers) > 0 {
+			return vers[0]
+		}
+	} else {
+		exp := regexp.MustCompile(*tp.cfg.versionRegexp)
+		tagStr, _, err := tp.c.Git("-C", ".", "tag")
+		if err != nil {
+			fmt.Println("git tag error:", err)
+			return ""
+		}
+		rawTags := strings.Split(tagStr, "\n")
+		var vers []string
+		for _, tag := range rawTags {
+			tag = strings.TrimSpace(tag)
+			if exp.MatchString(tag) {
+				vers = append(vers, tag)
+			}
+		}
+		return vers[len(vers)-1]
 	}
 	return ""
 }
@@ -110,8 +128,8 @@ func isTagPR(pr *github.PullRequest) bool {
 }
 
 func (tp *tagpr) Run(ctx context.Context) error {
-	latestSemverTag := tp.latestSemverTag()
-	currVerStr := latestSemverTag
+	latestVerTag := tp.latestVerTag()
+	currVerStr := latestVerTag
 	fromCommitish := "refs/tags/" + currVerStr
 	if currVerStr == "" {
 		var err error
@@ -121,7 +139,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 		currVerStr = "v0.0.0"
 	}
-	currVer, err := newSemver(currVerStr)
+	currVer, err := newSemver(currVerStr, tp.cfg.versionFormat)
 	if err != nil {
 		return err
 	}
@@ -172,7 +190,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := tp.tagRelease(ctx, pr, currVer, latestSemverTag); err != nil {
+		if err := tp.tagRelease(ctx, pr, currVer, latestVerTag); err != nil {
 			return err
 		}
 		b, _ := json.Marshal(pr)
@@ -269,7 +287,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			labels = append(labels, l.GetName())
 		}
 	}
-	nextVer := currVer.GuessNext(append(labels, nextLabels...))
+	nextVer := currVer.GuessNext(append(labels, nextLabels...), tp.cfg.defaultVariable)
 	var addingLabels []string
 OUT:
 	for _, l := range nextLabels {
@@ -381,7 +399,7 @@ OUT:
 		}
 	}
 	if len(vfiles) > 0 && vfiles[0] != "" {
-		nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer.vPrefix)
+		nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer.vPrefix, tp.cfg.defaultVariable)
 		if nVer != nil && nVer.Naked() != nextVer.Naked() {
 			nextVer = nVer
 		}

@@ -193,7 +193,7 @@ func bumpVersionFile(fpath string, from, to *semv) error {
 	return os.WriteFile(fpath, updated, 0666)
 }
 
-func retrieveVersionFromFile(fpath string, vPrefix bool) (*semv, error) {
+func retrieveVersionFromFile(fpath string, vPrefix bool, versionFormat *string) (*semv, error) {
 	bs, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, err
@@ -211,5 +211,5 @@ func retrieveVersionFromFile(fpath string, vPrefix bool) (*semv, error) {
 	if vPrefix {
 		ver = "v" + ver
 	}
-	return newSemver(ver)
+	return newSemver(ver, versionFormat)
 }

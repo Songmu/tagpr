@@ -1,25 +1,41 @@
 package tagpr
 
-import "github.com/Masterminds/semver/v3"
+import (
+	"strings"
+	"time"
+
+	"github.com/Masterminds/semver/v3"
+)
 
 type semv struct {
-	v *semver.Version
+	v                *semver.Version
+	formattedVersion *string
 
 	vPrefix bool
 }
 
-func newSemver(v string) (*semv, error) {
+func newSemver(v string, versionFormat *string) (*semv, error) {
 	var err error
 	sv := &semv{}
-	sv.v, err = semver.NewVersion(v)
-	if err != nil {
-		return nil, err
+	if versionFormat != nil {
+		currentTime := time.Now()
+		formattedVersion := currentTime.Format(*versionFormat)
+		sv.formattedVersion = &formattedVersion
+		sv.vPrefix = formattedVersion[0] == 'v'
+	} else {
+		sv.v, err = semver.NewVersion(v)
+		if err != nil {
+			return nil, err
+		}
+		sv.vPrefix = v[0] == 'v'
 	}
-	sv.vPrefix = v[0] == 'v'
 	return sv, nil
 }
 
 func (sv *semv) Naked() string {
+	if sv.formattedVersion != nil {
+		return *sv.formattedVersion
+	}
 	return sv.v.String()
 }
 
@@ -30,7 +46,28 @@ func (sv *semv) Tag() string {
 	return sv.Naked()
 }
 
-func (sv *semv) GuessNext(labels []string) *semv {
+func (sv *semv) GuessNext(labels []string, defaultVariable *string) *semv {
+	if sv.formattedVersion != nil {
+		for _, label := range labels {
+			var separator = ""
+			switch true {
+			case strings.HasPrefix(label, autoLableName+":"):
+				separator = ":"
+			case strings.HasPrefix(label, autoLableName+"/"):
+				separator = "/"
+			}
+			if separator != "" {
+				variable := strings.TrimPrefix(label, autoLableName+separator)
+				nextVersion := strings.ReplaceAll(*sv.formattedVersion, "${variable}", variable)
+				return &semv{
+					v:                sv.v,
+					formattedVersion: &nextVersion,
+					vPrefix:          sv.vPrefix,
+				}
+			}
+		}
+		return sv
+	}
 	var isMajor, isMinor bool
 	for _, l := range labels {
 		switch l {
@@ -52,7 +89,8 @@ func (sv *semv) GuessNext(labels []string) *semv {
 	}
 
 	return &semv{
-		v:       &nextv,
-		vPrefix: sv.vPrefix,
+		v:                &nextv,
+		formattedVersion: sv.formattedVersion,
+		vPrefix:          sv.vPrefix,
 	}
 }
