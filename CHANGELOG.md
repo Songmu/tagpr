@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.2.1](https://github.com/kyo-ago/tagpr/compare/v1.2.0...v1.2.1) - 2023-08-14
+- fix: github path by @kyo-ago in https://github.com/kyo-ago/tagpr/pull/3
+- fix: actions by @kyo-ago in https://github.com/kyo-ago/tagpr/pull/4
+- fix: add permissions to github actions by @kyo-ago in https://github.com/kyo-ago/tagpr/pull/5
+
 ## [v1.1.2](https://github.com/Songmu/tagpr/compare/v1.1.1...v1.1.2) - 2023-01-20
 - fix: Bug fixes related to #144 by @toritori0318 in https://github.com/Songmu/tagpr/pull/148
 
