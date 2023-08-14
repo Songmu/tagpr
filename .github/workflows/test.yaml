@@ -1,8 +1,10 @@
 name: test
+
 on:
   push:
     branches:
     - "**"
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -23,5 +25,3 @@ jobs:
       run: go test -race -coverprofile coverage.out -covermode atomic ./...
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Send coverage
-      uses: codecov/codecov-action@v1
