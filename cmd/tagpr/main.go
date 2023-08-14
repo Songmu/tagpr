@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Songmu/tagpr"
+	"github.com/kyo-ago/tagpr"
 )
 
 func main() {

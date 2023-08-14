@@ -1,4 +1,4 @@
-module github.com/Songmu/tagpr
+module github.com/kyo-ago/tagpr
 
 go 1.19
 
