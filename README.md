@@ -5,9 +5,9 @@ tagpr
 [![MIT License](https://img.shields.io/github/license/Songmu/tagpr)][license]
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/Songmu/tagpr)][PkgGoDev]
 
-[actions]: https://github.com/Songmu/tagpr/actions?workflow=test
-[license]: https://github.com/Songmu/tagpr/blob/main/LICENSE
-[PkgGoDev]: https://pkg.go.dev/github.com/Songmu/tagpr
+[actions]: https://github.com/kyo-ago/tagpr/actions?workflow=test
+[license]: https://github.com/kyo-ago/tagpr/blob/main/LICENSE
+[PkgGoDev]: https://pkg.go.dev/github.com/kyo-ago/tagpr
 
 The `tagpr` clarify the release flow. It automatically creates and updates a pull request for unreleased items, tag them when they are merged, and create releases.
 
@@ -18,15 +18,21 @@ The `tagpr` is designed to run on github actions.
 ```yaml
 # .github/workflows/tagpr.yml
 name: tagpr
+
 on:
   push:
     branches: ["main"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   tagpr:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: Songmu/tagpr@v1
+    - uses: kyo-ago/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -39,10 +45,16 @@ For simplicity, we include an example of specifying a personal access token here
 
 ```yaml
 name: tagpr
+
 on:
   push:
     branches:
     - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   tagpr:
     runs-on: ubuntu-latest
@@ -50,7 +62,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         token: ${{ secrets.GH_PAT }}
-    - uses: Songmu/tagpr@v1
+    - uses: kyo-ago/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 ```
@@ -140,7 +152,7 @@ It is useful to see if tag is available and to run tasks after release. The foll
 ```yaml
 - uses: actions/checkout@v3
 - id: tagpr
-  uses: Songmu/tagpr@v1
+  uses: kyo-ago/tagpr@v1
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 - uses: haya14busa/action-update-semver@v1

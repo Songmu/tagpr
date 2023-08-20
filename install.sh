@@ -344,7 +344,7 @@ End of functions from https://github.com/client9/shlib
 EOF
 
 PROJECT_NAME="tagpr"
-OWNER=Songmu
+OWNER=kyo-ago
 REPO="tagpr"
 BINARY=tagpr
 FORMAT=tar.gz
