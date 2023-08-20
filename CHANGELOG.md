@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.2.2](https://github.com/kyo-ago/tagpr/compare/v1.2.1...v1.2.2) - 2023-08-20
+- fix: owner by @kyo-ago in https://github.com/kyo-ago/tagpr/pull/7
+
 ## [v1.2.1](https://github.com/kyo-ago/tagpr/compare/v1.2.0...v1.2.1) - 2023-08-14
 - fix: github path by @kyo-ago in https://github.com/kyo-ago/tagpr/pull/3
 - fix: actions by @kyo-ago in https://github.com/kyo-ago/tagpr/pull/4
