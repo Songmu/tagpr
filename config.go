@@ -18,6 +18,15 @@ const (
 #       Generally, it is "main." It is the branch for releases. The tagpr tracks this branch,
 #       creates or updates a pull request as a release candidate, or tags when they are merged.
 #
+#   tagpr.versionRegexp
+#       RegExp ex.^v\w+-web$
+#
+#   tagpr.versionFormat
+#       Go time format ex.20060102${variable}
+#
+#   tagpr.defaultVariable
+#       Default variable for versionFormat ex.01
+#
 #   tagpr.versionFile
 #       Versioning file containing the semantic version needed to be updated at release.
 #       It will be synchronized with the "git tag".
@@ -51,26 +60,32 @@ const (
 #
 [tagpr]
 `
-	defaultMajorLabels  = "major"
-	defaultMinorLabels  = "minor"
-	envReleaseBranch    = "TAGPR_RELEASE_BRANCH"
-	envVersionFile      = "TAGPR_VERSION_FILE"
-	envVPrefix          = "TAGPR_VPREFIX"
-	envChangelog        = "TAGPR_CHANGELOG"
-	envCommand          = "TAGPR_COMMAND"
-	envTemplate         = "TAGPR_TEMPLATE"
-	envRelease          = "TAGPR_RELEASE"
-	envMajorLabels      = "TAGPR_MAJOR_LABELS"
-	envMinorLabels      = "TAGPR_MAINOR_LABELS"
-	configReleaseBranch = "tagpr.releaseBranch"
-	configVersionFile   = "tagpr.versionFile"
-	configVPrefix       = "tagpr.vPrefix"
-	configChangelog     = "tagpr.changelog"
-	configCommand       = "tagpr.command"
-	configTemplate      = "tagpr.template"
-	configRelease       = "tagpr.release"
-	configMajorLabels   = "tagpr.majorLabels"
-	configMinorLabels   = "tagpr.minorLabels"
+	defaultMajorLabels    = "major"
+	defaultMinorLabels    = "minor"
+	envReleaseBranch      = "TAGPR_RELEASE_BRANCH"
+	envVersionRegexp      = "TAGPR_VERSION_REGEXP"
+	envVersionFormat      = "TAGPR_VERSION_FORMAT"
+	envDefaultVariable    = "TAGPR_DEFAULT_VARIABLE"
+	envVersionFile        = "TAGPR_VERSION_FILE"
+	envVPrefix            = "TAGPR_VPREFIX"
+	envChangelog          = "TAGPR_CHANGELOG"
+	envCommand            = "TAGPR_COMMAND"
+	envTemplate           = "TAGPR_TEMPLATE"
+	envRelease            = "TAGPR_RELEASE"
+	envMajorLabels        = "TAGPR_MAJOR_LABELS"
+	envMinorLabels        = "TAGPR_MAINOR_LABELS"
+	configReleaseBranch   = "tagpr.releaseBranch"
+	configVersionRegexp   = "tagpr.versionRegexp"
+	configVersionFormat   = "tagpr.versionFormat"
+	configDefaultVariable = "tagpr.defaultVariable"
+	configVersionFile     = "tagpr.versionFile"
+	configVPrefix         = "tagpr.vPrefix"
+	configChangelog       = "tagpr.changelog"
+	configCommand         = "tagpr.command"
+	configTemplate        = "tagpr.template"
+	configRelease         = "tagpr.release"
+	configMajorLabels     = "tagpr.majorLabels"
+	configMinorLabels     = "tagpr.minorLabels"
 )
 
 type config struct {
@@ -107,6 +122,33 @@ func (cfg *config) Reload() error {
 		out, err := cfg.gitconfig.Get(configReleaseBranch)
 		if err == nil {
 			cfg.releaseBranch = github.String(out)
+		}
+	}
+
+	if rb := os.Getenv(envVersionRegexp); rb != "" {
+		cfg.versionRegexp = github.String(rb)
+	} else {
+		out, err := cfg.gitconfig.Get(configVersionRegexp)
+		if err == nil {
+			cfg.versionRegexp = github.String(out)
+		}
+	}
+
+	if rb := os.Getenv(envVersionFormat); rb != "" {
+		cfg.versionFormat = github.String(rb)
+	} else {
+		out, err := cfg.gitconfig.Get(configVersionFormat)
+		if err == nil {
+			cfg.versionFormat = github.String(out)
+		}
+	}
+
+	if rb := os.Getenv(envDefaultVariable); rb != "" {
+		cfg.defaultVariable = github.String(rb)
+	} else {
+		out, err := cfg.gitconfig.Get(configDefaultVariable)
+		if err == nil {
+			cfg.defaultVariable = github.String(out)
 		}
 	}
 
