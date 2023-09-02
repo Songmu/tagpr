@@ -66,6 +66,14 @@ func (sv *semv) GuessNext(labels []string, defaultVariable *string) *semv {
 				}
 			}
 		}
+		if (defaultVariable == nil) || (*defaultVariable == "") {
+			nextVersion := strings.ReplaceAll(*sv.formattedVersion, "${variable}", *defaultVariable)
+			return &semv{
+				v:                sv.v,
+				formattedVersion: &nextVersion,
+				vPrefix:          sv.vPrefix,
+			}
+		}
 		return sv
 	}
 	var isMajor, isMinor bool
