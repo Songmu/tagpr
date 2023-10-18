@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.1.3](https://github.com/Songmu/tagpr/compare/v1.1.2...v1.1.3) - 2023-10-18
+- Fix syntax errors on docs. by @kyo-ago in https://github.com/Songmu/tagpr/pull/150
+- Use the official actions/create-github-app-token Action instead of tibdex/github-app-token by @stefafafan in https://github.com/Songmu/tagpr/pull/158
+- Consider vPrefix when retrieving the latest semver tag. by @k1LoW in https://github.com/Songmu/tagpr/pull/159
+
 ## [v1.1.2](https://github.com/Songmu/tagpr/compare/v1.1.1...v1.1.2) - 2023-01-20
 - fix: Bug fixes related to #144 by @toritori0318 in https://github.com/Songmu/tagpr/pull/148
 
