@@ -42,8 +42,11 @@ type tagpr struct {
 
 func (tp *tagpr) latestSemverTag() string {
 	vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
-	if len(vers) > 0 {
-		return vers[0]
+	vPrefix := (tp.cfg.vPrefix != nil && *tp.cfg.vPrefix)
+	for _, v := range vers {
+		if strings.HasPrefix(v, "v") == vPrefix {
+			return v
+		}
 	}
 	return ""
 }
