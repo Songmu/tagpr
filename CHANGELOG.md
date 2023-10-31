@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.1.4](https://github.com/Songmu/tagpr/compare/v1.1.3...v1.1.4) - 2023-10-31
+- Fix latest semver tag retrieval for first time setup by @stefafafan in https://github.com/Songmu/tagpr/pull/160
+
 ## [v1.1.3](https://github.com/Songmu/tagpr/compare/v1.1.2...v1.1.3) - 2023-10-18
 - Fix syntax errors on docs. by @kyo-ago in https://github.com/Songmu/tagpr/pull/150
 - Use the official actions/create-github-app-token Action instead of tibdex/github-app-token by @stefafafan in https://github.com/Songmu/tagpr/pull/158
