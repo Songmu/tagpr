@@ -311,13 +311,16 @@ func TestGeneratenNextLabels(t *testing.T) {
 }
 
 func TestLatestSemverTag(t *testing.T) {
+	vPrefixTrue := true
+	vPrefixFalse := false
 	tests := []struct {
 		name    string
-		vPrefix bool
+		vPrefix *bool
 		wantVer bool
 	}{
-		{"github.com/Songmu/tagpr has a semver tag with 'v' prefix", true, true},
-		{"github.com/Songmu/tagpr has no semver tag without 'v' prefix", false, false},
+		{"github.com/Songmu/tagpr has a semver tag with 'v' prefix", &vPrefixTrue, true},
+		{"github.com/Songmu/tagpr has no semver tag without 'v' prefix", &vPrefixFalse, false},
+		{"github.com/Songmu/tagpr returns the first tag when no config exists", nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -329,7 +332,7 @@ func TestLatestSemverTag(t *testing.T) {
 				return
 			}
 			tp.cfg = &config{
-				vPrefix: &tt.vPrefix,
+				vPrefix: tt.vPrefix,
 			}
 			got := tp.latestSemverTag()
 			if (got != "") != tt.wantVer {
