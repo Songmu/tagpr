@@ -128,6 +128,15 @@ Label of major update targets. Default is [major]
 ### tagpr.minorLabels (Optional)
 Label of minor update targets. Default is [minor]
 
+## GitHub Enterprise
+If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
+
+```yaml
+- uses: Songmu/tagpr@v1
+  env:
+    GH_ENTERPRISE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
 ## Outputs for GitHub Actions
 
 The tagpr produces output to be used in conjunction with subsequent GitHub Actions jobs.
