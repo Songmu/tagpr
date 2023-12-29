@@ -2,8 +2,10 @@ package tagpr
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -20,7 +22,7 @@ func (c *commander) getGitPath() string {
 	return c.gitPath
 }
 
-func (c *commander) Cmd(prog string, args ...string) (string, string, error) {
+func (c *commander) Cmd(prog string, from, to *semv, args ...string) (string, string, error) {
 	log.Println(prog, args)
 
 	var (
@@ -28,6 +30,9 @@ func (c *commander) Cmd(prog string, args ...string) (string, string, error) {
 		errBuf bytes.Buffer
 	)
 	cmd := exec.Command(prog, args...)
+	if from != nil && to != nil {
+		cmd.Env = append(os.Environ(), fmt.Sprintf("CURRENT_VERSION=%s", from.Tag()), fmt.Sprintf("NEXT_VERSION=%s", to.Tag()))
+	}
 	cmd.Stdout = io.MultiWriter(&outBuf, c.outStream)
 	cmd.Stderr = io.MultiWriter(&errBuf, c.errStream)
 	if c.dir != "" {
@@ -38,5 +43,5 @@ func (c *commander) Cmd(prog string, args ...string) (string, string, error) {
 }
 
 func (c *commander) Git(args ...string) (string, string, error) {
-	return c.Cmd(c.getGitPath(), args...)
+	return c.Cmd(c.getGitPath(), nil, nil, args...)
 }
