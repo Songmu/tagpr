@@ -22,7 +22,7 @@ func (c *commander) getGitPath() string {
 	return c.gitPath
 }
 
-func (c *commander) Cmd(prog string, from, to *semv, args ...string) (string, string, error) {
+func (c *commander) Cmd(prog string, args []string, env map[string]string) (string, string, error) {
 	log.Println(prog, args)
 
 	var (
@@ -30,8 +30,11 @@ func (c *commander) Cmd(prog string, from, to *semv, args ...string) (string, st
 		errBuf bytes.Buffer
 	)
 	cmd := exec.Command(prog, args...)
-	if from != nil && to != nil {
-		cmd.Env = append(os.Environ(), fmt.Sprintf("CURRENT_VERSION=%s", from.Tag()), fmt.Sprintf("NEXT_VERSION=%s", to.Tag()))
+	if env != nil {
+		cmd.Env = os.Environ()
+		for k, v := range env {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		}
 	}
 	cmd.Stdout = io.MultiWriter(&outBuf, c.outStream)
 	cmd.Stderr = io.MultiWriter(&errBuf, c.errStream)
@@ -43,5 +46,5 @@ func (c *commander) Cmd(prog string, from, to *semv, args ...string) (string, st
 }
 
 func (c *commander) Git(args ...string) (string, string, error) {
-	return c.Cmd(c.getGitPath(), nil, nil, args...)
+	return c.Cmd(c.getGitPath(), args, nil)
 }
