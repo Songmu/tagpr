@@ -1,13 +1,13 @@
 module github.com/Songmu/tagpr
 
-go 1.19
+go 1.21.5
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
-	github.com/Songmu/gh2changelog v0.0.4
+	github.com/Songmu/gh2changelog v0.0.5
 	github.com/Songmu/gitconfig v0.2.0
 	github.com/Songmu/gitsemvers v0.0.3
-	github.com/google/go-github/v49 v49.1.0
+	github.com/google/go-github/v57 v57.0.0
 	github.com/saracen/walker v0.1.3
 	golang.org/x/oauth2 v0.15.0
 )

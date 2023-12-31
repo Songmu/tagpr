@@ -6,9 +6,8 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v57/github"
 )
 
 func TestBuildChunkSearchIssuesQuery(t *testing.T) {
@@ -276,9 +275,9 @@ func TestGeneratenNextLabels(t *testing.T) {
 					Labels:            tt.labels,
 					Assignee:          &github.User{},
 					Comments:          new(int),
-					ClosedAt:          &time.Time{},
-					CreatedAt:         &time.Time{},
-					UpdatedAt:         &time.Time{},
+					ClosedAt:          &github.Timestamp{},
+					CreatedAt:         &github.Timestamp{},
+					UpdatedAt:         &github.Timestamp{},
 					ClosedBy:          &github.User{},
 					URL:               new(string),
 					HTMLURL:           new(string),
