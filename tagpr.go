@@ -312,7 +312,10 @@ OUT:
 			progArgs = []string{"-c", prog}
 			prog = "sh"
 		}
-		tp.c.Cmd(prog, progArgs...)
+		tp.c.Cmd(prog, progArgs, map[string]string{
+			"TAGPR_CURRENT_VERSION": currVer.Tag(),
+			"TAGPR_NEXT_VERSION":    nextVer.Tag(),
+		})
 	}
 
 	if len(vfiles) > 0 && vfiles[0] != "" {
