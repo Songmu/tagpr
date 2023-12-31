@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v57/github"
 )
 
 func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, error) {
