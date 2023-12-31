@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.2.0](https://github.com/Songmu/tagpr/compare/v1.1.4...v1.2.0) - 2023-12-31
+- update: added configuration of Github Enteprise by @ponkio-o in https://github.com/Songmu/tagpr/pull/162
+- Refer to the next version with command by @k2tzumi in https://github.com/Songmu/tagpr/pull/165
+- update deps by @Songmu in https://github.com/Songmu/tagpr/pull/166
+
 ## [v1.1.4](https://github.com/Songmu/tagpr/compare/v1.1.3...v1.1.4) - 2023-10-31
 - Fix latest semver tag retrieval for first time setup by @stefafafan in https://github.com/Songmu/tagpr/pull/160
 
