@@ -56,7 +56,7 @@ jobs:
 ```
 
 ## Description
-By using `tagpr,` the release flow can be made easier and more apparent because it can be put into a flow where the release is completed by pressing the merge button on a pull request that is automatically created.
+By using `tagpr`, the release flow can be made easier and more apparent because it can be put into a flow where the release is completed by pressing the merge button on a pull request that is automatically created.
 
 If there are differences between the last release and the main branch, tagpr generates a pull request for the next release. The tagpr considers a semver tagged commit as a release. It would be standard practice.
 
