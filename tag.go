@@ -13,9 +13,10 @@ func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, er
 	if err != nil {
 		return nil, err
 	}
-	pulls, _, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
+	pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
 		ctx, tp.owner, tp.repo, commitish, nil)
 	if err != nil {
+		showGHError(err, resp)
 		return nil, err
 	}
 	if len(pulls) == 0 {
@@ -77,13 +78,14 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	if err != nil {
 		return nil
 	}
-	releases, _, err := tp.gh.Repositories.GenerateReleaseNotes(
+	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
 		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
 			TagName:         nextTag,
 			PreviousTagName: previousTag,
 			TargetCommitish: &targetCommitish,
 		})
 	if err != nil {
+		showGHError(err, resp)
 		return err
 	}
 
@@ -100,7 +102,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return nil
 	}
 	// Don't use GenerateReleaseNote flag and use pre generated one
-	_, _, err = tp.gh.Repositories.CreateRelease(
+	_, resp, err = tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
 			TagName:         &nextTag,
 			TargetCommitish: &releaseBranch,
@@ -108,5 +110,9 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 			Body:            &releases.Body,
 			Draft:           github.Bool(tp.cfg.ReleaseDraft()),
 		})
-	return err
+	if err != nil {
+		showGHError(err, resp)
+		return err
+	}
+	return nil
 }
