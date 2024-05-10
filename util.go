@@ -45,7 +45,7 @@ func showGHError(err error, resp *github.Response) {
 				respInfo = append(respInfo, fmt.Sprintf("%s:%s", n, resp.Header.Get(name)))
 			}
 		}
-		message += " " + strings.Join(respInfo, ",")
+		message += " " + strings.Join(respInfo, ", ")
 	}
 	// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
 	fmt.Printf("::error title=%s::%s\n", title, message)
