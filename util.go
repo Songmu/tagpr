@@ -37,11 +37,12 @@ func showGHError(err error, resp *github.Response) {
 	message := err.Error()
 	if resp != nil {
 		respInfo := []string{
-			fmt.Sprintf("status=%d", resp.StatusCode),
+			fmt.Sprintf("status:%d", resp.StatusCode),
 		}
-		for name, values := range resp.Header {
-			if strings.HasPrefix(strings.ToLower(name), "x-ratelimit") {
-				respInfo = append(respInfo, fmt.Sprintf("%s=%v", name, values))
+		for name := range resp.Header {
+			n := strings.ToLower(name)
+			if strings.HasPrefix(n, "x-ratelimit") || n == "x-github-request-id" || n == "retry-after" {
+				respInfo = append(respInfo, fmt.Sprintf("%s:%s", n, resp.Header.Get(name)))
 			}
 		}
 		message += " " + strings.Join(respInfo, ",")
