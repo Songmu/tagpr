@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.3.0](https://github.com/Songmu/tagpr/compare/v1.2.0...v1.3.0) - 2024-05-15
+- fix: Typo in README by @tgeorg-ethz in https://github.com/Songmu/tagpr/pull/172
+- Add showGHError() by @fujiwara in https://github.com/Songmu/tagpr/pull/173
+
 ## [v1.2.0](https://github.com/Songmu/tagpr/compare/v1.1.4...v1.2.0) - 2023-12-31
 - update: added configuration of Github Enteprise by @ponkio-o in https://github.com/Songmu/tagpr/pull/162
 - Refer to the next version with command by @k2tzumi in https://github.com/Songmu/tagpr/pull/165
