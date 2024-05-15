@@ -219,8 +219,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 				if err != nil {
 					continue
 				}
-				issue, _, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
+				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
 				if err != nil {
+					showGHError(err, resp)
 					return err
 				}
 				prIssues = append(prIssues, issue)
@@ -259,12 +260,13 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	head := fmt.Sprintf("%s:%s", tp.owner, rcBranch)
-	pulls, _, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
+	pulls, resp, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
 		&github.PullRequestListOptions{
 			Head: head,
 			Base: releaseBranch,
 		})
 	if err != nil {
+		showGHError(err, resp)
 		return err
 	}
 
@@ -461,24 +463,28 @@ OUT:
 		body = strings.TrimSpace(stuffs[1])
 	}
 	if currTagPR == nil {
-		pr, _, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, &github.NewPullRequest{
+		pr, resp, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, &github.NewPullRequest{
 			Title: github.String(title),
 			Body:  github.String(body),
 			Base:  &releaseBranch,
 			Head:  github.String(head),
 		})
 		if err != nil {
+			showGHError(err, resp)
 			return err
 		}
 		addingLabels = append(addingLabels, autoLableName)
-		_, _, err = tp.gh.Issues.AddLabelsToIssue(
+		_, resp, err = tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
 		if err != nil {
+			showGHError(err, resp)
 			return err
 		}
-		tmpPr, _, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
+		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
 		if err == nil {
 			pr = tmpPr
+		} else {
+			showGHError(err, resp)
 		}
 		b, _ := json.Marshal(pr)
 		tp.setOutput("pull_request", string(b))
@@ -486,19 +492,23 @@ OUT:
 	}
 	currTagPR.Title = github.String(title)
 	currTagPR.Body = github.String(mergeBody(*currTagPR.Body, body))
-	pr, _, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
+	pr, resp, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
 	if err != nil {
+		showGHError(err, resp)
 		return err
 	}
 	if len(addingLabels) > 0 {
-		_, _, err := tp.gh.Issues.AddLabelsToIssue(
+		_, resp, err := tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *currTagPR.Number, addingLabels)
 		if err != nil {
+			showGHError(err, resp)
 			return err
 		}
-		tmpPr, _, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
+		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
 		if err == nil {
 			pr = tmpPr
+		} else {
+			showGHError(err, resp)
 		}
 	}
 	b, _ := json.Marshal(pr)
@@ -563,8 +573,9 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 	// Fortunately, we don't need to take care of the page count in response, because
 	// the default value of per_page is 30 and we can't specify more than 30 commits due to
 	// the length limit specification of the query string.
-	issues, _, err := tp.gh.Search.Issues(ctx, query, nil)
+	issues, resp, err := tp.gh.Search.Issues(ctx, query, nil)
 	if err != nil {
+		showGHError(err, resp)
 		return nil, err
 	}
 	return issues.Issues, nil
