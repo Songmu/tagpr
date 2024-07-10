@@ -542,7 +542,7 @@ func (tp *tagpr) defaultBranch() (string, error) {
 	// So use `git remote show origin` for detecting default branch
 	show, _, err := tp.c.Git("remote", "show", tp.remoteName)
 	if err != nil {
-		return "", fmt.Errorf("failed to detect defaut branch: %w", err)
+		return "", fmt.Errorf("failed to detect default branch: %w", err)
 	}
 	m := headBranchReg.FindStringSubmatch(show)
 	if len(m) < 2 {
