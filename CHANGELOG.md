@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.3.1](https://github.com/Songmu/tagpr/compare/v1.3.0...v1.3.1) - 2024-07-10
+- fix typo by @mocyuto in https://github.com/Songmu/tagpr/pull/175
+
 ## [v1.3.0](https://github.com/Songmu/tagpr/compare/v1.2.0...v1.3.0) - 2024-05-15
 - fix: Typo in README by @tgeorg-ethz in https://github.com/Songmu/tagpr/pull/172
 - Add showGHError() by @fujiwara in https://github.com/Songmu/tagpr/pull/173
