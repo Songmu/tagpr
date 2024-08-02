@@ -606,11 +606,12 @@ func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
 	return nextLabels
 }
 
-func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries []string) {
-	query := queryBase
+func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQueries []string) {
+	// array of SHAs
+	keywords := make([]string, 0, 25)
 	// Make bulk requests with multiple SHAs of the maximum possible length.
 	// If multiple SHAs are specified, the issue search API will treat it like an OR search,
-	// and all the pull requests will be searched.u
+	// and all the pull requests will be searched.
 	// This is difficult to read from the current documentation, but that is the current
 	// behavior and GitHub support has responded that this is the spec.
 	for _, sha := range strings.Split(shasStr, "\n") {
@@ -618,16 +619,21 @@ func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries
 			continue
 		}
 		// Longer than 256 characters are not supported in the query.
+		// Note that the length limit does not include the qualifiers (ex. "repo:owner/repo", "is:close").
 		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
-		if len(query)+1+len(sha) >= 256 {
-			chunkQueries = append(chunkQueries, query)
-			query = queryBase
+		//
+		// Also, from the results of the experiment, it is possible that when counting
+		// the number of characters in the keyword part, one space character is counted
+		//  as three characters (possibly '%20').
+		if len(strings.Join(keywords, "%20") + "%20" + sha) >= 256 {
+			chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
+			keywords = make([]string, 0, 25)
 		}
-		query += " " + sha
+		keywords = append(keywords, sha)
 	}
 
-	if query != queryBase {
-		chunkQueries = append(chunkQueries, query)
+	if len(keywords) > 0 {
+		chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
 	}
 
 	return chunkQueries
