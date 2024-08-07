@@ -606,28 +606,38 @@ func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
 	return nextLabels
 }
 
-func buildChunkSearchIssuesQuery(queryBase string, shasStr string) (chunkQueries []string) {
-	query := queryBase
+func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQueries []string) {
+	// Longer than 256 characters are not supported in the query.
+	// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
+	//
+	// However, although not explicitly stated in the documentation, the space separating
+	// keywords is counted as one or more characters, so it is possible to exceed 256
+	// characters if the text is filled to the very limit of 256 characters.
+	// For this reason, the maximum number of chars in the KEYWORD section is limited to
+	// the following number.
+	const maxKeywordsLength = 200
+
+	// array of SHAs
+	keywords := make([]string, 0, 25)
 	// Make bulk requests with multiple SHAs of the maximum possible length.
 	// If multiple SHAs are specified, the issue search API will treat it like an OR search,
-	// and all the pull requests will be searched.u
+	// and all the pull requests will be searched.
 	// This is difficult to read from the current documentation, but that is the current
 	// behavior and GitHub support has responded that this is the spec.
 	for _, sha := range strings.Split(shasStr, "\n") {
 		if strings.TrimSpace(sha) == "" {
 			continue
 		}
-		// Longer than 256 characters are not supported in the query.
-		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
-		if len(query)+1+len(sha) >= 256 {
-			chunkQueries = append(chunkQueries, query)
-			query = queryBase
+		tempKeywords := append(keywords, sha)
+		if len(strings.Join(tempKeywords, " ")) >= maxKeywordsLength {
+			chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
+			keywords = make([]string, 0, 25)
 		}
-		query += " " + sha
+		keywords = append(keywords, sha)
 	}
 
-	if query != queryBase {
-		chunkQueries = append(chunkQueries, query)
+	if len(keywords) > 0 {
+		chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
 	}
 
 	return chunkQueries
