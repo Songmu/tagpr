@@ -607,6 +607,16 @@ func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
 }
 
 func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQueries []string) {
+	// Longer than 256 characters are not supported in the query.
+	// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
+	//
+	// However, although not explicitly stated in the documentation, the space separating
+	// keywords is counted as one or more characters, so it is possible to exceed 256
+	// characters if the text is filled to the very limit of 256 characters.
+	// For this reason, the maximum number of chars in the KEYWORD section is limited to
+	// the following number.
+	const maxKeywordsLength = 200
+
 	// array of SHAs
 	keywords := make([]string, 0, 25)
 	// Make bulk requests with multiple SHAs of the maximum possible length.
@@ -618,15 +628,8 @@ func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQuerie
 		if strings.TrimSpace(sha) == "" {
 			continue
 		}
-		// Longer than 256 characters are not supported in the query.
-		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
-		//
-		// However, although not explicitly stated in the documentation, the space separating
-		// keywords is counted as one or more characters, so it is possible to exceed 256
-		// characters if the text is filled to the very limit of 256 characters.
-		// For this reason, the maximum number of chars in the KEYWORD section is limited here to 200.
 		tempKeywords := append(keywords, sha)
-		if len(strings.Join(tempKeywords, " ")) >= 200 {
+		if len(strings.Join(tempKeywords, " ")) >= maxKeywordsLength {
 			chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
 			keywords = make([]string, 0, 25)
 		}
