@@ -619,13 +619,14 @@ func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQuerie
 			continue
 		}
 		// Longer than 256 characters are not supported in the query.
-		// Note that the length limit does not include the qualifiers (ex. "repo:owner/repo", "is:close").
 		// ref. https://docs.github.com/en/rest/reference/search#limitations-on-query-length
 		//
-		// Also, from the results of the experiment, it is possible that when counting
-		// the number of characters in the keyword part, one space character is counted
-		//  as three characters (possibly '%20').
-		if len(strings.Join(keywords, "%20") + "%20" + sha) >= 256 {
+		// However, although not explicitly stated in the documentation, the space separating
+		// keywords is counted as one or more characters, so it is possible to exceed 256
+		// characters if the text is filled to the very limit of 256 characters.
+		// For this reason, the maximum number of chars in the KEYWORD section is limited here to 200.
+		tempKeywords := append(keywords, sha)
+		if len(strings.Join(tempKeywords, " ")) >= 200 {
 			chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
 			keywords = make([]string, 0, 25)
 		}
