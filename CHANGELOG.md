@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.4.1](https://github.com/Songmu/tagpr/compare/v1.4.0...v1.4.1) - 2024-09-09
+- use static option to build tagpr binaries by @vvakame in https://github.com/Songmu/tagpr/pull/179
+
 ## [v1.4.0](https://github.com/Songmu/tagpr/compare/v1.3.0...v1.4.0) - 2024-08-11
 - fix typo by @mocyuto in https://github.com/Songmu/tagpr/pull/175
 - fix: Unstable search issue behavior by @snaka in https://github.com/Songmu/tagpr/pull/178
