@@ -24,6 +24,9 @@ on:
 jobs:
   tagpr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
     - uses: actions/checkout@v3
     - uses: Songmu/tagpr@v1
