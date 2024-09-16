@@ -24,12 +24,17 @@ on:
 jobs:
   tagpr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: Songmu/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+To enable pull requests to be created through GitHub Actions, check the "Allow GitHub Actions to create and approve pull requests" box in the "Workflow permissions" section under "Settings > Actions > General" in the repository where you are installing `tagpr`.
 
 If you do not want to use the token provided by GitHub Actions, do the following This is useful if you want to trigger another action with a tag.
 
@@ -47,7 +52,7 @@ jobs:
   tagpr:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         token: ${{ secrets.GH_PAT }}
     - uses: Songmu/tagpr@v1
@@ -147,7 +152,7 @@ The tagpr produces output to be used in conjunction with subsequent GitHub Actio
 It is useful to see if tag is available and to run tasks after release. The following is an example of running action-update-semver after release.
 
 ```yaml
-- uses: actions/checkout@v3
+- uses: actions/checkout@v4
 - id: tagpr
   uses: Songmu/tagpr@v1
   env:
