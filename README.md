@@ -34,6 +34,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+To enable pull requests to be created through GitHub Actions, check the "Allow GitHub Actions to create and approve pull requests" box in the "Workflow permissions" section under "Settings > Actions > General" in the repository where you are installing `tagpr`.
+
 If you do not want to use the token provided by GitHub Actions, do the following This is useful if you want to trigger another action with a tag.
 
 ref. <https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow>
