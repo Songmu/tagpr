@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/Songmu/gitconfig"
+	"github.com/gofri/go-github-ratelimit/github_ratelimit"
 	"github.com/google/go-github/v57/github"
 	"golang.org/x/oauth2"
 )
@@ -20,7 +21,11 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	}
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	oauthClient := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(oauthClient)
+	rateLimiter, err := github_ratelimit.NewRateLimitWaiterClient(oauthClient.Transport)
+	if err != nil {
+		return nil, err
+	}
+	client := github.NewClient(rateLimiter)
 
 	if host != "" && host != "github.com" {
 		// ref. https://github.com/google/go-github/issues/958
