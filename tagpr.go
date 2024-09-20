@@ -149,7 +149,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		if releaseBranch == "" {
 			releaseBranch = defaultReleaseBranch
 		}
-		if err := tp.cfg.SetRelaseBranch(releaseBranch); err != nil {
+		if err := tp.cfg.SetReleaseBranch(releaseBranch); err != nil {
 			return err
 		}
 	}
