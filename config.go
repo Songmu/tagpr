@@ -224,7 +224,7 @@ func (cfg *config) initializeFile() error {
 	return nil
 }
 
-func (cfg *config) SetRelaseBranch(br string) error {
+func (cfg *config) SetReleaseBranch(br string) error {
 	if err := cfg.set(configReleaseBranch, br); err != nil {
 		return err
 	}

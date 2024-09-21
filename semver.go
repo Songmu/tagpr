@@ -34,9 +34,9 @@ func (sv *semv) GuessNext(labels []string) *semv {
 	var isMajor, isMinor bool
 	for _, l := range labels {
 		switch l {
-		case autoLableName + ":major", autoLableName + "/major":
+		case autoLabelName + ":major", autoLabelName + "/major":
 			isMajor = true
-		case autoLableName + ":minor", autoLableName + "/minor":
+		case autoLabelName + ":minor", autoLabelName + "/minor":
 			isMinor = true
 		}
 	}

@@ -24,7 +24,7 @@ func TestConfig(t *testing.T) {
 	if e, g := "", cfg.ReleaseBranch(); e != g {
 		t.Errorf("got: %s, expext: %s", g, e)
 	}
-	if err := cfg.SetRelaseBranch("main"); err != nil {
+	if err := cfg.SetReleaseBranch("main"); err != nil {
 		t.Error(err)
 	}
 	if e, g := "main", cfg.ReleaseBranch(); e != g {

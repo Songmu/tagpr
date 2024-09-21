@@ -7,6 +7,7 @@ require (
 	github.com/Songmu/gh2changelog v0.0.5
 	github.com/Songmu/gitconfig v0.2.0
 	github.com/Songmu/gitsemvers v0.0.3
+	github.com/gofri/go-github-ratelimit v1.1.0
 	github.com/google/go-github/v57 v57.0.0
 	github.com/saracen/walker v0.1.3
 	golang.org/x/oauth2 v0.15.0

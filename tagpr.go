@@ -27,7 +27,7 @@ const (
 	defaultReleaseBranch = "main"
 	autoCommitMessage    = "[tagpr] prepare for the next release"
 	autoChangelogMessage = "[tagpr] update CHANGELOG.md"
-	autoLableName        = "tagpr"
+	autoLabelName        = "tagpr"
 	branchPrefix         = "tagpr-from-"
 )
 
@@ -111,7 +111,7 @@ func isTagPR(pr *github.PullRequest) bool {
 		return false
 	}
 	for _, label := range pr.Labels {
-		if label.GetName() == autoLableName {
+		if label.GetName() == autoLabelName {
 			return true
 		}
 	}
@@ -149,7 +149,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		if releaseBranch == "" {
 			releaseBranch = defaultReleaseBranch
 		}
-		if err := tp.cfg.SetRelaseBranch(releaseBranch); err != nil {
+		if err := tp.cfg.SetReleaseBranch(releaseBranch); err != nil {
 			return err
 		}
 	}
@@ -473,7 +473,7 @@ OUT:
 			showGHError(err, resp)
 			return err
 		}
-		addingLabels = append(addingLabels, autoLableName)
+		addingLabels = append(addingLabels, autoLabelName)
 		_, resp, err = tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
 		if err != nil {
