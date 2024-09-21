@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.4.2](https://github.com/Songmu/tagpr/compare/v1.4.1...v1.4.2) - 2024-09-21
+- Update README. by @monochromegane in https://github.com/Songmu/tagpr/pull/181
+- Retry when "Secondary rate limit" error occurs in GitHub API by @snaka in https://github.com/Songmu/tagpr/pull/183
+
 ## [v1.4.1](https://github.com/Songmu/tagpr/compare/v1.4.0...v1.4.1) - 2024-09-09
 - use static option to build tagpr binaries by @vvakame in https://github.com/Songmu/tagpr/pull/179
 
