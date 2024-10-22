@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v66/github"
 )
 
 func TestBuildChunkSearchIssuesQuery(t *testing.T) {
