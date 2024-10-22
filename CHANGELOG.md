@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.4.3](https://github.com/Songmu/tagpr/compare/v1.4.2...v1.4.3) - 2024-10-22
+- update deps and Go version by @Songmu in https://github.com/Songmu/tagpr/pull/184
+
 ## [v1.4.2](https://github.com/Songmu/tagpr/compare/v1.4.1...v1.4.2) - 2024-09-21
 - Update README. by @monochromegane in https://github.com/Songmu/tagpr/pull/181
 - Retry when "Secondary rate limit" error occurs in GitHub API by @snaka in https://github.com/Songmu/tagpr/pull/183
