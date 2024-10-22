@@ -7,7 +7,7 @@ import (
 
 	"github.com/Songmu/gitconfig"
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v66/github"
 	"golang.org/x/oauth2"
 )
 
