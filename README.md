@@ -142,6 +142,12 @@ If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB
     GH_ENTERPRISE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+## Inputs for GitHub Actions
+
+### config (Optional)
+A path to the tagpr configuration file.
+If not specified, it will be ".tagpr" in the repository root.
+
 ## Outputs for GitHub Actions
 
 The tagpr produces output to be used in conjunction with subsequent GitHub Actions jobs.
