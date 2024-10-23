@@ -6,6 +6,9 @@ inputs:
     description: "A version to install tagpr"
     required: false
     default: "v1.4.3"
+  config:
+    description: "A path to the tagpr configuration file"
+    required: false
 outputs:
   tag:
     description: "The semver tag, which is output only when the tagpr has tagged"
@@ -25,6 +28,8 @@ runs:
       curl -sfL https://raw.githubusercontent.com/Songmu/tagpr/main/install.sh | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
       tagpr
     shell: bash
+    env:
+      TAGPR_CONFIG_FILE: ${{ inputs.config }}
 branding:
   icon: 'git-pull-request'
   color: 'blue'
