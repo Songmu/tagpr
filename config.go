@@ -37,7 +37,10 @@ const (
 #       Command to change files just before release.
 #
 #   tagpr.template (Optional)
-#       Pull request template in go template format
+#       Pull request template file in go template format
+#
+#   tagpr.templateText (Optional)
+#       Pull request template text in go template format
 #
 #   tagpr.release (Optional)
 #       GitHub Release creation behavior after tagging [true, draft, false]
