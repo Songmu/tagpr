@@ -25,8 +25,8 @@ const (
 	gitUser              = "github-actions[bot]"
 	gitEmail             = "github-actions[bot]@users.noreply.github.com"
 	defaultReleaseBranch = "main"
-	autoCommitMessage    = "[tagpr] prepare for the next release"
-	autoChangelogMessage = "[tagpr] update CHANGELOG.md"
+	autoCommitMessage    = "prepare for the next release"
+	autoChangelogMessage = "update CHANGELOG.md"
 	autoLabelName        = "tagpr"
 	branchPrefix         = "tagpr-from-"
 )
@@ -119,6 +119,9 @@ func isTagPR(pr *github.PullRequest) bool {
 }
 
 func (tp *tagpr) Run(ctx context.Context) error {
+	commitMessage := tp.cfg.CommitPrefix() + " " + autoCommitMessage
+	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
+
 	latestSemverTag := tp.latestSemverTag()
 	currVerStr := latestSemverTag
 	fromCommitish := "refs/tags/" + currVerStr
@@ -345,7 +348,7 @@ OUT:
 		tp.c.Git("add", "-f", releaseYml)
 	}
 
-	if _, _, err := tp.c.Git("commit", "--allow-empty", "-am", autoCommitMessage); err != nil {
+	if _, _, err := tp.c.Git("commit", "--allow-empty", "-am", commitMessage); err != nil {
 		return err
 	}
 
@@ -366,7 +369,7 @@ OUT:
 			}
 			commitish := m[0]
 			subject := strings.TrimSpace(m[1])
-			if subject != autoCommitMessage && subject != autoChangelogMessage {
+			if subject != commitMessage && subject != changelogMessage {
 				cherryPicks = append(cherryPicks, commitish)
 			}
 		}
@@ -430,7 +433,7 @@ OUT:
 		}
 
 		tp.c.Git("add", changelogMd)
-		tp.c.Git("commit", "-m", autoChangelogMessage)
+		tp.c.Git("commit", "-m", changelogMessage)
 	}
 
 	if _, _, err := tp.c.Git("push", "--force", tp.remoteName, rcBranch); err != nil {
