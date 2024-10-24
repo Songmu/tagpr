@@ -49,6 +49,9 @@ const (
 #   tagpr.minorLabels (Optional)
 #       Label of minor update targets. Default is [minor]
 #
+#   tagpr.commitPrefix (Optional)
+#       Prefix of commit message. Default is "[tagpr]"
+#
 [tagpr]
 `
 	defaultMajorLabels  = "major"

@@ -133,6 +133,9 @@ Label of major update targets. Default is [major]
 ### tagpr.minorLabels (Optional)
 Label of minor update targets. Default is [minor]
 
+### tagpr.commitPrefix (Optional)
+Prefix of commit message. Default is "[tagpr]"
+
 ## GitHub Enterprise
 If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
 
