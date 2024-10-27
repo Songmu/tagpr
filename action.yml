@@ -5,7 +5,7 @@ inputs:
   version:
     description: "A version to install tagpr"
     required: false
-    default: "v1.4.3"
+    default: "v1.5.0"
   config:
     description: "A path to the tagpr configuration file"
     required: false
