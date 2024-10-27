@@ -42,6 +42,9 @@ func TestConfig(t *testing.T) {
 	if e, g := []string{"minor"}, cfg.MinorLabels(); !reflect.DeepEqual(e, g) {
 		t.Errorf("got: %s, expext: %s", g, e)
 	}
+	if e, g := "[tagpr]", cfg.CommitPrefix(); !reflect.DeepEqual(e, g) {
+		t.Errorf("got: %s, expext: %s", g, e)
+	}
 
 	b, err := os.ReadFile(confPath)
 	if err != nil {
