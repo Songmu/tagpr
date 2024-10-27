@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.5.0](https://github.com/Songmu/tagpr/compare/v1.4.3...v1.5.0) - 2024-10-27
+- Get the config file path from the environment variable by @5ouma in https://github.com/Songmu/tagpr/pull/186
+- Specify a template text directly in the config file by @5ouma in https://github.com/Songmu/tagpr/pull/187
+- Change the commit message prefix by @5ouma in https://github.com/Songmu/tagpr/pull/188
+
 ## [v1.4.3](https://github.com/Songmu/tagpr/compare/v1.4.2...v1.4.3) - 2024-10-22
 - update deps and Go version by @Songmu in https://github.com/Songmu/tagpr/pull/184
 
