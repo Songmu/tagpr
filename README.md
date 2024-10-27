@@ -121,7 +121,10 @@ Flag whether or not changelog is added or changed during the release.
 Command to change files just before release.
 
 ### tagpr.template (Optional)
-Pull request template in go template format
+Pull request template file in go template format
+
+### tagpr.templateText (Optional)
+Pull request template text in go template format
 
 ### tagpr.release (Optional)
 GitHub Release creation behavior after tagging `[true, draft, false]`  
@@ -144,6 +147,12 @@ If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB
   env:
     GH_ENTERPRISE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+## Inputs for GitHub Actions
+
+### config (Optional)
+A path to the tagpr configuration file.
+If not specified, it will be ".tagpr" in the repository root.
 
 ## Outputs for GitHub Actions
 
