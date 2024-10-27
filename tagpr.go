@@ -445,6 +445,13 @@ OUT:
 		} else {
 			log.Printf("parse configured template failed: %s\n", err)
 		}
+	} else if t := tp.cfg.TemplateText(); t != "" {
+		tmpTmplTxt, err := template.New("templateText").Parse(t)
+		if err == nil {
+			tmpl = tmpTmplTxt
+		} else {
+			log.Printf("parse configured template failed: %s\n", err)
+		}
 	}
 	pt := newPRTmpl(tmpl)
 	prText, err := pt.Render(&tmplArg{

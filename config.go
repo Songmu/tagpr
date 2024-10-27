@@ -37,7 +37,10 @@ const (
 #       Command to change files just before release.
 #
 #   tagpr.template (Optional)
-#       Pull request template in go template format
+#       Pull request template file in go template format
+#
+#   tagpr.templateText (Optional)
+#       Pull request template text in go template format
 #
 #   tagpr.release (Optional)
 #       GitHub Release creation behavior after tagging [true, draft, false]
@@ -60,6 +63,7 @@ const (
 	envChangelog        = "TAGPR_CHANGELOG"
 	envCommand          = "TAGPR_COMMAND"
 	envTemplate         = "TAGPR_TEMPLATE"
+	envTemplateText     = "TAGPR_TEMPLATE_TEXT"
 	envRelease          = "TAGPR_RELEASE"
 	envMajorLabels      = "TAGPR_MAJOR_LABELS"
 	envMinorLabels      = "TAGPR_MAINOR_LABELS"
@@ -69,6 +73,7 @@ const (
 	configChangelog     = "tagpr.changelog"
 	configCommand       = "tagpr.command"
 	configTemplate      = "tagpr.template"
+	configTemplateText  = "tagpr.templateText"
 	configRelease       = "tagpr.release"
 	configMajorLabels   = "tagpr.majorLabels"
 	configMinorLabels   = "tagpr.minorLabels"
@@ -79,6 +84,7 @@ type config struct {
 	versionFile   *string
 	command       *string
 	template      *string
+	templateText  *string
 	release       *string
 	vPrefix       *bool
 	changelog     *bool
@@ -162,6 +168,15 @@ func (cfg *config) Reload() error {
 		tmpl, err := cfg.gitconfig.Get(configTemplate)
 		if err == nil {
 			cfg.template = github.String(tmpl)
+		}
+	}
+
+	if tmplTxt := os.Getenv(envTemplateText); tmplTxt != "" {
+		cfg.templateText = github.String(tmplTxt)
+	} else {
+		tmplTxt, err := cfg.gitconfig.Get(configTemplateText)
+		if err == nil {
+			cfg.templateText = github.String(tmplTxt)
 		}
 	}
 
@@ -277,6 +292,10 @@ func (cfg *config) Command() string {
 
 func (cfg *config) Template() string {
 	return stringify(cfg.template)
+}
+
+func (cfg *config) TemplateText() string {
+	return stringify(cfg.templateText)
 }
 
 func (cfg *config) Release() bool {
