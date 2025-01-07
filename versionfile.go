@@ -34,6 +34,8 @@ var (
 		// The directory for storing python test code, but it may be inappropriate to omit this directory
 		// uniformly because it may be used by test libraries for other languages.
 		"tests": true,
+		// .github is omitted because it is a directory for GitHub
+		".github": true,
 	}
 	skipFiles = map[string]bool{
 		"requirements.txt":  true,
