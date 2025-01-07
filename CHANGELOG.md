@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.5.1](https://github.com/Songmu/tagpr/compare/v1.5.0...v1.5.1) - 2025-01-07
+- versionfile.go: omit .github directory from processing by @fujiwara in https://github.com/Songmu/tagpr/pull/191
+- Use `releaseBranch` variable instead of the hard-coded "main" in `git log` command by @mmizutani in https://github.com/Songmu/tagpr/pull/190
+
 ## [v1.5.0](https://github.com/Songmu/tagpr/compare/v1.4.3...v1.5.0) - 2024-10-27
 - Get the config file path from the environment variable by @5ouma in https://github.com/Songmu/tagpr/pull/186
 - Specify a template text directly in the config file by @5ouma in https://github.com/Songmu/tagpr/pull/187
