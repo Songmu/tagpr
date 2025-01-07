@@ -354,9 +354,9 @@ OUT:
 
 	// cherry-pick if the remote branch is exists and changed
 	// XXX: Do I need to apply merge commits too?
-	//     (We ommited merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	out, _, err := tp.c.Git(
-		"log", "--no-merges", "--pretty=format:%h %s", "main.."+tp.remoteName+"/"+rcBranch)
+	//     (We omitted merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
+	out, _, err := tp.c.Git("log", "--no-merges", "--pretty=format:%h %s",
+		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch))
 	if err == nil {
 		var cherryPicks []string
 		for _, line := range strings.Split(out, "\n") {
