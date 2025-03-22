@@ -134,6 +134,11 @@ If this value is not set, the release is to be created.
 ### tagpr.labelName (Optional)
 Label name for the pull request. Default is tagpr
 
+### tagpr.useCustomLabels (Optional)
+Flag whether or not to use custom labels for major and minor updates.
+If true, the majorLabels and minorLabels are used.
+Default is false, and be used tagpr:major and tagpr:minor
+
 ### tagpr.majorLabels (Optional)
 Label of major update targets. Default is [major]
 
