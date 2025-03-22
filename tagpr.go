@@ -27,7 +27,6 @@ const (
 	defaultReleaseBranch = "main"
 	autoCommitMessage    = "prepare for the next release"
 	autoChangelogMessage = "update CHANGELOG.md"
-	autoLabelName        = "tagpr"
 	branchPrefix         = "tagpr-from-"
 )
 
@@ -106,12 +105,12 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	return tp, nil
 }
 
-func isTagPR(pr *github.PullRequest) bool {
+func isTagPR(pr *github.PullRequest, labelName string) bool {
 	if pr == nil || pr.Head == nil || pr.Head.Ref == nil || !strings.HasPrefix(*pr.Head.Ref, branchPrefix) {
 		return false
 	}
 	for _, label := range pr.Labels {
-		if label.GetName() == autoLabelName {
+		if label.GetName() == labelName {
 			return true
 		}
 	}
@@ -180,7 +179,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 
 	// If the latest commit is a merge commit of the pull request by tagpr,
 	// tag the semver to the commit and create a release and exit.
-	if pr, err := tp.latestPullRequest(ctx); err != nil || isTagPR(pr) {
+	if pr, err := tp.latestPullRequest(ctx); err != nil || isTagPR(pr, *tp.cfg.labelName) {
 		if err != nil {
 			return err
 		}
@@ -483,7 +482,7 @@ OUT:
 			showGHError(err, resp)
 			return err
 		}
-		addingLabels = append(addingLabels, autoLabelName)
+		addingLabels = append(addingLabels, *tp.cfg.labelName)
 		_, resp, err = tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
 		if err != nil {
