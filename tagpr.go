@@ -282,7 +282,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			labels = append(labels, l.GetName())
 		}
 	}
-	nextVer := currVer.GuessNext(append(labels, nextLabels...))
+	nextVer := currVer.GuessNext(append(labels, nextLabels...), tp.cfg.MajorLabel(), tp.cfg.MinorLabel())
 	var addingLabels []string
 OUT:
 	for _, l := range nextLabels {
@@ -606,10 +606,10 @@ func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
 	}
 	var nextLabels []string
 	if nextMinor {
-		nextLabels = append(nextLabels, "tagpr:minor")
+		nextLabels = append(nextLabels, tp.cfg.MinorLabel())
 	}
 	if nextMajor {
-		nextLabels = append(nextLabels, "tagpr:major")
+		nextLabels = append(nextLabels, tp.cfg.MajorLabel())
 	}
 
 	return nextLabels

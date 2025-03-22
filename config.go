@@ -60,50 +60,53 @@ const (
 #
 [tagpr]
 `
-	defaultLabelName    = "tagpr"
-	defaultMajorLabels  = "major"
-	defaultMinorLabels  = "minor"
-	defaultCommitPrefix = "[tagpr]"
-	envConfigFile       = "TAGPR_CONFIG_FILE"
-	envReleaseBranch    = "TAGPR_RELEASE_BRANCH"
-	envVersionFile      = "TAGPR_VERSION_FILE"
-	envVPrefix          = "TAGPR_VPREFIX"
-	envChangelog        = "TAGPR_CHANGELOG"
-	envCommand          = "TAGPR_COMMAND"
-	envTemplate         = "TAGPR_TEMPLATE"
-	envTemplateText     = "TAGPR_TEMPLATE_TEXT"
-	envRelease          = "TAGPR_RELEASE"
-	envLabelName        = "TAGPR_LABEL_NAME"
-	envMajorLabels      = "TAGPR_MAJOR_LABELS"
-	envMinorLabels      = "TAGPR_MINOR_LABELS"
-	envCommitPrefix     = "TAGPR_COMMIT_PREFIX"
-	configReleaseBranch = "tagpr.releaseBranch"
-	configVersionFile   = "tagpr.versionFile"
-	configVPrefix       = "tagpr.vPrefix"
-	configChangelog     = "tagpr.changelog"
-	configCommand       = "tagpr.command"
-	configTemplate      = "tagpr.template"
-	configTemplateText  = "tagpr.templateText"
-	configRelease       = "tagpr.release"
-	configLabelName     = "tagpr.labelName"
-	configMajorLabels   = "tagpr.majorLabels"
-	configMinorLabels   = "tagpr.minorLabels"
-	configCommitPrefix  = "tagpr.commitPrefix"
+	defaultLabelName      = "tagpr"
+	defaultMajorLabels    = "major"
+	defaultMinorLabels    = "minor"
+	defaultCommitPrefix   = "[tagpr]"
+	envConfigFile         = "TAGPR_CONFIG_FILE"
+	envReleaseBranch      = "TAGPR_RELEASE_BRANCH"
+	envVersionFile        = "TAGPR_VERSION_FILE"
+	envVPrefix            = "TAGPR_VPREFIX"
+	envChangelog          = "TAGPR_CHANGELOG"
+	envCommand            = "TAGPR_COMMAND"
+	envTemplate           = "TAGPR_TEMPLATE"
+	envTemplateText       = "TAGPR_TEMPLATE_TEXT"
+	envRelease            = "TAGPR_RELEASE"
+	envLabelName          = "TAGPR_LABEL_NAME"
+	envUseCustomLabels    = "TAGPR_USE_CUSTOM_LABELS"
+	envMajorLabels        = "TAGPR_MAJOR_LABELS"
+	envMinorLabels        = "TAGPR_MINOR_LABELS"
+	envCommitPrefix       = "TAGPR_COMMIT_PREFIX"
+	configReleaseBranch   = "tagpr.releaseBranch"
+	configVersionFile     = "tagpr.versionFile"
+	configVPrefix         = "tagpr.vPrefix"
+	configChangelog       = "tagpr.changelog"
+	configCommand         = "tagpr.command"
+	configTemplate        = "tagpr.template"
+	configTemplateText    = "tagpr.templateText"
+	configRelease         = "tagpr.release"
+	configLabelName       = "tagpr.labelName"
+	configUseCustomLabels = "tagpr.useCustomLabels"
+	configMajorLabels     = "tagpr.majorLabels"
+	configMinorLabels     = "tagpr.minorLabels"
+	configCommitPrefix    = "tagpr.commitPrefix"
 )
 
 type config struct {
-	releaseBranch *string
-	versionFile   *string
-	command       *string
-	template      *string
-	templateText  *string
-	release       *string
-	vPrefix       *bool
-	changelog     *bool
-	labelName     *string
-	majorLabels   *string
-	minorLabels   *string
-	commitPrefix  *string
+	releaseBranch  *string
+	versionFile    *string
+	command        *string
+	template       *string
+	templateText   *string
+	release        *string
+	vPrefix        *bool
+	changelog      *bool
+	labelName      *string
+	useCustomLabel *bool
+	majorLabels    *string
+	minorLabels    *string
+	commitPrefix   *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -222,6 +225,19 @@ func (cfg *config) Reload() error {
 			cfg.majorLabels = github.String(major)
 		} else {
 			cfg.majorLabels = github.String(defaultMajorLabels)
+		}
+	}
+
+	if useCustomLabel := os.Getenv(envUseCustomLabels); useCustomLabel != "" {
+		b, err := strconv.ParseBool(useCustomLabel)
+		if err != nil {
+			return err
+		}
+		cfg.useCustomLabel = github.Bool(b)
+	} else {
+		b, err := cfg.gitconfig.Bool(configUseCustomLabels)
+		if err == nil {
+			cfg.useCustomLabel = github.Bool(b)
 		}
 	}
 
@@ -364,6 +380,16 @@ func (cfg *config) MajorLabels() []string {
 	return labels
 }
 
+func (cfg *config) MajorLabel() string {
+	if cfg.useCustomLabel != nil && *cfg.useCustomLabel {
+		if labels := cfg.MajorLabels(); labels != nil {
+			return labels[0]
+		}
+	}
+
+	return defaultLabelName + ":major"
+}
+
 func (cfg *config) MinorLabels() []string {
 	labels := strings.Split(stringify(cfg.minorLabels), ",")
 
@@ -372,6 +398,16 @@ func (cfg *config) MinorLabels() []string {
 	}
 
 	return labels
+}
+
+func (cfg *config) MinorLabel() string {
+	if cfg.useCustomLabel != nil && *cfg.useCustomLabel {
+		if labels := cfg.MinorLabels(); labels != nil {
+			return labels[0]
+		}
+	}
+
+	return defaultLabelName + ":minor"
 }
 
 func (cfg *config) CommitPrefix() string {
