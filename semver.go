@@ -30,13 +30,13 @@ func (sv *semv) Tag() string {
 	return sv.Naked()
 }
 
-func (sv *semv) GuessNext(labels []string) *semv {
+func (sv *semv) GuessNext(labels []string, majorLabel string, minorLabel string) *semv {
 	var isMajor, isMinor bool
 	for _, l := range labels {
 		switch l {
-		case defaultLabelName + ":major", defaultLabelName + "/major":
+		case defaultLabelName + ":major", defaultLabelName + "/major", majorLabel:
 			isMajor = true
-		case defaultLabelName + ":minor", defaultLabelName + "/minor":
+		case defaultLabelName + ":minor", defaultLabelName + "/minor", minorLabel:
 			isMinor = true
 		}
 	}
