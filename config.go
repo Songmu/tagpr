@@ -57,6 +57,7 @@ const (
 #
 [tagpr]
 `
+	defaultLabelName    = "tagpr"
 	defaultMajorLabels  = "major"
 	defaultMinorLabels  = "minor"
 	defaultCommitPrefix = "[tagpr]"
@@ -69,6 +70,7 @@ const (
 	envTemplate         = "TAGPR_TEMPLATE"
 	envTemplateText     = "TAGPR_TEMPLATE_TEXT"
 	envRelease          = "TAGPR_RELEASE"
+	envLabelName        = "TAGPR_LABEL_NAME"
 	envMajorLabels      = "TAGPR_MAJOR_LABELS"
 	envMinorLabels      = "TAGPR_MINOR_LABELS"
 	envCommitPrefix     = "TAGPR_COMMIT_PREFIX"
@@ -80,6 +82,7 @@ const (
 	configTemplate      = "tagpr.template"
 	configTemplateText  = "tagpr.templateText"
 	configRelease       = "tagpr.release"
+	configLabelName     = "tagpr.labelName"
 	configMajorLabels   = "tagpr.majorLabels"
 	configMinorLabels   = "tagpr.minorLabels"
 	configCommitPrefix  = "tagpr.commitPrefix"
@@ -94,6 +97,7 @@ type config struct {
 	release       *string
 	vPrefix       *bool
 	changelog     *bool
+	labelName     *string
 	majorLabels   *string
 	minorLabels   *string
 	commitPrefix  *string
@@ -193,6 +197,17 @@ func (cfg *config) Reload() error {
 		rel, err := cfg.gitconfig.Get(configRelease)
 		if err == nil {
 			cfg.release = github.String(rel)
+		}
+	}
+
+	if label := os.Getenv(envLabelName); label != "" {
+		cfg.labelName = github.String(label)
+	} else {
+		label, err := cfg.gitconfig.Get(configLabelName)
+		if err == nil {
+			cfg.labelName = github.String(label)
+		} else {
+			cfg.labelName = github.String(defaultLabelName)
 		}
 	}
 
@@ -330,6 +345,10 @@ func (cfg *config) Release() bool {
 
 func (cfg *config) ReleaseDraft() bool {
 	return strings.ToLower(stringify(cfg.release)) == "draft"
+}
+
+func (cfg *config) LabelName() string {
+	return stringify(cfg.labelName)
 }
 
 func (cfg *config) MajorLabels() []string {
