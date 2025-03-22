@@ -36,6 +36,9 @@ func TestConfig(t *testing.T) {
 	if e, g := "", cfg.VersionFile(); e != g {
 		t.Errorf("got: %s, expext: %s", g, e)
 	}
+	if e, g := "tagpr", cfg.LabelName(); e != g {
+		t.Errorf("got: %s, expext: %s", g, e)
+	}
 	if e, g := []string{"major"}, cfg.MajorLabels(); !reflect.DeepEqual(e, g) {
 		t.Errorf("got: %s, expext: %s", g, e)
 	}
