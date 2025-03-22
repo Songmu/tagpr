@@ -42,7 +42,13 @@ func TestConfig(t *testing.T) {
 	if e, g := []string{"major"}, cfg.MajorLabels(); !reflect.DeepEqual(e, g) {
 		t.Errorf("got: %s, expext: %s", g, e)
 	}
+	if e, g := "tagpr:major", cfg.MajorLabel(); e != g {
+		t.Errorf("got: %s, expext: %s", g, e)
+	}
 	if e, g := []string{"minor"}, cfg.MinorLabels(); !reflect.DeepEqual(e, g) {
+		t.Errorf("got: %s, expext: %s", g, e)
+	}
+	if e, g := "tagpr:minor", cfg.MinorLabel(); e != g {
 		t.Errorf("got: %s, expext: %s", g, e)
 	}
 	if e, g := "[tagpr]", cfg.CommitPrefix(); !reflect.DeepEqual(e, g) {
