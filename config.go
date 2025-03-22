@@ -46,6 +46,9 @@ const (
 #       GitHub Release creation behavior after tagging [true, draft, false]
 #       If this value is not set, the release is to be created.
 #
+#  tagpr.labelName (Optional)
+#       Label name for the pull request. Default is tagpr
+#
 #   tagpr.majorLabels (Optional)
 #       Label of major update targets. Default is [major]
 #
