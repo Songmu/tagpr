@@ -27,6 +27,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
     steps:
     - uses: actions/checkout@v4
     - uses: Songmu/tagpr@v1
