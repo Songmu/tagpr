@@ -70,7 +70,7 @@ const (
 	envTemplateText     = "TAGPR_TEMPLATE_TEXT"
 	envRelease          = "TAGPR_RELEASE"
 	envMajorLabels      = "TAGPR_MAJOR_LABELS"
-	envMinorLabels      = "TAGPR_MAINOR_LABELS"
+	envMinorLabels      = "TAGPR_MINOR_LABELS"
 	envCommitPrefix     = "TAGPR_COMMIT_PREFIX"
 	configReleaseBranch = "tagpr.releaseBranch"
 	configVersionFile   = "tagpr.versionFile"
