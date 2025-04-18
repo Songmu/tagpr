@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.5.2](https://github.com/Songmu/tagpr/compare/v1.5.1...v1.5.2) - 2025-04-18
+- Fix 403 error by adding 'issues: write' permission to GitHub Actions. by @monochromegane in https://github.com/Songmu/tagpr/pull/194
+- resolves #197 by @12ya in https://github.com/Songmu/tagpr/pull/198
+
 ## [v1.5.1](https://github.com/Songmu/tagpr/compare/v1.5.0...v1.5.1) - 2025-01-07
 - versionfile.go: omit .github directory from processing by @fujiwara in https://github.com/Songmu/tagpr/pull/191
 - Use `releaseBranch` variable instead of the hard-coded "main" in `git log` command by @mmizutani in https://github.com/Songmu/tagpr/pull/190
