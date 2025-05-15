@@ -63,7 +63,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		for _, l := range pr.Labels {
 			labels = append(labels, l.GetName())
 		}
-		nextTag = currVer.GuessNext(labels).Tag()
+		nextTag = currVer.GuessNext(labels, tp.cfg.MajorLabel(), tp.cfg.MinorLabel()).Tag()
 	}
 	previousTag := &latestSemverTag
 	if *previousTag == "" {
