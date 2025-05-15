@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.6.1](https://github.com/Songmu/tagpr/compare/v1.6.0...v1.6.1) - 2025-05-15
+- using action version for tagpr installer of action by @kenchan0130 in https://github.com/Songmu/tagpr/pull/204
+- udpate version 2 times in action.yml by @Songmu in https://github.com/Songmu/tagpr/pull/206
+
 ## [v1.6.0](https://github.com/Songmu/tagpr/compare/v1.5.2...v1.6.0) - 2025-05-15
 - Reducing supply chain risk at actions by @kenchan0130 in https://github.com/Songmu/tagpr/pull/201
 - Add docs about persist-credentials of actions/checkout by @kenchan0130 in https://github.com/Songmu/tagpr/pull/200

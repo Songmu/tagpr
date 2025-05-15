@@ -5,7 +5,7 @@ inputs:
   version:
     description: "A version to install tagpr"
     required: false
-    default: "v1.6.0"
+    default: "v1.6.1"
   config:
     description: "A path to the tagpr configuration file"
     required: false
@@ -30,7 +30,7 @@ runs:
     shell: bash
     env:
       TAGPR_CONFIG_FILE: ${{ inputs.config }}
-      ACTION_VERSION: "v1.6.0"
+      ACTION_VERSION: "v1.6.1"
 branding:
   icon: 'git-pull-request'
   color: 'blue'
