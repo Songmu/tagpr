@@ -25,11 +25,12 @@ runs:
       cd "${GITHUB_WORKSPACE}" || exit 1
       TEMP_PATH="$(mktemp -d)"
       PATH="${TEMP_PATH}:$PATH"
-      curl -sfL "https://raw.githubusercontent.com/Songmu/tagpr/${{ inputs.version }}/install.sh" | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
+      curl -sfL "https://raw.githubusercontent.com/Songmu/tagpr/${ACTION_VERSION}/install.sh" | sh -s -- -b "$TEMP_PATH" "${{ inputs.version }}" 2>&1
       tagpr
     shell: bash
     env:
       TAGPR_CONFIG_FILE: ${{ inputs.config }}
+      ACTION_VERSION: "v1.6.0"
 branding:
   icon: 'git-pull-request'
   color: 'blue'
