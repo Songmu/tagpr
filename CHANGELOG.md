@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.6.0](https://github.com/Songmu/tagpr/compare/v1.5.2...v1.6.0) - 2025-05-15
+- Reducing supply chain risk at actions by @kenchan0130 in https://github.com/Songmu/tagpr/pull/201
+- Add docs about persist-credentials of actions/checkout by @kenchan0130 in https://github.com/Songmu/tagpr/pull/200
+- use versioned install.sh with variables in action.yml by @Songmu in https://github.com/Songmu/tagpr/pull/203
+- Support signed commit by @yasu89 in https://github.com/Songmu/tagpr/pull/199
+
 ## [v1.5.2](https://github.com/Songmu/tagpr/compare/v1.5.1...v1.5.2) - 2025-04-18
 - Fix 403 error by adding 'issues: write' permission to GitHub Actions. by @monochromegane in https://github.com/Songmu/tagpr/pull/194
 - resolves #197 by @12ya in https://github.com/Songmu/tagpr/pull/198
