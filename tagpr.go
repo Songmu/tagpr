@@ -166,18 +166,6 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			releaseBranch, branch)
 	}
 
-	// XXX: should care GIT_*_NAME etc?
-	if _, _, err := tp.c.Git("config", "user.email"); err != nil {
-		if _, _, err := tp.c.Git("config", "--local", "user.email", gitEmail); err != nil {
-			return err
-		}
-	}
-	if _, _, err := tp.c.Git("config", "user.name"); err != nil {
-		if _, _, err := tp.c.Git("config", "--local", "user.name", gitUser); err != nil {
-			return err
-		}
-	}
-
 	// If the latest commit is a merge commit of the pull request by tagpr,
 	// tag the semver to the commit and create a release and exit.
 	if pr, err := tp.latestPullRequest(ctx); err != nil || isTagPR(pr) {
@@ -256,12 +244,14 @@ func (tp *tagpr) Run(ctx context.Context) error {
 
 	nextLabels := tp.generatenNextLabels(prIssues)
 
-	rcBranch := fmt.Sprintf("%s%s", branchPrefix, currVer.Tag())
-	tp.c.Git("branch", "-D", rcBranch)
-	if _, _, err := tp.c.Git("checkout", "-b", rcBranch); err != nil {
+	// Get the latest commit of the release branch
+	ref, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, "refs/heads/"+releaseBranch)
+	if err != nil {
+		showGHError(err, resp)
 		return err
 	}
 
+	rcBranch := fmt.Sprintf("%s%s", branchPrefix, currVer.Tag())
 	head := fmt.Sprintf("%s:%s", tp.owner, rcBranch)
 	pulls, resp, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
 		&github.PullRequestListOptions{
@@ -348,7 +338,68 @@ OUT:
 		tp.c.Git("add", "-f", releaseYml)
 	}
 
-	if _, _, err := tp.c.Git("commit", "--allow-empty", "-am", commitMessage); err != nil {
+	// Detect modified files and create a new tree object
+	diffFiles, _, err := tp.c.Git("diff", "--name-status", "HEAD")
+	if err != nil {
+		return err
+	}
+	var treeEntries []*github.TreeEntry
+	for _, line := range strings.Split(diffFiles, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+
+		status, filePath := parts[0], parts[1]
+		switch status {
+		case "A", "M": // Created or modified files
+			contentBytes, err := os.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+			treeEntries = append(treeEntries, &github.TreeEntry{
+				Path: github.String(filePath), Type: github.String("blob"), Content: github.String(string(contentBytes)), Mode: github.String("100644"),
+			})
+		case "D": // Deleted files
+			treeEntries = append(treeEntries, &github.TreeEntry{
+				SHA: nil, Path: github.String(filePath), Type: github.String("blob"), Mode: github.String("100644"),
+			})
+		}
+	}
+
+	var tree *github.Tree
+	if len(treeEntries) > 0 {
+		// Create a new tree object if there are changes
+		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *ref.Object.SHA, treeEntries)
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+	}
+
+	// Get the parent commit to attach the commit to.
+	parent, resp, err := tp.gh.Repositories.GetCommit(ctx, tp.owner, tp.repo, *ref.Object.SHA, nil)
+	if err != nil {
+		showGHError(err, resp)
+		return err
+	}
+	parent.Commit.SHA = parent.SHA
+
+	// Create a new commit
+	commit := &github.Commit{
+		Message: github.String(commitMessage),
+		Tree:    parent.Commit.Tree,
+		Parents: []*github.Commit{parent.Commit},
+	}
+	if tree != nil {
+		commit.Tree = tree
+	}
+	newCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+	if err != nil {
+		showGHError(err, resp)
 		return err
 	}
 
@@ -376,15 +427,107 @@ OUT:
 		if len(cherryPicks) > 0 {
 			// Specify a commitish one by one for cherry-pick instead of multiple commitish,
 			// and apply it as much as possible.
+
+			// Delete temporary reference if it exists
+			resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
+			if err != nil && resp.StatusCode != 422 {
+				showGHError(err, resp)
+				return err
+			}
+			// Create a temporary reference
+			tempRef := &github.Reference{
+				Ref:    github.String("refs/heads/tagpr-temp"),
+				Object: &github.GitObject{SHA: newCommit.SHA},
+			}
+			tempRef, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, tempRef)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
+
 			for i := len(cherryPicks) - 1; i >= 0; i-- {
 				commitish := cherryPicks[i]
-				_, _, err := tp.c.Git(
-					"cherry-pick", "--keep-redundant-commits", "--allow-empty", commitish)
 
-				// conflict, etc. / Need error handling in case of non-conflict error?
+				// Get cherry-pick commit
+				cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(ctx, tp.owner, tp.repo, commitish, nil)
 				if err != nil {
-					tp.c.Git("cherry-pick", "--abort")
+					showGHError(err, resp)
+					return err
 				}
+
+				// Create a new commit
+				commit := &github.Commit{
+					Message: github.String("cherry-pick: " + commitish),
+					Tree:    newCommit.Tree,
+					Parents: cherryPickCommit.Parents,
+				}
+				tempCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+				if err != nil {
+					showGHError(err, resp)
+					return err
+				}
+
+				// Update temporary reference
+				tempRef.Object.SHA = tempCommit.SHA
+				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, true)
+				if err != nil {
+					showGHError(err, resp)
+					return err
+				}
+
+				// Merge
+				mergeRequest := &github.RepositoryMergeRequest{
+					Base: github.String("tagpr-temp"),
+					Head: github.String(commitish),
+				}
+				mergeCommit, resp, err := tp.gh.Repositories.Merge(ctx, tp.owner, tp.repo, mergeRequest)
+				if err != nil {
+					// conflict, etc. / Need error handling in case of non-conflict error?
+					if resp.StatusCode == 409 {
+						continue
+					}
+					showGHError(err, resp)
+					return err
+				}
+
+				// Create a new commit
+				// The Author is not set because setting the same Author as the original commit makes it difficult to create a Verified Commit.
+				commit = &github.Commit{
+					Message: cherryPickCommit.Commit.Message,
+					Tree:    mergeCommit.Commit.Tree,
+					Parents: []*github.Commit{newCommit},
+				}
+				newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+				if err != nil {
+					showGHError(err, resp)
+					return err
+				}
+
+				// Update temporary reference
+				tempRef.Object.SHA = newCommit.SHA
+				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, true)
+				if err != nil {
+					showGHError(err, resp)
+					return err
+				}
+			}
+
+			// Checkout the temporary reference (Files like .tagpr used in subsequent processes may have been rewritten during the cherry-pick process)
+			if _, _, err := tp.c.Git("fetch"); err != nil {
+				return err
+			}
+			if _, _, err := tp.c.Git("reset", "--hard"); err != nil {
+				return err
+			}
+			if _, _, err := tp.c.Git("checkout", "tagpr-temp"); err != nil {
+				return err
+			}
+
+			// Delete temporary reference
+			resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
+			if err != nil {
+				showGHError(err, resp)
+				return err
 			}
 		}
 	}
@@ -432,11 +575,55 @@ OUT:
 			return err
 		}
 
-		tp.c.Git("add", changelogMd)
-		tp.c.Git("commit", "-m", changelogMessage)
+		// Create a new tree object for CHANGELOG.md
+		treeEntries = nil
+		contentBytes, err := os.ReadFile(changelogMd)
+		if err != nil {
+			return err
+		}
+		treeEntries = append(treeEntries, &github.TreeEntry{
+			Path: github.String(changelogMd), Type: github.String("blob"), Content: github.String(string(contentBytes)), Mode: github.String("100644"),
+		})
+		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+		// Create a new commit
+		commit = &github.Commit{
+			Message: github.String(changelogMessage),
+			Tree:    tree,
+			Parents: []*github.Commit{newCommit},
+		}
+		newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
 	}
 
-	if _, _, err := tp.c.Git("push", "--force", tp.remoteName, rcBranch); err != nil {
+	// Create or Get remote rcBranch reference
+	rcBranchRef, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, "refs/heads/"+rcBranch)
+	if err != nil {
+		if resp.StatusCode != 404 {
+			showGHError(err, resp)
+			return err
+		}
+		newRef := &github.Reference{
+			Ref:    github.String("refs/heads/" + rcBranch),
+			Object: ref.Object,
+		}
+		rcBranchRef, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, newRef)
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+	}
+	// Force update the rcBranch reference
+	rcBranchRef.Object.SHA = newCommit.SHA
+	_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, rcBranchRef, true)
+	if err != nil {
+		showGHError(err, resp)
 		return err
 	}
 
@@ -640,14 +827,14 @@ func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQuerie
 		}
 		tempKeywords := append(keywords, sha)
 		if len(strings.Join(tempKeywords, " ")) >= maxKeywordsLength {
-			chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
+			chunkQueries = append(chunkQueries, qualifiers+" "+strings.Join(keywords, " "))
 			keywords = make([]string, 0, 25)
 		}
 		keywords = append(keywords, sha)
 	}
 
 	if len(keywords) > 0 {
-		chunkQueries = append(chunkQueries, qualifiers + " " + strings.Join(keywords, " "))
+		chunkQueries = append(chunkQueries, qualifiers+" "+strings.Join(keywords, " "))
 	}
 
 	return chunkQueries
