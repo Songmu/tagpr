@@ -30,6 +30,8 @@ jobs:
       issues: write
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: true
     - uses: Songmu/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -166,6 +168,8 @@ It is useful to see if tag is available and to run tasks after release. The foll
 
 ```yaml
 - uses: actions/checkout@v4
+  with:
+    persist-credentials: true
 - id: tagpr
   uses: Songmu/tagpr@v1
   env:
