@@ -17,4 +17,4 @@
 [tagpr]
 	vPrefix = true
 	releaseBranch = main
-	versionFile = version.go,action.yml,action.yml # update version 2 times in action.yml
+	versionFile = version.go,action.yml
