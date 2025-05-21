@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -784,10 +785,10 @@ func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
 	var nextMinor, nextMajor bool
 	for _, issue := range prIssues {
 		for _, l := range issue.Labels {
-			if contains(minorLabels, l.GetName()) {
+			if slices.Contains(minorLabels, l.GetName()) {
 				nextMinor = true
 			}
-			if contains(majorLabels, l.GetName()) {
+			if slices.Contains(majorLabels, l.GetName()) {
 				nextMajor = true
 			}
 		}
@@ -838,13 +839,4 @@ func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQuerie
 	}
 
 	return chunkQueries
-}
-
-func contains(elems []string, v string) bool {
-	for _, s := range elems {
-		if s == v {
-			return true
-		}
-	}
-	return false
 }
