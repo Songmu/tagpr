@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -841,10 +842,6 @@ func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQuerie
 }
 
 func contains(elems []string, v string) bool {
-	for _, s := range elems {
 		if s == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(elems, v)
 }
