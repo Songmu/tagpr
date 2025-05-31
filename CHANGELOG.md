@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.6.2](https://github.com/Songmu/tagpr/compare/v1.6.1...v1.6.2) - 2025-05-31
+- Improve the composite action security by @5ouma in https://github.com/Songmu/tagpr/pull/207
+- tagpr.go: cleanup by @12ya in https://github.com/Songmu/tagpr/pull/209
+
 ## [v1.6.1](https://github.com/Songmu/tagpr/compare/v1.6.0...v1.6.1) - 2025-05-15
 - using action version for tagpr installer of action by @kenchan0130 in https://github.com/Songmu/tagpr/pull/204
 - udpate version 2 times in action.yml by @Songmu in https://github.com/Songmu/tagpr/pull/206
