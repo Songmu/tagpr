@@ -121,7 +121,10 @@ This is only a tagging convention, not how it is described in the version file.
 Flag whether or not changelog is added or changed during the release.
 
 ### tagpr.command (Optional)
-Command to change files just before release.
+Command to change files just before release and versioning.
+
+### tagpr.postVersionCommand (Optional)
+Command to change files just after versioning.
 
 ### tagpr.template (Optional)
 Pull request template file in go template format

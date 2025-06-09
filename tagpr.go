@@ -323,6 +323,18 @@ OUT:
 	}
 	tp.c.Git("add", "-f", tp.cfg.conf) // ignore any errors
 
+	if prog := tp.cfg.PostVersionCommand(); prog != "" {
+		var progArgs []string
+		if strings.ContainsAny(prog, " \n") {
+			progArgs = []string{"-c", prog}
+			prog = "sh"
+		}
+		tp.c.Cmd(prog, progArgs, map[string]string{
+			"TAGPR_CURRENT_VERSION": currVer.Tag(),
+			"TAGPR_NEXT_VERSION":    nextVer.Tag(),
+		})
+	}
+
 	const releaseYml = ".github/release.yml"
 	// TODO: It would be nice to be able to add an exclude setting even if release.yml already exists.
 	if !exists(releaseYml) {
