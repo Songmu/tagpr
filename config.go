@@ -34,7 +34,10 @@ const (
 #       Flag whether or not changelog is added or changed during the release.
 #
 #   tagpr.command (Optional)
-#       Command to change files just before release.
+#       Command to change files just before release and versioning.
+#
+#   tagpr.postVersionCommand (Optional)
+#       Command to change files just after versioning.
 #
 #   tagpr.template (Optional)
 #       Pull request template file in go template format
@@ -57,46 +60,49 @@ const (
 #
 [tagpr]
 `
-	defaultMajorLabels  = "major"
-	defaultMinorLabels  = "minor"
-	defaultCommitPrefix = "[tagpr]"
-	envConfigFile       = "TAGPR_CONFIG_FILE"
-	envReleaseBranch    = "TAGPR_RELEASE_BRANCH"
-	envVersionFile      = "TAGPR_VERSION_FILE"
-	envVPrefix          = "TAGPR_VPREFIX"
-	envChangelog        = "TAGPR_CHANGELOG"
-	envCommand          = "TAGPR_COMMAND"
-	envTemplate         = "TAGPR_TEMPLATE"
-	envTemplateText     = "TAGPR_TEMPLATE_TEXT"
-	envRelease          = "TAGPR_RELEASE"
-	envMajorLabels      = "TAGPR_MAJOR_LABELS"
-	envMinorLabels      = "TAGPR_MINOR_LABELS"
-	envCommitPrefix     = "TAGPR_COMMIT_PREFIX"
-	configReleaseBranch = "tagpr.releaseBranch"
-	configVersionFile   = "tagpr.versionFile"
-	configVPrefix       = "tagpr.vPrefix"
-	configChangelog     = "tagpr.changelog"
-	configCommand       = "tagpr.command"
-	configTemplate      = "tagpr.template"
-	configTemplateText  = "tagpr.templateText"
-	configRelease       = "tagpr.release"
-	configMajorLabels   = "tagpr.majorLabels"
-	configMinorLabels   = "tagpr.minorLabels"
-	configCommitPrefix  = "tagpr.commitPrefix"
+	defaultMajorLabels       = "major"
+	defaultMinorLabels       = "minor"
+	defaultCommitPrefix      = "[tagpr]"
+	envConfigFile            = "TAGPR_CONFIG_FILE"
+	envReleaseBranch         = "TAGPR_RELEASE_BRANCH"
+	envVersionFile           = "TAGPR_VERSION_FILE"
+	envVPrefix               = "TAGPR_VPREFIX"
+	envChangelog             = "TAGPR_CHANGELOG"
+	envCommand               = "TAGPR_COMMAND"
+	envPostVersionCommand    = "TAGPR_POST_VERSION_COMMAND"
+	envTemplate              = "TAGPR_TEMPLATE"
+	envTemplateText          = "TAGPR_TEMPLATE_TEXT"
+	envRelease               = "TAGPR_RELEASE"
+	envMajorLabels           = "TAGPR_MAJOR_LABELS"
+	envMinorLabels           = "TAGPR_MINOR_LABELS"
+	envCommitPrefix          = "TAGPR_COMMIT_PREFIX"
+	configReleaseBranch      = "tagpr.releaseBranch"
+	configVersionFile        = "tagpr.versionFile"
+	configVPrefix            = "tagpr.vPrefix"
+	configChangelog          = "tagpr.changelog"
+	configCommand            = "tagpr.command"
+	configPostVersionCommand = "tagpr.postVersionCommand"
+	configTemplate           = "tagpr.template"
+	configTemplateText       = "tagpr.templateText"
+	configRelease            = "tagpr.release"
+	configMajorLabels        = "tagpr.majorLabels"
+	configMinorLabels        = "tagpr.minorLabels"
+	configCommitPrefix       = "tagpr.commitPrefix"
 )
 
 type config struct {
-	releaseBranch *string
-	versionFile   *string
-	command       *string
-	template      *string
-	templateText  *string
-	release       *string
-	vPrefix       *bool
-	changelog     *bool
-	majorLabels   *string
-	minorLabels   *string
-	commitPrefix  *string
+	releaseBranch      *string
+	versionFile        *string
+	command            *string
+	postVersionCommand *string
+	template           *string
+	templateText       *string
+	release            *string
+	vPrefix            *bool
+	changelog          *bool
+	majorLabels        *string
+	minorLabels        *string
+	commitPrefix       *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -166,6 +172,15 @@ func (cfg *config) Reload() error {
 		command, err := cfg.gitconfig.Get(configCommand)
 		if err == nil {
 			cfg.command = github.String(command)
+		}
+	}
+
+	if postCommand := os.Getenv(envPostVersionCommand); postCommand != "" {
+		cfg.postVersionCommand = github.String(postCommand)
+	} else {
+		postCommand, err := cfg.gitconfig.Get(configPostVersionCommand)
+		if err == nil {
+			cfg.postVersionCommand = github.String(postCommand)
 		}
 	}
 
@@ -306,6 +321,10 @@ func (cfg *config) VersionFile() string {
 
 func (cfg *config) Command() string {
 	return stringify(cfg.command)
+}
+
+func (cfg *config) PostVersionCommand() string {
+	return stringify(cfg.postVersionCommand)
 }
 
 func (cfg *config) Template() string {
