@@ -7,10 +7,6 @@ jobs:
   tagpr:
     runs-on: ubuntu-latest
     steps:
-    - name: setup go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.x
     - name: Generate token
       id: generate_token
       uses: actions/create-github-app-token@v1
@@ -18,9 +14,13 @@ jobs:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.PRIVATE_KEY }}
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5
       with:
         token: ${{ steps.generate_token.outputs.token }}
+    - name: setup go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: go.mod
     - name: tagpr
       run: |
         make install

@@ -7,21 +7,18 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-    - name: setup go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.x
     - name: checkout
-      uses: actions/checkout@v3
-    - name: build
-      run: |
-        make crossbuild
-    - name: upload
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: actions/checkout@v5
+    - name: setup go
+      uses: actions/setup-go@v6
       with:
-        files: dist/*
+        go-version-file: go.mod
+    - name: release
+      run: |
+        make crossbuild upload
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
     - uses: haya14busa/action-update-semver@v1
       with:
         major_version_tag_only: true
