@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.7.1](https://github.com/Songmu/tagpr/compare/v1.7.0...v1.7.1) - 2025-09-05
+- chore: to introduce immutable action adjust actions by @Songmu in https://github.com/Songmu/tagpr/pull/213
+- update go version and deps by @Songmu in https://github.com/Songmu/tagpr/pull/220
+- build(deps): bump actions/create-github-app-token from 1.12.0 to 2.1.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/215
+
 ## [v1.7.0](https://github.com/Songmu/tagpr/compare/v1.6.1...v1.7.0) - 2025-06-14
 - Improve the composite action security by @5ouma in https://github.com/Songmu/tagpr/pull/207
 - tagpr.go: cleanup by @12ya in https://github.com/Songmu/tagpr/pull/209
