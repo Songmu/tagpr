@@ -8,9 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - name: setup go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
         go-version-file: go.mod
     - name: release
@@ -19,6 +19,6 @@ jobs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
-    - uses: haya14busa/action-update-semver@v1
+    - uses: haya14busa/action-update-semver@22a3666f9309f0d72ab0ea6c49b7a8019c1eab38 # v1.3.0
       with:
         major_version_tag_only: true
