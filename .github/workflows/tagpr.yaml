@@ -3,9 +3,14 @@ on:
   push:
     branches:
     - "main"
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 jobs:
   tagpr:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
     - name: Generate token
       id: generate_token
@@ -13,6 +18,9 @@ jobs:
       with:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: write
     - name: checkout
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
