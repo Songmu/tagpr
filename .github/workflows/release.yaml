@@ -16,9 +16,9 @@ jobs:
     - name: release
       run: |
         make crossbuild upload
-      shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.token }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
     - uses: haya14busa/action-update-semver@22a3666f9309f0d72ab0ea6c49b7a8019c1eab38 # v1.3.0
       with:
         major_version_tag_only: true
