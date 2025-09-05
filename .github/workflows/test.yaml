@@ -16,15 +16,17 @@ jobs:
         - ubuntu-latest
         - macOS-latest
     steps:
-    - name: setup go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.x
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        persist-credentials: false
+    - name: setup go
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+      with:
+        go-version-file: go.mod
     - name: test
       run: go test -race -coverprofile coverage.out -covermode atomic ./...
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Send coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
