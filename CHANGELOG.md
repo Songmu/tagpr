@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.7.2](https://github.com/Songmu/tagpr/compare/v1.7.1...v1.7.2) - 2025-09-05
+- introduce immutable action with ghr by @Songmu in https://github.com/Songmu/tagpr/pull/221
+
 ## [v1.7.1](https://github.com/Songmu/tagpr/compare/v1.7.0...v1.7.1) - 2025-09-05
 - chore: to introduce immutable action adjust actions by @Songmu in https://github.com/Songmu/tagpr/pull/213
 - update go version and deps by @Songmu in https://github.com/Songmu/tagpr/pull/220
