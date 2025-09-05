@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.23.2
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.0
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Songmu/gh2changelog v0.1.0
 	github.com/Songmu/gitconfig v0.2.0
 	github.com/Songmu/gitsemvers v0.0.3
