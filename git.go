@@ -31,11 +31,13 @@ func (c *commander) SetToken(token, host string) {
 	// ref. https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#masking-a-value-in-a-log
 	fmt.Printf("::add-mask::%s\n", encoded)
 
-	c.extraheader = fmt.Sprintf(`http.https://%s/.extraheader="Authorization: Basic %s"`,
+	c.extraheader = fmt.Sprintf(`http.https://%s/.extraheader=AUTHORIZATION: basic %s`,
 		host, encoded)
 }
 
-func (c *commander) Cmd(prog string, args []string, env map[string]string) (string, string, error) {
+func (c *commander) Cmd(prog string, args []string, env map[string]string) (
+	string, string, error) {
+
 	log.Println(prog, args)
 
 	var (
@@ -58,6 +60,18 @@ func (c *commander) Cmd(prog string, args []string, env map[string]string) (stri
 	return strings.TrimSpace(outBuf.String()), strings.TrimSpace(errBuf.String()), err
 }
 
+var needsExtra = map[string]bool{
+	"clone":     true,
+	"fetch":     true,
+	"pull":      true,
+	"push":      true,
+	"ls-remote": true,
+	"submodule": true,
+}
+
 func (c *commander) Git(args ...string) (string, string, error) {
+	if len(args) > 0 && needsExtra[args[0]] && c.extraheader != "" {
+		args = append([]string{"-c", c.extraheader}, args...)
+	}
 	return c.Cmd(c.getGitPath(), args, nil)
 }
