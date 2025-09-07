@@ -1,5 +1,12 @@
 # Changelog
 
+## [v1.8.0](https://github.com/Songmu/tagpr/compare/v1.7.2...v1.8.0) - 2025-09-07
+- set proper settings for github actions by @Songmu in https://github.com/Songmu/tagpr/pull/223
+- feat: using a token for remote access with git commands by @Songmu in https://github.com/Songmu/tagpr/pull/225
+- doc: support persist-credentials: false on checkout by @Songmu in https://github.com/Songmu/tagpr/pull/226
+- fix: care GitHub Enterprise Cloud by @Songmu in https://github.com/Songmu/tagpr/pull/227
+- chore: use new syntaxes by @Songmu in https://github.com/Songmu/tagpr/pull/228
+
 ## [v1.7.2](https://github.com/Songmu/tagpr/compare/v1.7.1...v1.7.2) - 2025-09-05
 - introduce immutable action with ghr by @Songmu in https://github.com/Songmu/tagpr/pull/221
 
