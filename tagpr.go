@@ -86,12 +86,11 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	}
 	tp.repo = repo
 
-	host := u.Hostname()
-	token, err := gitconfig.GitHubToken(host)
+	token, err := gitconfig.GitHubToken(u.Hostname())
 	if err != nil {
 		return nil, err
 	}
-	cli, err := ghClient(ctx, token, host)
+	cli, err := ghClient(ctx, token, u.Host)
 	if err != nil {
 		return nil, err
 	}
