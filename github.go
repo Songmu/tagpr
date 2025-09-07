@@ -3,7 +3,9 @@ package tagpr
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
+	"strings"
 
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
 	"github.com/google/go-github/v66/github"
@@ -19,9 +21,16 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	}
 	client := github.NewClient(rateLimiter)
 
-	if host != "" && host != "github.com" {
-		// ref. https://github.com/google/go-github/issues/958
-		host = fmt.Sprintf("https://%s/api/v3/", host)
+	fqdn := host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		fqdn = h
+	}
+	if fqdn != "github.com" {
+		if !strings.HasSuffix(fqdn, ".ghe.com") {
+			// except for GitHub Enterprise Cloud, adjust the base URL
+			// ref. https://github.com/google/go-github/issues/958
+			host = fmt.Sprintf("https://%s/api/v3/", host)
+		}
 		u, err := url.Parse(host)
 		if err != nil {
 			return nil, err
