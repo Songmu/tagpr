@@ -24,8 +24,6 @@ import (
 )
 
 const (
-	gitUser              = "github-actions[bot]"
-	gitEmail             = "github-actions[bot]@users.noreply.github.com"
 	defaultReleaseBranch = "main"
 	autoCommitMessage    = "prepare for the next release"
 	autoChangelogMessage = "update CHANGELOG.md"
@@ -194,7 +192,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 	var mergedFeatureHeadShas []string
-	for _, line := range strings.Split(shasStr, "\n") {
+	for line := range strings.SplitSeq(shasStr, "\n") {
 		stuff := strings.Fields(line)
 		if len(stuff) < 2 {
 			continue
@@ -206,7 +204,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 	var prIssues []*github.Issue
-	for _, line := range strings.Split(prShasStr, "\n") {
+	for line := range strings.SplitSeq(prShasStr, "\n") {
 		stuff := strings.Fields(line)
 		if len(stuff) != 2 {
 			continue
@@ -365,7 +363,7 @@ OUT:
 		return err
 	}
 	var treeEntries []*github.TreeEntry
-	for _, line := range strings.Split(diffFiles, "\n") {
+	for line := range strings.SplitSeq(diffFiles, "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -382,11 +380,17 @@ OUT:
 				return err
 			}
 			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path: github.String(filePath), Type: github.String("blob"), Content: github.String(string(contentBytes)), Mode: github.String("100644"),
+				Path:    github.String(filePath),
+				Type:    github.String("blob"),
+				Content: github.String(string(contentBytes)),
+				Mode:    github.String("100644"),
 			})
 		case "D": // Deleted files
 			treeEntries = append(treeEntries, &github.TreeEntry{
-				SHA: nil, Path: github.String(filePath), Type: github.String("blob"), Mode: github.String("100644"),
+				SHA:  nil,
+				Path: github.String(filePath),
+				Type: github.String("blob"),
+				Mode: github.String("100644"),
 			})
 		}
 	}
@@ -431,7 +435,7 @@ OUT:
 		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch))
 	if err == nil {
 		var cherryPicks []string
-		for _, line := range strings.Split(out, "\n") {
+		for line := range strings.SplitSeq(out, "\n") {
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
@@ -470,7 +474,8 @@ OUT:
 				commitish := cherryPicks[i]
 
 				// Get cherry-pick commit
-				cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(ctx, tp.owner, tp.repo, commitish, nil)
+				cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(
+					ctx, tp.owner, tp.repo, commitish, nil)
 				if err != nil {
 					showGHError(err, resp)
 					return err
@@ -501,7 +506,8 @@ OUT:
 					Base: github.String("tagpr-temp"),
 					Head: github.String(commitish),
 				}
-				mergeCommit, resp, err := tp.gh.Repositories.Merge(ctx, tp.owner, tp.repo, mergeRequest)
+				mergeCommit, resp, err := tp.gh.Repositories.Merge(
+					ctx, tp.owner, tp.repo, mergeRequest)
 				if err != nil {
 					// conflict, etc. / Need error handling in case of non-conflict error?
 					if resp.StatusCode == 409 {
@@ -512,7 +518,8 @@ OUT:
 				}
 
 				// Create a new commit
-				// The Author is not set because setting the same Author as the original commit makes it difficult to create a Verified Commit.
+				// The Author is not set because setting the same Author as the original commit makes it
+				// difficult to create a Verified Commit.
 				commit = &github.Commit{
 					Message: cherryPickCommit.Commit.Message,
 					Tree:    mergeCommit.Commit.Tree,
@@ -533,7 +540,8 @@ OUT:
 				}
 			}
 
-			// Checkout the temporary reference (Files like .tagpr used in subsequent processes may have been rewritten during the cherry-pick process)
+			// Checkout the temporary reference (Files like .tagpr used in subsequent processes may have
+			// been rewritten during the cherry-pick process)
 			if _, _, err := tp.c.Git("fetch"); err != nil {
 				return err
 			}
@@ -603,7 +611,10 @@ OUT:
 			return err
 		}
 		treeEntries = append(treeEntries, &github.TreeEntry{
-			Path: github.String(changelogMd), Type: github.String("blob"), Content: github.String(string(contentBytes)), Mode: github.String("100644"),
+			Path:    github.String(changelogMd),
+			Type:    github.String("blob"),
+			Content: github.String(string(contentBytes)),
+			Mode:    github.String("100644"),
 		})
 		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
 		if err != nil {
@@ -842,7 +853,7 @@ func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQuerie
 	// and all the pull requests will be searched.
 	// This is difficult to read from the current documentation, but that is the current
 	// behavior and GitHub support has responded that this is the spec.
-	for _, sha := range strings.Split(shasStr, "\n") {
+	for sha := range strings.SplitSeq(shasStr, "\n") {
 		if strings.TrimSpace(sha) == "" {
 			continue
 		}

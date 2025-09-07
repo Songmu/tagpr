@@ -52,7 +52,7 @@ func TestConfig(t *testing.T) {
 	}
 
 	var out string
-	for _, line := range strings.Split(string(b), "\n") {
+	for line := range strings.SplitSeq(string(b), "\n") {
 		if line != "" && !strings.HasPrefix(line, "#") {
 			out += line + "\n"
 		}

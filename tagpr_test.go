@@ -245,7 +245,6 @@ func TestGeneratenNextLabels(t *testing.T) {
 	}
 
 	for name, tt := range tests {
-		tt := tt
 		t.Run(name, func(t *testing.T) {
 			if tt.majorLabels != "" {
 				t.Setenv(envMajorLabels, tt.majorLabels)
