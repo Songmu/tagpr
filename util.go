@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/google/go-github/v66/github"
+	"github.com/google/go-github/v74/github"
 )
 
 func exists(filename string) bool {

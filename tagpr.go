@@ -20,7 +20,7 @@ import (
 	"github.com/Songmu/gh2changelog"
 	"github.com/Songmu/gitconfig"
 	"github.com/Songmu/gitsemvers"
-	"github.com/google/go-github/v66/github"
+	"github.com/google/go-github/v74/github"
 )
 
 const (
