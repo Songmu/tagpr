@@ -1,7 +1,7 @@
 tagpr
 =======
 
-[![Test Status](https://github.com/Songmu/tagpr/workflows/test/badge.svg?branch=main)][actions]
+[![Test Status](https://github.com/Songmu/tagpr/actions/workflows/test.yaml/badge.svg?branch=main)][actions]
 [![MIT License](https://img.shields.io/github/license/Songmu/tagpr)][license]
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/Songmu/tagpr)][PkgGoDev]
 
