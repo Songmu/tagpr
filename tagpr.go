@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Songmu/gh2changelog"
+	"github.com/Songmu/gitconfig"
 	"github.com/Songmu/gitsemvers"
 	"github.com/google/go-github/v66/github"
 )
@@ -85,11 +86,19 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	}
 	tp.repo = repo
 
-	cli, err := ghClient(ctx, "", u.Hostname())
+	host := u.Hostname()
+	token, err := gitconfig.GitHubToken(host)
+	if err != nil {
+		return nil, err
+	}
+	cli, err := ghClient(ctx, token, host)
 	if err != nil {
 		return nil, err
 	}
 	tp.gh = cli
+
+	// pass u.Host instead of host because u.Host includes port number if exists.
+	tp.c.SetToken(token, u.Host)
 
 	isShallow, _, err := tp.c.Git("rev-parse", "--is-shallow-repository")
 	if err != nil {

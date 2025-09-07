@@ -2,6 +2,7 @@ package tagpr
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +14,8 @@ import (
 type commander struct {
 	outStream, errStream io.Writer
 	gitPath, dir         string
+
+	extraheader string
 }
 
 func (c *commander) getGitPath() string {
@@ -20,6 +23,16 @@ func (c *commander) getGitPath() string {
 		return "git"
 	}
 	return c.gitPath
+}
+
+func (c *commander) SetToken(token, host string) {
+	encoded := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + token))
+	// mask value to avoid leaking token in logs
+	// ref. https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#masking-a-value-in-a-log
+	fmt.Printf("::add-mask::%s\n", encoded)
+
+	c.extraheader = fmt.Sprintf(`http.https://%s/.extraheader="Authorization: Basic %s"`,
+		host, encoded)
 }
 
 func (c *commander) Cmd(prog string, args []string, env map[string]string) (string, string, error) {
