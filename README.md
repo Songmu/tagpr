@@ -27,11 +27,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      issues: write
+      issues: read
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
-        persist-credentials: true
+        persist-credentials: false
     - uses: Songmu/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,10 +54,15 @@ on:
 jobs:
   tagpr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         token: ${{ secrets.GH_PAT }}
+        persist-credentials: false
     - uses: Songmu/tagpr@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
@@ -170,9 +175,9 @@ The tagpr produces output to be used in conjunction with subsequent GitHub Actio
 It is useful to see if tag is available and to run tasks after release. The following is an example of running action-update-semver after release.
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v5
   with:
-    persist-credentials: true
+    persist-credentials: false
 - id: tagpr
   uses: Songmu/tagpr@v1
   env:
