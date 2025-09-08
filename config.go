@@ -123,20 +123,20 @@ func newConfig(gitPath string) (*config, error) {
 
 func (cfg *config) Reload() error {
 	if rb := os.Getenv(envReleaseBranch); rb != "" {
-		cfg.releaseBranch = github.String(rb)
+		cfg.releaseBranch = github.Ptr(rb)
 	} else {
 		out, err := cfg.gitconfig.Get(configReleaseBranch)
 		if err == nil {
-			cfg.releaseBranch = github.String(out)
+			cfg.releaseBranch = github.Ptr(out)
 		}
 	}
 
 	if rb := os.Getenv(envVersionFile); rb != "" {
-		cfg.versionFile = github.String(rb)
+		cfg.versionFile = github.Ptr(rb)
 	} else {
 		out, err := cfg.gitconfig.Get(configVersionFile)
 		if err == nil {
-			cfg.versionFile = github.String(out)
+			cfg.versionFile = github.Ptr(out)
 		}
 	}
 
@@ -167,80 +167,80 @@ func (cfg *config) Reload() error {
 	}
 
 	if command := os.Getenv(envCommand); command != "" {
-		cfg.command = github.String(command)
+		cfg.command = github.Ptr(command)
 	} else {
 		command, err := cfg.gitconfig.Get(configCommand)
 		if err == nil {
-			cfg.command = github.String(command)
+			cfg.command = github.Ptr(command)
 		}
 	}
 
 	if postCommand := os.Getenv(envPostVersionCommand); postCommand != "" {
-		cfg.postVersionCommand = github.String(postCommand)
+		cfg.postVersionCommand = github.Ptr(postCommand)
 	} else {
 		postCommand, err := cfg.gitconfig.Get(configPostVersionCommand)
 		if err == nil {
-			cfg.postVersionCommand = github.String(postCommand)
+			cfg.postVersionCommand = github.Ptr(postCommand)
 		}
 	}
 
 	if tmpl := os.Getenv(envTemplate); tmpl != "" {
-		cfg.template = github.String(tmpl)
+		cfg.template = github.Ptr(tmpl)
 	} else {
 		tmpl, err := cfg.gitconfig.Get(configTemplate)
 		if err == nil {
-			cfg.template = github.String(tmpl)
+			cfg.template = github.Ptr(tmpl)
 		}
 	}
 
 	if tmplTxt := os.Getenv(envTemplateText); tmplTxt != "" {
-		cfg.templateText = github.String(tmplTxt)
+		cfg.templateText = github.Ptr(tmplTxt)
 	} else {
 		tmplTxt, err := cfg.gitconfig.Get(configTemplateText)
 		if err == nil {
-			cfg.templateText = github.String(tmplTxt)
+			cfg.templateText = github.Ptr(tmplTxt)
 		}
 	}
 
 	if rel := os.Getenv(envRelease); rel != "" {
-		cfg.release = github.String(rel)
+		cfg.release = github.Ptr(rel)
 	} else {
 		rel, err := cfg.gitconfig.Get(configRelease)
 		if err == nil {
-			cfg.release = github.String(rel)
+			cfg.release = github.Ptr(rel)
 		}
 	}
 
 	if major := os.Getenv(envMajorLabels); major != "" {
-		cfg.majorLabels = github.String(major)
+		cfg.majorLabels = github.Ptr(major)
 	} else {
 		major, err := cfg.gitconfig.Get(configMajorLabels)
 		if err == nil {
-			cfg.majorLabels = github.String(major)
+			cfg.majorLabels = github.Ptr(major)
 		} else {
-			cfg.majorLabels = github.String(defaultMajorLabels)
+			cfg.majorLabels = github.Ptr(defaultMajorLabels)
 		}
 	}
 
 	if minor := os.Getenv(envMinorLabels); minor != "" {
-		cfg.minorLabels = github.String(minor)
+		cfg.minorLabels = github.Ptr(minor)
 	} else {
 		minor, err := cfg.gitconfig.Get(configMinorLabels)
 		if err == nil {
-			cfg.minorLabels = github.String(minor)
+			cfg.minorLabels = github.Ptr(minor)
 		} else {
-			cfg.minorLabels = github.String(defaultMinorLabels)
+			cfg.minorLabels = github.Ptr(defaultMinorLabels)
 		}
 	}
 
 	if prefix := os.Getenv(envCommitPrefix); prefix != "" {
-		cfg.commitPrefix = github.String(prefix)
+		cfg.commitPrefix = github.Ptr(prefix)
 	} else {
 		prefix, err := cfg.gitconfig.Get(configCommitPrefix)
 		if err == nil {
-			cfg.commitPrefix = github.String(prefix)
+			cfg.commitPrefix = github.Ptr(prefix)
 		} else {
-			cfg.commitPrefix = github.String(defaultCommitPrefix)
+			cfg.commitPrefix = github.Ptr(defaultCommitPrefix)
 		}
 	}
 
@@ -281,7 +281,7 @@ func (cfg *config) SetReleaseBranch(br string) error {
 	if err := cfg.set(configReleaseBranch, br); err != nil {
 		return err
 	}
-	cfg.releaseBranch = github.String(br)
+	cfg.releaseBranch = github.Ptr(br)
 	return nil
 }
 
@@ -289,7 +289,7 @@ func (cfg *config) SetVersionFile(fpath string) error {
 	if err := cfg.set(configVersionFile, fpath); err != nil {
 		return err
 	}
-	cfg.versionFile = github.String(fpath)
+	cfg.versionFile = github.Ptr(fpath)
 	return nil
 }
 
