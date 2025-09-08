@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.8.1](https://github.com/Songmu/tagpr/compare/v1.8.0...v1.8.1) - 2025-09-08
+- update go-github from v66 to v74 by @Songmu in https://github.com/Songmu/tagpr/pull/229
+- fix: check exsisting extraheader before set token by @Songmu in https://github.com/Songmu/tagpr/pull/232
+
 ## [v1.8.0](https://github.com/Songmu/tagpr/compare/v1.7.2...v1.8.0) - 2025-09-07
 - set proper settings for github actions by @Songmu in https://github.com/Songmu/tagpr/pull/223
 - feat: using a token for remote access with git commands by @Songmu in https://github.com/Songmu/tagpr/pull/225
