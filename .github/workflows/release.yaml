@@ -25,6 +25,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       shell: bash
-    - uses: haya14busa/action-update-semver@22a3666f9309f0d72ab0ea6c49b7a8019c1eab38 # v1.3.0
+    - uses: haya14busa/action-update-semver@3f49a54b677d969c819c1c6ebea626a54dafe032 # v1.5.0
       with:
         major_version_tag_only: true
