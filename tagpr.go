@@ -675,6 +675,12 @@ OUT:
 			log.Printf("parse configured template failed: %s\n", err)
 		}
 	}
+
+	host := "github.com"
+	if tp.gh.BaseURL != nil {
+		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
+	}
+	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currVer.Tag(), nextVer.Tag(), rcBranch)
 	pt := newPRTmpl(tmpl)
 	prText, err := pt.Render(&tmplArg{
 		NextVersion: nextVer.Tag(),
@@ -743,6 +749,13 @@ OUT:
 	b, _ := json.Marshal(pr)
 	tp.setOutput("pull_request", string(b))
 	return nil
+}
+
+func replaceCompareLink(orig, host, owner, repo, currTag, nextTag, rcBranch string) string {
+	const base = `**Full Changelog**: https://%s/%s/%s/compare/%s...%s`
+	beforeCompareURL := fmt.Sprintf(base, host, owner, repo, currTag, nextTag)
+	afterCompareURL := fmt.Sprintf(base, host, owner, repo, currTag, rcBranch)
+	return strings.ReplaceAll(orig, beforeCompareURL, afterCompareURL)
 }
 
 var (
