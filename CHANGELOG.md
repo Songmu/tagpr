@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.8.3](https://github.com/Songmu/tagpr/compare/v1.8.2...v1.8.3) - 2025-09-08
+- disable cache on release by @Songmu in https://github.com/Songmu/tagpr/pull/236
+
 ## [v1.8.2](https://github.com/Songmu/tagpr/compare/v1.8.1...v1.8.2) - 2025-09-08
 - fix: set token to git remote show origin by @Songmu in https://github.com/Songmu/tagpr/pull/234
 
