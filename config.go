@@ -145,11 +145,11 @@ func (cfg *config) Reload() error {
 		if err != nil {
 			return err
 		}
-		cfg.vPrefix = github.Bool(b)
+		cfg.vPrefix = github.Ptr(b)
 	} else {
 		b, err := cfg.gitconfig.Bool(configVPrefix)
 		if err == nil {
-			cfg.vPrefix = github.Bool(b)
+			cfg.vPrefix = github.Ptr(b)
 		}
 	}
 
@@ -158,11 +158,11 @@ func (cfg *config) Reload() error {
 		if err != nil {
 			return err
 		}
-		cfg.changelog = github.Bool(b)
+		cfg.changelog = github.Ptr(b)
 	} else {
 		b, err := cfg.gitconfig.Bool(configChangelog)
 		if err == nil {
-			cfg.changelog = github.Bool(b)
+			cfg.changelog = github.Ptr(b)
 		}
 	}
 
@@ -297,7 +297,7 @@ func (cfg *config) SetVPrefix(vPrefix bool) error {
 	if err := cfg.set(configVPrefix, strconv.FormatBool(vPrefix)); err != nil {
 		return err
 	}
-	cfg.vPrefix = github.Bool(vPrefix)
+	cfg.vPrefix = github.Ptr(vPrefix)
 	return nil
 }
 
