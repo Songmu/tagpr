@@ -380,17 +380,17 @@ OUT:
 				return err
 			}
 			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path:    github.String(filePath),
-				Type:    github.String("blob"),
-				Content: github.String(string(contentBytes)),
-				Mode:    github.String("100644"),
+				Path:    github.Ptr(filePath),
+				Type:    github.Ptr("blob"),
+				Content: github.Ptr(string(contentBytes)),
+				Mode:    github.Ptr("100644"),
 			})
 		case "D": // Deleted files
 			treeEntries = append(treeEntries, &github.TreeEntry{
 				SHA:  nil,
-				Path: github.String(filePath),
-				Type: github.String("blob"),
-				Mode: github.String("100644"),
+				Path: github.Ptr(filePath),
+				Type: github.Ptr("blob"),
+				Mode: github.Ptr("100644"),
 			})
 		}
 	}
@@ -415,7 +415,7 @@ OUT:
 
 	// Create a new commit
 	commit := &github.Commit{
-		Message: github.String(commitMessage),
+		Message: github.Ptr(commitMessage),
 		Tree:    parent.Commit.Tree,
 		Parents: []*github.Commit{parent.Commit},
 	}
@@ -461,7 +461,7 @@ OUT:
 			}
 			// Create a temporary reference
 			tempRef := &github.Reference{
-				Ref:    github.String("refs/heads/tagpr-temp"),
+				Ref:    github.Ptr("refs/heads/tagpr-temp"),
 				Object: &github.GitObject{SHA: newCommit.SHA},
 			}
 			tempRef, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, tempRef)
@@ -483,7 +483,7 @@ OUT:
 
 				// Create a new commit
 				commit := &github.Commit{
-					Message: github.String("cherry-pick: " + commitish),
+					Message: github.Ptr("cherry-pick: " + commitish),
 					Tree:    newCommit.Tree,
 					Parents: cherryPickCommit.Parents,
 				}
@@ -503,8 +503,8 @@ OUT:
 
 				// Merge
 				mergeRequest := &github.RepositoryMergeRequest{
-					Base: github.String("tagpr-temp"),
-					Head: github.String(commitish),
+					Base: github.Ptr("tagpr-temp"),
+					Head: github.Ptr(commitish),
 				}
 				mergeCommit, resp, err := tp.gh.Repositories.Merge(
 					ctx, tp.owner, tp.repo, mergeRequest)
@@ -611,10 +611,10 @@ OUT:
 			return err
 		}
 		treeEntries = append(treeEntries, &github.TreeEntry{
-			Path:    github.String(changelogMd),
-			Type:    github.String("blob"),
-			Content: github.String(string(contentBytes)),
-			Mode:    github.String("100644"),
+			Path:    github.Ptr(changelogMd),
+			Type:    github.Ptr("blob"),
+			Content: github.Ptr(string(contentBytes)),
+			Mode:    github.Ptr("100644"),
 		})
 		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
 		if err != nil {
@@ -623,7 +623,7 @@ OUT:
 		}
 		// Create a new commit
 		commit = &github.Commit{
-			Message: github.String(changelogMessage),
+			Message: github.Ptr(changelogMessage),
 			Tree:    tree,
 			Parents: []*github.Commit{newCommit},
 		}
@@ -642,7 +642,7 @@ OUT:
 			return err
 		}
 		newRef := &github.Reference{
-			Ref:    github.String("refs/heads/" + rcBranch),
+			Ref:    github.Ptr("refs/heads/" + rcBranch),
 			Object: ref.Object,
 		}
 		rcBranchRef, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, newRef)
@@ -693,10 +693,10 @@ OUT:
 	}
 	if currTagPR == nil {
 		pr, resp, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, &github.NewPullRequest{
-			Title: github.String(title),
-			Body:  github.String(body),
+			Title: github.Ptr(title),
+			Body:  github.Ptr(body),
 			Base:  &releaseBranch,
-			Head:  github.String(head),
+			Head:  github.Ptr(head),
 		})
 		if err != nil {
 			showGHError(err, resp)
@@ -719,8 +719,8 @@ OUT:
 		tp.setOutput("pull_request", string(b))
 		return nil
 	}
-	currTagPR.Title = github.String(title)
-	currTagPR.Body = github.String(mergeBody(*currTagPR.Body, body))
+	currTagPR.Title = github.Ptr(title)
+	currTagPR.Body = github.Ptr(mergeBody(*currTagPR.Body, body))
 	pr, resp, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
 	if err != nil {
 		showGHError(err, resp)
