@@ -65,6 +65,7 @@ func (c *commander) Cmd(prog string, args []string, env map[string]string) (
 }
 
 var needsExtra = map[string]bool{
+	"remote":    true,
 	"clone":     true,
 	"fetch":     true,
 	"pull":      true,
