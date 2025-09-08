@@ -585,7 +585,7 @@ OUT:
 		return err
 	}
 
-	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), time.Now())
+	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), releaseBranch, time.Now())
 	if err != nil {
 		return err
 	}
