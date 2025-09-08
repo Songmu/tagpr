@@ -26,13 +26,17 @@ func (c *commander) getGitPath() string {
 }
 
 func (c *commander) SetToken(token, host string) {
+	confkey := fmt.Sprintf(`http.https://%s/.extraheader`, host)
+	if v, _, _ := c.Git("config", confkey); v != "" {
+		// XXX: Ideally, we should verify whether the AUTHORIZATION header is present, but for now, we'll proceed with this approach.
+		return
+	}
 	encoded := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + token))
 	// mask value to avoid leaking token in logs
 	// ref. https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#masking-a-value-in-a-log
 	fmt.Printf("::add-mask::%s\n", encoded)
 
-	c.extraheader = fmt.Sprintf(`http.https://%s/.extraheader=AUTHORIZATION: basic %s`,
-		host, encoded)
+	c.extraheader = fmt.Sprintf(`%s=AUTHORIZATION: basic %s`, confkey, encoded)
 }
 
 func (c *commander) Cmd(prog string, args []string, env map[string]string) (
