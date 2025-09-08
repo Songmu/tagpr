@@ -108,7 +108,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 			TargetCommitish: &releaseBranch,
 			Name:            &releases.Name,
 			Body:            &releases.Body,
-			Draft:           github.Bool(tp.cfg.ReleaseDraft()),
+			Draft:           github.Ptr(tp.cfg.ReleaseDraft()),
 		})
 	if err != nil {
 		showGHError(err, resp)
