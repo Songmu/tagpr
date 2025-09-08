@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.8.4](https://github.com/Songmu/tagpr/compare/v1.8.3...v1.8.4) - 2025-09-08
+- fix: specify releaseBranch when creating changelog by @Songmu in https://github.com/Songmu/tagpr/pull/238
+
 ## [v1.8.3](https://github.com/Songmu/tagpr/compare/v1.8.2...v1.8.3) - 2025-09-08
 - disable cache on release by @Songmu in https://github.com/Songmu/tagpr/pull/236
 
