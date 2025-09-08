@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.9.0](https://github.com/Songmu/tagpr/compare/v1.8.4...v1.9.0) - 2025-09-08
+- build(deps): bump haya14busa/action-update-semver from 1.3.0 to 1.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/240
+- chore: replace github.Bool to github.Str by @Songmu in https://github.com/Songmu/tagpr/pull/241
+- feat: replace compare link in pull request body by @Songmu in https://github.com/Songmu/tagpr/pull/243
+
 ## [v1.8.4](https://github.com/Songmu/tagpr/compare/v1.8.3...v1.8.4) - 2025-09-08
 - fix: specify releaseBranch when creating changelog by @Songmu in https://github.com/Songmu/tagpr/pull/238
 
