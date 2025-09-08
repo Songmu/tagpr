@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.8.2](https://github.com/Songmu/tagpr/compare/v1.8.1...v1.8.2) - 2025-09-08
+- fix: set token to git remote show origin by @Songmu in https://github.com/Songmu/tagpr/pull/234
+
 ## [v1.8.1](https://github.com/Songmu/tagpr/compare/v1.8.0...v1.8.1) - 2025-09-08
 - update go-github from v66 to v74 by @Songmu in https://github.com/Songmu/tagpr/pull/229
 - fix: check exsisting extraheader before set token by @Songmu in https://github.com/Songmu/tagpr/pull/232
