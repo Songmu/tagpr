@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.9.1](https://github.com/Songmu/tagpr/compare/v1.9.0...v1.9.1) - 2025-10-01
+- build(deps): bump actions/create-github-app-token from 2.1.1 to 2.1.4 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/244
+- build(deps): bump haya14busa/action-update-semver from 1.5.0 to 1.5.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/245
+
 ## [v1.9.0](https://github.com/Songmu/tagpr/compare/v1.8.4...v1.9.0) - 2025-09-08
 - build(deps): bump haya14busa/action-update-semver from 1.3.0 to 1.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/240
 - chore: replace github.Bool to github.Str by @Songmu in https://github.com/Songmu/tagpr/pull/241
