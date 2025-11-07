@@ -14,10 +14,6 @@ func exists(filename string) bool {
 }
 
 func (tp *tagpr) setOutput(name, value string) error {
-	return setOutput(name, value)
-}
-
-func setOutput(name, value string) error {
 	fpath, ok := os.LookupEnv("GITHUB_OUTPUT")
 	if !ok {
 		return nil
