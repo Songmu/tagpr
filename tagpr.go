@@ -57,6 +57,63 @@ func (tp *tagpr) latestSemverTag() string {
 	return ""
 }
 
+func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []string, prShasStr, fromCommitish string) ([]string, error) {
+	var prIssues []*github.Issue
+	var err error
+	for line := range strings.SplitSeq(prShasStr, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		sha, ref := fields[0], fields[1]
+		for _, mergedSha := range mergedFeatureHeadShas {
+			if strings.HasPrefix(sha, mergedSha) {
+				prNumStr := strings.Trim(ref, "head/rfspul")
+				prNum, err := strconv.Atoi(prNumStr)
+				if err != nil {
+					continue
+				}
+				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
+				if err != nil {
+					showGHError(err, resp)
+					return []string{}, err
+				}
+				prIssues = append(prIssues, issue)
+			}
+		}
+	}
+
+	// When "--abbrev" is specified, the length of the each line of the stdout isn't fixed.
+	// It is just a minimum length, and if the commit cannot be uniquely identified with
+	// that length, a longer commit hash will be displayed.
+	// We specify this option to minimize the length of the query string, but we use
+	// "--abbrev=7" because the SHA syntax of the search API requires a string of at
+	// least 7 characters.
+	// ref. https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-commit-sha
+	// This is done because there is a length limit on the API query string, and we want
+	// to create a string with the minimum possible length.
+
+	releaseBranch := tp.cfg.ReleaseBranch()
+
+	shasStr, _, err := tp.c.Git("log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+	if err != nil {
+		return []string{}, err
+	}
+	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
+	for _, query := range buildChunkSearchIssuesQuery(queryBase, shasStr) {
+		tmpIssues, err := tp.searchIssues(ctx, query)
+		if err != nil {
+			return []string{}, err
+		}
+		prIssues = append(prIssues, tmpIssues...)
+	}
+
+	nextLabels := tp.generateNextLabels(prIssues)
+
+	return nextLabels, nil
+}
+
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	tp := &tagpr{c: c, gitPath: c.gitPath, out: c.outStream}
 
@@ -193,63 +250,21 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 	var mergedFeatureHeadShas []string
 	for line := range strings.SplitSeq(shasStr, "\n") {
-		stuff := strings.Fields(line)
-		if len(stuff) < 2 {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
 			continue
 		}
-		mergedFeatureHeadShas = append(mergedFeatureHeadShas, stuff[1])
+		mergedFeatureHeadShas = append(mergedFeatureHeadShas, fields[1])
 	}
 	prShasStr, _, err := tp.c.Git("ls-remote", tp.remoteName, "refs/pull/*/head")
 	if err != nil {
 		return err
 	}
-	var prIssues []*github.Issue
-	for line := range strings.SplitSeq(prShasStr, "\n") {
-		stuff := strings.Fields(line)
-		if len(stuff) != 2 {
-			continue
-		}
-		sha, ref := stuff[0], stuff[1]
-		for _, mergedSha := range mergedFeatureHeadShas {
-			if strings.HasPrefix(sha, mergedSha) {
-				prNumStr := strings.Trim(ref, "head/rfspul")
-				prNum, err := strconv.Atoi(prNumStr)
-				if err != nil {
-					continue
-				}
-				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
-				if err != nil {
-					showGHError(err, resp)
-					return err
-				}
-				prIssues = append(prIssues, issue)
-			}
-		}
-	}
-	// When "--abbrev" is specified, the length of the each line of the stdout isn't fixed.
-	// It is just a minimum length, and if the commit cannot be uniquely identified with
-	// that length, a longer commit hash will be displayed.
-	// We specify this option to minimize the length of the query string, but we use
-	// "--abbrev=7" because the SHA syntax of the search API requires a string of at
-	// least 7 characters.
-	// ref. https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-commit-sha
-	// This is done because there is a length limit on the API query string, and we want
-	// to create a string with the minimum possible length.
-	shasStr, _, err = tp.c.Git("log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+
+	nextLabels, err := tp.getNextLabels(ctx, mergedFeatureHeadShas, prShasStr, fromCommitish)
 	if err != nil {
 		return err
 	}
-	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
-	for _, query := range buildChunkSearchIssuesQuery(queryBase, shasStr) {
-		tmpIssues, err := tp.searchIssues(ctx, query)
-		if err != nil {
-			return err
-		}
-		prIssues = append(prIssues, tmpIssues...)
-	}
-
-	nextLabels := tp.generatenNextLabels(prIssues)
 
 	// Get the latest commit of the release branch
 	ref, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, "refs/heads/"+releaseBranch)
@@ -823,7 +838,7 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 	return issues.Issues, nil
 }
 
-func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
+func (tp *tagpr) generateNextLabels(prIssues []*github.Issue) []string {
 	majorLabels := tp.cfg.MajorLabels()
 	minorLabels := tp.cfg.MinorLabels()
 	var nextMinor, nextMajor bool
