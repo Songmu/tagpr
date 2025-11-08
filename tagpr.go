@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/Songmu/gitconfig"
 	"github.com/Songmu/gitsemvers"
 	"github.com/google/go-github/v74/github"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -241,13 +243,12 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
-	for _, query := range buildChunkSearchIssuesQuery(queryBase, shasStr) {
-		tmpIssues, err := tp.searchIssues(ctx, query)
-		if err != nil {
-			return err
-		}
-		prIssues = append(prIssues, tmpIssues...)
+
+	fetchedPrIssues, err := tp.fetchPRIssues(ctx, queryBase, shasStr)
+	if err != nil {
+		return err
 	}
+	prIssues = append(prIssues, fetchedPrIssues...)
 
 	nextLabels := tp.generatenNextLabels(prIssues)
 
@@ -778,6 +779,33 @@ func mergeBody(now, update string) string {
 }
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
+
+func (tp *tagpr) fetchPRIssues(ctx context.Context, queryBase, shasStr string) ([]*github.Issue, error) {
+	g, ctx := errgroup.WithContext(ctx)
+	mu := sync.Mutex{}
+	prIssues := []*github.Issue{}
+
+	for _, query := range buildChunkSearchIssuesQuery(queryBase, shasStr) {
+		g.Go(func() error {
+			return func(q string) error {
+				tmpIssues, err := tp.searchIssues(ctx, q)
+				if err != nil {
+					return err
+				}
+				mu.Lock()
+				prIssues = append(prIssues, tmpIssues...)
+				mu.Unlock()
+				return nil
+			}(query)
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return prIssues, nil
+}
 
 func (tp *tagpr) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
