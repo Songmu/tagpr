@@ -146,7 +146,7 @@ d742186
 	}
 }
 
-func TestGeneratenNextLabels(t *testing.T) {
+func TestGenerateNextLabels(t *testing.T) {
 	major := "major"
 	minor := "minor"
 	enhancement := "enhancement"
@@ -293,7 +293,7 @@ func TestGeneratenNextLabels(t *testing.T) {
 				},
 			}
 
-			got := tp.generatenNextLabels(prIssues)
+			got := tp.generateNextLabels(prIssues)
 
 			if len(got) == 0 && len(tt.want) == 0 {
 				return
