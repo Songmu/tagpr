@@ -282,15 +282,13 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 	nextVer := currVer.GuessNext(append(labels, nextLabels...))
 	var addingLabels []string
-OUT:
+
 	for _, l := range nextLabels {
-		for _, l2 := range labels {
-			if l == l2 {
-				continue OUT
-			}
+		if !slices.Contains(labels, l) {
+			addingLabels = append(addingLabels, l)
 		}
-		addingLabels = append(addingLabels, l)
 	}
+
 	var vfiles []string
 	if vf := tp.cfg.VersionFile(); vf != "" && vf != "-" {
 		vfiles = strings.Split(vf, ",")
