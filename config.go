@@ -153,8 +153,8 @@ func (cfg *config) Reload() error {
 	return nil
 }
 
-func (cfg *config) setFromGitconfig(dst **string, src, defaultSrc string) {
-	if val, err := cfg.gitconfig.Get(src); err == nil {
+func (cfg *config) setFromGitconfig(dst **string, gitconfigSrc, defaultSrc string) {
+	if val, err := cfg.gitconfig.Get(gitconfigSrc); err == nil {
 		*dst = github.Ptr(val)
 	} else {
 		if defaultSrc != "" {
@@ -163,15 +163,15 @@ func (cfg *config) setFromGitconfig(dst **string, src, defaultSrc string) {
 	}
 }
 
-func (cfg *config) reloadField(dst **string, src, envVal, defaultSrc string) {
+func (cfg *config) reloadField(dst **string, gitconfigSrc, envVal, defaultSrc string) {
 	if val := os.Getenv(envVal); val != "" {
 		*dst = github.Ptr(val)
 	} else {
-		cfg.setFromGitconfig(dst, src, defaultSrc)
+		cfg.setFromGitconfig(dst, gitconfigSrc, defaultSrc)
 	}
 }
 
-func (cfg *config) reloadBoolField(dst **bool, envVal, defaultSrc string) error {
+func (cfg *config) reloadBoolField(dst **bool, envVal, gitconfigSrc string) error {
 	if val := os.Getenv(envVal); val != "" {
 		if b, err := strconv.ParseBool(val); err != nil {
 			return err
@@ -179,7 +179,7 @@ func (cfg *config) reloadBoolField(dst **bool, envVal, defaultSrc string) error 
 			*dst = github.Ptr(b)
 		}
 	} else {
-		if b, err := cfg.gitconfig.Bool(defaultSrc); err == nil {
+		if b, err := cfg.gitconfig.Bool(gitconfigSrc); err == nil {
 			*dst = github.Ptr(b)
 		}
 	}
