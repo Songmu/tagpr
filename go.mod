@@ -12,7 +12,7 @@ require (
 	github.com/gofri/go-github-ratelimit v1.1.1
 	github.com/google/go-github/v74 v74.0.0
 	github.com/saracen/walker v0.1.4
-	golang.org/x/oauth2 v0.32.0
+	golang.org/x/oauth2 v0.33.0
 )
 
 require (
