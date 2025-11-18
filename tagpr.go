@@ -307,15 +307,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	if prog := tp.cfg.Command(); prog != "" {
-		var progArgs []string
-		if strings.ContainsAny(prog, " \n") {
-			progArgs = []string{"-c", prog}
-			prog = "sh"
-		}
-		tp.c.Cmd(prog, progArgs, map[string]string{
-			"TAGPR_CURRENT_VERSION": currVer.Tag(),
-			"TAGPR_NEXT_VERSION":    nextVer.Tag(),
-		})
+		tp.Exec(prog, currVer, nextVer)
 	}
 
 	if len(vfiles) > 0 && vfiles[0] != "" {
@@ -328,15 +320,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	tp.c.Git("add", "-f", tp.cfg.conf) // ignore any errors
 
 	if prog := tp.cfg.PostVersionCommand(); prog != "" {
-		var progArgs []string
-		if strings.ContainsAny(prog, " \n") {
-			progArgs = []string{"-c", prog}
-			prog = "sh"
-		}
-		tp.c.Cmd(prog, progArgs, map[string]string{
-			"TAGPR_CURRENT_VERSION": currVer.Tag(),
-			"TAGPR_NEXT_VERSION":    nextVer.Tag(),
-		})
+		tp.Exec(prog, currVer, nextVer)
 	}
 
 	const releaseYml = ".github/release.yml"
@@ -776,6 +760,18 @@ func mergeBody(now, update string) string {
 }
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
+
+func (tp *tagpr) Exec(prog string, currVer, nextVer *semv) {
+	var progArgs []string
+	if strings.ContainsAny(prog, " \n") {
+		progArgs = []string{"-c", prog}
+		prog = "sh"
+	}
+	tp.c.Cmd(prog, progArgs, map[string]string{
+		"TAGPR_CURRENT_VERSION": currVer.Tag(),
+		"TAGPR_NEXT_VERSION":    nextVer.Tag(),
+	})
+}
 
 func (tp *tagpr) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work
