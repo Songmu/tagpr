@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.9.2](https://github.com/Songmu/tagpr/compare/v1.9.1...v1.9.2) - 2025-12-13
+- config: introduce setFromGitconfig, reloadField, reloadBoolField meth… by @12ya in https://github.com/Songmu/tagpr/pull/251
+
 ## [v1.9.1](https://github.com/Songmu/tagpr/compare/v1.9.0...v1.9.1) - 2025-12-13
 - build(deps): bump actions/create-github-app-token from 2.1.1 to 2.1.4 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/244
 - build(deps): bump haya14busa/action-update-semver from 1.5.0 to 1.5.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/245
