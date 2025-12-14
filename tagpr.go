@@ -355,7 +355,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	// Detect modified files and create a new tree object
-	diffFiles, _, err := tp.c.Git("diff", "--name-status", "HEAD")
+	diffFiles, _, err := tp.c.Git("diff", "--raw", "HEAD")
 	if err != nil {
 		return err
 	}
@@ -364,12 +364,15 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
+		if !strings.HasPrefix(line, ":") {
+			continue
+		}
 		parts := strings.Fields(line)
-		if len(parts) < 2 {
+		if len(parts) < 6 {
 			continue
 		}
 
-		status, filePath := parts[0], parts[1]
+		newMode, status, filePath := parts[1], parts[4], parts[5]
 		switch status {
 		case "A", "M": // Created or modified files
 			contentBytes, err := os.ReadFile(filePath)
@@ -380,7 +383,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 				Path:    github.Ptr(filePath),
 				Type:    github.Ptr("blob"),
 				Content: github.Ptr(string(contentBytes)),
-				Mode:    github.Ptr("100644"),
+				Mode:    github.Ptr(newMode),
 			})
 		case "D": // Deleted files
 			treeEntries = append(treeEntries, &github.TreeEntry{
