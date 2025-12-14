@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.10.0](https://github.com/Songmu/tagpr/compare/v1.9.2...v1.10.0) - 2025-12-14
+- Preserve file modes by @hekki in https://github.com/Songmu/tagpr/pull/263
+
 ## [v1.9.2](https://github.com/Songmu/tagpr/compare/v1.9.1...v1.9.2) - 2025-12-13
 - config: introduce setFromGitconfig, reloadField, reloadBoolField meth… by @12ya in https://github.com/Songmu/tagpr/pull/251
 
