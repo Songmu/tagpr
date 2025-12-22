@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.10.1](https://github.com/Songmu/tagpr/compare/v1.10.0...v1.10.1) - 2025-12-22
+- build(deps): bump golang.org/x/oauth2 from 0.33.0 to 0.34.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/265
+- build(deps): bump codecov/codecov-action from 5.5.1 to 5.5.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/266
+- build(deps): bump github.com/Songmu/gitsemvers from 0.0.3 to 0.1.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/269
+
 ## [v1.10.0](https://github.com/Songmu/tagpr/compare/v1.9.2...v1.10.0) - 2025-12-14
 - Preserve file modes by @hekki in https://github.com/Songmu/tagpr/pull/263
 
