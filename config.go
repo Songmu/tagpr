@@ -85,6 +85,7 @@ const (
 	envMajorLabels           = "TAGPR_MAJOR_LABELS"
 	envMinorLabels           = "TAGPR_MINOR_LABELS"
 	envCommitPrefix          = "TAGPR_COMMIT_PREFIX"
+	envTagPrefix             = "TAGPR_TAG_PREFIX"
 	configReleaseBranch      = "tagpr.releaseBranch"
 	configVersionFile        = "tagpr.versionFile"
 	configVPrefix            = "tagpr.vPrefix"
@@ -97,7 +98,6 @@ const (
 	configMajorLabels        = "tagpr.majorLabels"
 	configMinorLabels        = "tagpr.minorLabels"
 	configCommitPrefix       = "tagpr.commitPrefix"
-	envTagPrefix             = "TAGPR_TAG_PREFIX"
 	configTagPrefix          = "tagpr.tagPrefix"
 )
 
