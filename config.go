@@ -58,6 +58,15 @@ const (
 #   tagpr.commitPrefix (Optional)
 #       Prefix of commit message. Default is "[tagpr]"
 #
+#   tagpr.tagPrefix (Optional)
+#       Tag prefix for monorepo support. This allows managing multiple packages
+#       with independent versioning in a single repository.
+#       The prefix is prepended to the version tag with a slash separator.
+#       Trailing slashes in the prefix are handled automatically.
+#       Examples:
+#         - "tools" produces tags like "tools/v1.2.3"
+#         - "backend/api" produces tags like "backend/api/v1.0.0"
+#
 [tagpr]
 `
 	defaultMajorLabels       = "major"
@@ -88,6 +97,8 @@ const (
 	configMajorLabels        = "tagpr.majorLabels"
 	configMinorLabels        = "tagpr.minorLabels"
 	configCommitPrefix       = "tagpr.commitPrefix"
+	envTagPrefix             = "TAGPR_TAG_PREFIX"
+	configTagPrefix          = "tagpr.tagPrefix"
 )
 
 type config struct {
@@ -103,6 +114,7 @@ type config struct {
 	majorLabels        *string
 	minorLabels        *string
 	commitPrefix       *string
+	tagPrefix          *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -149,6 +161,8 @@ func (cfg *config) Reload() error {
 	cfg.reloadField(&cfg.minorLabels, configMinorLabels, envMinorLabels, defaultMinorLabels)
 
 	cfg.reloadField(&cfg.commitPrefix, configCommitPrefix, envCommitPrefix, defaultCommitPrefix)
+
+	cfg.reloadField(&cfg.tagPrefix, configTagPrefix, envTagPrefix, "")
 
 	return nil
 }
@@ -313,4 +327,8 @@ func (cfg *config) MinorLabels() []string {
 
 func (cfg *config) CommitPrefix() string {
 	return stringify(cfg.commitPrefix)
+}
+
+func (cfg *config) TagPrefix() string {
+	return stringify(cfg.tagPrefix)
 }
