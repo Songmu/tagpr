@@ -701,6 +701,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		NextVersion: nextVer.Tag(),
 		Branch:      rcBranch,
 		Changelog:   orig,
+		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
 	})
 	if err != nil {
 		return err
