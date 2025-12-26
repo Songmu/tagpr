@@ -6,7 +6,7 @@ import (
 	"text/template"
 )
 
-const defaultTmplStr = `Release for {{.NextVersion}}
+const defaultTmplStr = `{{if .TagPrefix}}[{{.TagPrefix}}] {{end}}Release for {{.NextVersion}}
 
 This pull request is for the next release as {{.NextVersion}} created by [tagpr](https://github.com/Songmu/tagpr). Merging it will tag {{.NextVersion}} to the merge commit and create a GitHub release.
 
@@ -39,7 +39,7 @@ func init() {
 }
 
 type tmplArg struct {
-	NextVersion, Branch, Changelog string
+	NextVersion, Branch, Changelog, TagPrefix string
 }
 
 func newPRTmpl(tmpl *template.Template) *prTmpl {

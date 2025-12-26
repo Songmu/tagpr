@@ -65,6 +65,9 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		}
 		nextTag = currVer.GuessNext(labels).Tag()
 	}
+	// Add prefix for monorepo support
+	fullNextTag := fullTag(tp.normalizedTagPrefix, nextTag)
+
 	previousTag := &latestSemverTag
 	if *previousTag == "" {
 		previousTag = nil
@@ -80,7 +83,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	}
 	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
 		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
-			TagName:         nextTag,
+			TagName:         fullNextTag,
 			PreviousTagName: previousTag,
 			TargetCommitish: &targetCommitish,
 		})
@@ -89,14 +92,14 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return err
 	}
 
-	if _, _, err := tp.c.Git("tag", nextTag); err != nil {
+	if _, _, err := tp.c.Git("tag", fullNextTag); err != nil {
 		return err
 	}
 	_, _, err = tp.c.Git("push", "--tags")
 	if err != nil {
 		return err
 	}
-	tp.setOutput("tag", nextTag)
+	tp.setOutput("tag", fullNextTag)
 
 	if !tp.cfg.Release() {
 		return nil
@@ -104,7 +107,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	// Don't use GenerateReleaseNote flag and use pre generated one
 	_, resp, err = tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
-			TagName:         &nextTag,
+			TagName:         &fullNextTag,
 			TargetCommitish: &releaseBranch,
 			Name:            &releases.Name,
 			Body:            &releases.Body,

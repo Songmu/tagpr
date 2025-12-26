@@ -38,13 +38,19 @@ type tagpr struct {
 	gitPath                 string
 	remoteName, owner, repo string
 	out                     io.Writer
+	normalizedTagPrefix     string
 }
 
 func (tp *tagpr) latestSemverTag() string {
-	vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
+	vers := (&gitsemvers.Semvers{
+		GitPath:   tp.gitPath,
+		TagPrefix: tp.cfg.TagPrefix(),
+	}).VersionStrings()
 	if tp.cfg.vPrefix != nil {
 		for _, v := range vers {
-			if strings.HasPrefix(v, "v") == *tp.cfg.vPrefix {
+			// Strip prefix to check vPrefix against semver part
+			semvPart := strings.TrimPrefix(v, tp.normalizedTagPrefix)
+			if strings.HasPrefix(semvPart, "v") == *tp.cfg.vPrefix {
 				return v
 			}
 		}
@@ -167,6 +173,7 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	if err != nil {
 		return nil, err
 	}
+	tp.normalizedTagPrefix = normalizeTagPrefix(tp.cfg.TagPrefix())
 	return tp, nil
 }
 
@@ -196,6 +203,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			return err
 		}
 		currVerStr = "v0.0.0"
+	} else {
+		// Strip prefix for newSemver (fromCommitish already has full tag name)
+		currVerStr = strings.TrimPrefix(currVerStr, tp.normalizedTagPrefix)
 	}
 	currVer, err := newSemver(currVerStr)
 	if err != nil {
@@ -273,7 +283,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 
-	rcBranch := fmt.Sprintf("%s%s", branchPrefix, currVer.Tag())
+	rcBranch := fmt.Sprintf("%s%s%s", branchPrefix, branchSafePrefix(tp.normalizedTagPrefix), currVer.Tag())
 	head := fmt.Sprintf("%s:%s", tp.owner, rcBranch)
 	pulls, resp, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
 		&github.PullRequestListOptions{
@@ -563,6 +573,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 
 	// Reread the configuration file (.tagpr) as it may have been rewritten during the cherry-pick process.
 	tp.cfg.Reload()
+	tp.normalizedTagPrefix = normalizeTagPrefix(tp.cfg.TagPrefix())
 	if tp.cfg.VersionFile() != "" && tp.cfg.VersionFile() != "-" {
 		vfiles = strings.Split(tp.cfg.VersionFile(), ",")
 		for i, v := range vfiles {
@@ -580,12 +591,14 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		gh2changelog.GitPath(tp.gitPath),
 		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
 		gh2changelog.GitHubClient(tp.gh),
+		gh2changelog.TagPrefix(tp.normalizedTagPrefix),
 	)
 	if err != nil {
 		return err
 	}
 
-	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), releaseBranch, time.Now())
+	draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+	changelog, orig, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
 	if err != nil {
 		return err
 	}
@@ -680,12 +693,15 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	if tp.gh.BaseURL != nil {
 		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
 	}
-	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currVer.Tag(), nextVer.Tag(), rcBranch)
+	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
+	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currTag, nextTag, rcBranch)
 	pt := newPRTmpl(tmpl)
 	prText, err := pt.Render(&tmplArg{
 		NextVersion: nextVer.Tag(),
 		Branch:      rcBranch,
 		Changelog:   orig,
+		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
 	})
 	if err != nil {
 		return err
