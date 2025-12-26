@@ -150,6 +150,10 @@ Label of minor update targets. Default is [minor]
 ### tagpr.commitPrefix (Optional)
 Prefix of commit message. Default is "[tagpr]"
 
+### tagpr.tagPrefix (Optional)
+Tag prefix for monorepo support (e.g., `tools` produces tags like `tools/v1.2.3`).
+This allows managing multiple modules with independent versioning in a single repository.
+
 ## GitHub Enterprise
 If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
 
