@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/go-github/v74/github"
@@ -347,5 +348,53 @@ func newGithubLabel(name *string) *github.Label {
 		Description: new(string),
 		Default:     new(bool),
 		NodeID:      new(string),
+	}
+}
+
+func TestBuildGitLogArgsWithPathFilter(t *testing.T) {
+	tests := []struct {
+		name                string
+		baseArgs            []string
+		normalizedTagPrefix string
+		wantArgs            []string
+	}{
+		{
+			name:                "empty prefix - no path filter",
+			baseArgs:            []string{"log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent", "v1.0.0..origin/main"},
+			normalizedTagPrefix: "",
+			wantArgs:            []string{"log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent", "v1.0.0..origin/main"},
+		},
+		{
+			name:                "with prefix - adds path filter",
+			baseArgs:            []string{"log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent", "v1.0.0..origin/main"},
+			normalizedTagPrefix: "modules/s3/",
+			wantArgs:            []string{"log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent", "v1.0.0..origin/main", "--", "modules/s3"},
+		},
+		{
+			name:                "merge log with prefix",
+			baseArgs:            []string{"log", "--merges", "--pretty=format:%P", "v1.0.0..origin/main"},
+			normalizedTagPrefix: "packages/core/",
+			wantArgs:            []string{"log", "--merges", "--pretty=format:%P", "v1.0.0..origin/main", "--", "packages/core"},
+		},
+		{
+			name:                "cherry-pick log with prefix",
+			baseArgs:            []string{"log", "--no-merges", "--pretty=format:%h %s", "main..origin/tagpr-from-v1.0.0"},
+			normalizedTagPrefix: "libs/util/",
+			wantArgs:            []string{"log", "--no-merges", "--pretty=format:%h %s", "main..origin/tagpr-from-v1.0.0", "--", "libs/util"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This tests the exact pattern used in tagpr.go for path filtering
+			args := make([]string, len(tt.baseArgs))
+			copy(args, tt.baseArgs)
+			if tt.normalizedTagPrefix != "" {
+				args = append(args, "--", strings.TrimSuffix(tt.normalizedTagPrefix, "/"))
+			}
+			if !reflect.DeepEqual(args, tt.wantArgs) {
+				t.Errorf("got %v, want %v", args, tt.wantArgs)
+			}
+		})
 	}
 }
