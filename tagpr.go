@@ -349,8 +349,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	const releaseYml = ".github/release.yml"
+	const releaseYaml = ".github/release.yaml"
 	// TODO: It would be nice to be able to add an exclude setting even if release.yml already exists.
-	if !exists(releaseYml) {
+	if !exists(releaseYml) && !exists(releaseYaml) {
 		if err := os.MkdirAll(filepath.Dir(releaseYml), 0755); err != nil {
 			return err
 		}
