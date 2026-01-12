@@ -175,6 +175,7 @@ The tagpr produces output to be used in conjunction with subsequent GitHub Actio
 
 - `pull_request`: Information of the pull request created by tagpr in JSON format
 - `tag`: Tag strings are output only if the tagpr has tagged
+- `base_tag`: The base semver tag for comparison, empty if no previous tag exists
 
 It is useful to see if tag is available and to run tasks after release. The following is an example of running action-update-semver after release.
 
