@@ -194,6 +194,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
 
 	latestSemverTag := tp.latestSemverTag()
+	tp.setOutput("base_tag", latestSemverTag)
 	currVerStr := latestSemverTag
 	fromCommitish := "refs/tags/" + currVerStr
 	if currVerStr == "" {
