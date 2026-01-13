@@ -101,8 +101,12 @@ func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []stri
 
 	releaseBranch := tp.cfg.ReleaseBranch()
 
-	shasStr, _, err := tp.c.Git("log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+	logArgs := []string{"log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
+	if tp.normalizedTagPrefix != "" {
+		logArgs = append(logArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
+	}
+	shasStr, _, err := tp.c.Git(logArgs...)
 	if err != nil {
 		return []string{}, err
 	}
@@ -254,8 +258,12 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		tp.setOutput("pull_request", string(b))
 		return nil
 	}
-	shasStr, _, err := tp.c.Git("log", "--merges", "--pretty=format:%P",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+	mergeLogArgs := []string{"log", "--merges", "--pretty=format:%P",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
+	if tp.normalizedTagPrefix != "" {
+		mergeLogArgs = append(mergeLogArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
+	}
+	shasStr, _, err := tp.c.Git(mergeLogArgs...)
 	if err != nil {
 		return err
 	}
@@ -443,8 +451,12 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	// cherry-pick if the remote branch is exists and changed
 	// XXX: Do I need to apply merge commits too?
 	//     (We omitted merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	out, _, err := tp.c.Git("log", "--no-merges", "--pretty=format:%h %s",
-		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch))
+	cherryLogArgs := []string{"log", "--no-merges", "--pretty=format:%h %s",
+		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch)}
+	if tp.normalizedTagPrefix != "" {
+		cherryLogArgs = append(cherryLogArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
+	}
+	out, _, err := tp.c.Git(cherryLogArgs...)
 	if err == nil {
 		var cherryPicks []string
 		for line := range strings.SplitSeq(out, "\n") {
