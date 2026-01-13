@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.11.1](https://github.com/Songmu/tagpr/compare/v1.11.0...v1.11.1) - 2026-01-13
+- fix: add check for both release.yml and release.yaml files by @nnnkkk7 in https://github.com/Songmu/tagpr/pull/275
+- feat: add base_tag output for GitHub Actions by @178inaba in https://github.com/Songmu/tagpr/pull/277
+- fix: scope git log to tagPrefix path in monorepo mode by @biosugar0 in https://github.com/Songmu/tagpr/pull/274
+
 ## [v1.11.0](https://github.com/Songmu/tagpr/compare/v1.10.0...v1.11.0) - 2026-01-06
 - build(deps): bump golang.org/x/oauth2 from 0.33.0 to 0.34.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/265
 - build(deps): bump codecov/codecov-action from 5.5.1 to 5.5.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/266
