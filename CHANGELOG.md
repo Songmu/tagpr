@@ -1,5 +1,38 @@
 # Changelog
 
+## [v1.11.1](https://github.com/Songmu/tagpr/compare/v1.11.0...v1.11.1) - 2026-01-13
+- fix: add check for both release.yml and release.yaml files by @nnnkkk7 in https://github.com/Songmu/tagpr/pull/275
+- feat: add base_tag output for GitHub Actions by @178inaba in https://github.com/Songmu/tagpr/pull/277
+- fix: scope git log to tagPrefix path in monorepo mode by @biosugar0 in https://github.com/Songmu/tagpr/pull/274
+
+## [v1.11.0](https://github.com/Songmu/tagpr/compare/v1.10.0...v1.11.0) - 2026-01-06
+- build(deps): bump golang.org/x/oauth2 from 0.33.0 to 0.34.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/265
+- build(deps): bump codecov/codecov-action from 5.5.1 to 5.5.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/266
+- build(deps): bump github.com/Songmu/gitsemvers from 0.0.3 to 0.1.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/269
+- Add tagPrefix configuration for monorepo support by @biosugar0 in https://github.com/Songmu/tagpr/pull/268
+- build(deps): bump github.com/Songmu/gh2changelog from 0.3.0 to 0.4.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/270
+
+## [v1.10.0](https://github.com/Songmu/tagpr/compare/v1.9.2...v1.10.0) - 2025-12-14
+- Preserve file modes by @hekki in https://github.com/Songmu/tagpr/pull/263
+
+## [v1.9.2](https://github.com/Songmu/tagpr/compare/v1.9.1...v1.9.2) - 2025-12-13
+- config: introduce setFromGitconfig, reloadField, reloadBoolField meth… by @12ya in https://github.com/Songmu/tagpr/pull/251
+
+## [v1.9.1](https://github.com/Songmu/tagpr/compare/v1.9.0...v1.9.1) - 2025-12-13
+- build(deps): bump actions/create-github-app-token from 2.1.1 to 2.1.4 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/244
+- build(deps): bump haya14busa/action-update-semver from 1.5.0 to 1.5.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/245
+- build(deps): bump golang.org/x/oauth2 from 0.31.0 to 0.32.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/247
+- tagpr: Refactor label addition logic in Run method by @12ya in https://github.com/Songmu/tagpr/pull/252
+- util.go: remove unnecessary middle man by @12ya in https://github.com/Songmu/tagpr/pull/250
+- build(deps): bump golang.org/x/oauth2 from 0.32.0 to 0.33.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/256
+- build(deps): bump actions/create-github-app-token from 2.1.4 to 2.2.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/259
+- build(deps): bump actions/setup-go from 6.0.0 to 6.1.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/258
+- build(deps): bump actions/checkout from 5.0.0 to 6.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/257
+- build(deps): bump actions/create-github-app-token from 2.2.0 to 2.2.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/261
+- build(deps): bump actions/checkout from 6.0.0 to 6.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/260
+- tagpr: Refactor version file and command execution logic by @12ya in https://github.com/Songmu/tagpr/pull/253
+- tagpr: add *tag pr method getNextLabels and debloat Run func by @12ya in https://github.com/Songmu/tagpr/pull/249
+
 ## [v1.9.0](https://github.com/Songmu/tagpr/compare/v1.8.4...v1.9.0) - 2025-09-08
 - build(deps): bump haya14busa/action-update-semver from 1.3.0 to 1.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/240
 - chore: replace github.Bool to github.Str by @Songmu in https://github.com/Songmu/tagpr/pull/241

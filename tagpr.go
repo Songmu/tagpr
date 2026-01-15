@@ -38,13 +38,19 @@ type tagpr struct {
 	gitPath                 string
 	remoteName, owner, repo string
 	out                     io.Writer
+	normalizedTagPrefix     string
 }
 
 func (tp *tagpr) latestSemverTag() string {
-	vers := (&gitsemvers.Semvers{GitPath: tp.gitPath}).VersionStrings()
+	vers := (&gitsemvers.Semvers{
+		GitPath:   tp.gitPath,
+		TagPrefix: tp.cfg.TagPrefix(),
+	}).VersionStrings()
 	if tp.cfg.vPrefix != nil {
 		for _, v := range vers {
-			if strings.HasPrefix(v, "v") == *tp.cfg.vPrefix {
+			// Strip prefix to check vPrefix against semver part
+			semvPart := strings.TrimPrefix(v, tp.normalizedTagPrefix)
+			if strings.HasPrefix(semvPart, "v") == *tp.cfg.vPrefix {
 				return v
 			}
 		}
@@ -55,6 +61,67 @@ func (tp *tagpr) latestSemverTag() string {
 		}
 	}
 	return ""
+}
+
+func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []string, prShasStr, fromCommitish string) ([]string, error) {
+	var prIssues []*github.Issue
+	var err error
+	for line := range strings.SplitSeq(prShasStr, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		sha, ref := fields[0], fields[1]
+		for _, mergedSha := range mergedFeatureHeadShas {
+			if strings.HasPrefix(sha, mergedSha) {
+				prNumStr := strings.Trim(ref, "head/rfspul")
+				prNum, err := strconv.Atoi(prNumStr)
+				if err != nil {
+					continue
+				}
+				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
+				if err != nil {
+					showGHError(err, resp)
+					return []string{}, err
+				}
+				prIssues = append(prIssues, issue)
+			}
+		}
+	}
+
+	// When "--abbrev" is specified, the length of the each line of the stdout isn't fixed.
+	// It is just a minimum length, and if the commit cannot be uniquely identified with
+	// that length, a longer commit hash will be displayed.
+	// We specify this option to minimize the length of the query string, but we use
+	// "--abbrev=7" because the SHA syntax of the search API requires a string of at
+	// least 7 characters.
+	// ref. https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-commit-sha
+	// This is done because there is a length limit on the API query string, and we want
+	// to create a string with the minimum possible length.
+
+	releaseBranch := tp.cfg.ReleaseBranch()
+
+	logArgs := []string{"log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
+	if tp.normalizedTagPrefix != "" {
+		logArgs = append(logArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
+	}
+	shasStr, _, err := tp.c.Git(logArgs...)
+	if err != nil {
+		return []string{}, err
+	}
+	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
+	for _, query := range buildChunkSearchIssuesQuery(queryBase, shasStr) {
+		tmpIssues, err := tp.searchIssues(ctx, query)
+		if err != nil {
+			return []string{}, err
+		}
+		prIssues = append(prIssues, tmpIssues...)
+	}
+
+	nextLabels := tp.generateNextLabels(prIssues)
+
+	return nextLabels, nil
 }
 
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
@@ -110,6 +177,7 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	if err != nil {
 		return nil, err
 	}
+	tp.normalizedTagPrefix = normalizeTagPrefix(tp.cfg.TagPrefix())
 	return tp, nil
 }
 
@@ -130,6 +198,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
 
 	latestSemverTag := tp.latestSemverTag()
+	tp.setOutput("base_tag", latestSemverTag)
 	currVerStr := latestSemverTag
 	fromCommitish := "refs/tags/" + currVerStr
 	if currVerStr == "" {
@@ -139,6 +208,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			return err
 		}
 		currVerStr = "v0.0.0"
+	} else {
+		// Strip prefix for newSemver (fromCommitish already has full tag name)
+		currVerStr = strings.TrimPrefix(currVerStr, tp.normalizedTagPrefix)
 	}
 	currVer, err := newSemver(currVerStr)
 	if err != nil {
@@ -186,70 +258,32 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		tp.setOutput("pull_request", string(b))
 		return nil
 	}
-	shasStr, _, err := tp.c.Git("log", "--merges", "--pretty=format:%P",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+	mergeLogArgs := []string{"log", "--merges", "--pretty=format:%P",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
+	if tp.normalizedTagPrefix != "" {
+		mergeLogArgs = append(mergeLogArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
+	}
+	shasStr, _, err := tp.c.Git(mergeLogArgs...)
 	if err != nil {
 		return err
 	}
 	var mergedFeatureHeadShas []string
 	for line := range strings.SplitSeq(shasStr, "\n") {
-		stuff := strings.Fields(line)
-		if len(stuff) < 2 {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
 			continue
 		}
-		mergedFeatureHeadShas = append(mergedFeatureHeadShas, stuff[1])
+		mergedFeatureHeadShas = append(mergedFeatureHeadShas, fields[1])
 	}
 	prShasStr, _, err := tp.c.Git("ls-remote", tp.remoteName, "refs/pull/*/head")
 	if err != nil {
 		return err
 	}
-	var prIssues []*github.Issue
-	for line := range strings.SplitSeq(prShasStr, "\n") {
-		stuff := strings.Fields(line)
-		if len(stuff) != 2 {
-			continue
-		}
-		sha, ref := stuff[0], stuff[1]
-		for _, mergedSha := range mergedFeatureHeadShas {
-			if strings.HasPrefix(sha, mergedSha) {
-				prNumStr := strings.Trim(ref, "head/rfspul")
-				prNum, err := strconv.Atoi(prNumStr)
-				if err != nil {
-					continue
-				}
-				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
-				if err != nil {
-					showGHError(err, resp)
-					return err
-				}
-				prIssues = append(prIssues, issue)
-			}
-		}
-	}
-	// When "--abbrev" is specified, the length of the each line of the stdout isn't fixed.
-	// It is just a minimum length, and if the commit cannot be uniquely identified with
-	// that length, a longer commit hash will be displayed.
-	// We specify this option to minimize the length of the query string, but we use
-	// "--abbrev=7" because the SHA syntax of the search API requires a string of at
-	// least 7 characters.
-	// ref. https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-commit-sha
-	// This is done because there is a length limit on the API query string, and we want
-	// to create a string with the minimum possible length.
-	shasStr, _, err = tp.c.Git("log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
+
+	nextLabels, err := tp.getNextLabels(ctx, mergedFeatureHeadShas, prShasStr, fromCommitish)
 	if err != nil {
 		return err
 	}
-	queryBase := fmt.Sprintf("repo:%s/%s is:pr is:closed", tp.owner, tp.repo)
-	for _, query := range buildChunkSearchIssuesQuery(queryBase, shasStr) {
-		tmpIssues, err := tp.searchIssues(ctx, query)
-		if err != nil {
-			return err
-		}
-		prIssues = append(prIssues, tmpIssues...)
-	}
-
-	nextLabels := tp.generatenNextLabels(prIssues)
 
 	// Get the latest commit of the release branch
 	ref, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, "refs/heads/"+releaseBranch)
@@ -258,7 +292,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 
-	rcBranch := fmt.Sprintf("%s%s", branchPrefix, currVer.Tag())
+	rcBranch := fmt.Sprintf("%s%s%s", branchPrefix, branchSafePrefix(tp.normalizedTagPrefix), currVer.Tag())
 	head := fmt.Sprintf("%s:%s", tp.owner, rcBranch)
 	pulls, resp, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
 		&github.PullRequestListOptions{
@@ -282,14 +316,11 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 	nextVer := currVer.GuessNext(append(labels, nextLabels...))
 	var addingLabels []string
-OUT:
+
 	for _, l := range nextLabels {
-		for _, l2 := range labels {
-			if l == l2 {
-				continue OUT
-			}
+		if !slices.Contains(labels, l) {
+			addingLabels = append(addingLabels, l)
 		}
-		addingLabels = append(addingLabels, l)
 	}
 	vfiles, err := tp.getVfiles(currVer)
 	if err != nil {
@@ -297,15 +328,7 @@ OUT:
 	}
 
 	if prog := tp.cfg.Command(); prog != "" {
-		var progArgs []string
-		if strings.ContainsAny(prog, " \n") {
-			progArgs = []string{"-c", prog}
-			prog = "sh"
-		}
-		tp.c.Cmd(prog, progArgs, map[string]string{
-			"TAGPR_CURRENT_VERSION": currVer.Tag(),
-			"TAGPR_NEXT_VERSION":    nextVer.Tag(),
-		})
+		tp.Exec(prog, currVer, nextVer)
 	}
 
 	if len(vfiles) > 0 && vfiles[0] != "" {
@@ -318,20 +341,13 @@ OUT:
 	tp.c.Git("add", "-f", tp.cfg.conf) // ignore any errors
 
 	if prog := tp.cfg.PostVersionCommand(); prog != "" {
-		var progArgs []string
-		if strings.ContainsAny(prog, " \n") {
-			progArgs = []string{"-c", prog}
-			prog = "sh"
-		}
-		tp.c.Cmd(prog, progArgs, map[string]string{
-			"TAGPR_CURRENT_VERSION": currVer.Tag(),
-			"TAGPR_NEXT_VERSION":    nextVer.Tag(),
-		})
+		tp.Exec(prog, currVer, nextVer)
 	}
 
 	const releaseYml = ".github/release.yml"
+	const releaseYaml = ".github/release.yaml"
 	// TODO: It would be nice to be able to add an exclude setting even if release.yml already exists.
-	if !exists(releaseYml) {
+	if !exists(releaseYml) && !exists(releaseYaml) {
 		if err := os.MkdirAll(filepath.Dir(releaseYml), 0755); err != nil {
 			return err
 		}
@@ -346,7 +362,7 @@ OUT:
 	}
 
 	// Detect modified files and create a new tree object
-	diffFiles, _, err := tp.c.Git("diff", "--name-status", "HEAD")
+	diffFiles, _, err := tp.c.Git("diff", "--raw", "HEAD")
 	if err != nil {
 		return err
 	}
@@ -355,12 +371,15 @@ OUT:
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
+		if !strings.HasPrefix(line, ":") {
+			continue
+		}
 		parts := strings.Fields(line)
-		if len(parts) < 2 {
+		if len(parts) < 6 {
 			continue
 		}
 
-		status, filePath := parts[0], parts[1]
+		newMode, status, filePath := parts[1], parts[4], parts[5]
 		switch status {
 		case "A", "M": // Created or modified files
 			contentBytes, err := os.ReadFile(filePath)
@@ -371,7 +390,7 @@ OUT:
 				Path:    github.Ptr(filePath),
 				Type:    github.Ptr("blob"),
 				Content: github.Ptr(string(contentBytes)),
-				Mode:    github.Ptr("100644"),
+				Mode:    github.Ptr(newMode),
 			})
 		case "D": // Deleted files
 			treeEntries = append(treeEntries, &github.TreeEntry{
@@ -419,8 +438,12 @@ OUT:
 	// cherry-pick if the remote branch is exists and changed
 	// XXX: Do I need to apply merge commits too?
 	//     (We omitted merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	out, _, err := tp.c.Git("log", "--no-merges", "--pretty=format:%h %s",
-		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch))
+	cherryLogArgs := []string{"log", "--no-merges", "--pretty=format:%h %s",
+		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch)}
+	if tp.normalizedTagPrefix != "" {
+		cherryLogArgs = append(cherryLogArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
+	}
+	out, _, err := tp.c.Git(cherryLogArgs...)
 	if err == nil {
 		var cherryPicks []string
 		for line := range strings.SplitSeq(out, "\n") {
@@ -551,6 +574,7 @@ OUT:
 
 	// Reread the configuration file (.tagpr) as it may have been rewritten during the cherry-pick process.
 	tp.cfg.Reload()
+	tp.normalizedTagPrefix = normalizeTagPrefix(tp.cfg.TagPrefix())
 	if tp.cfg.VersionFile() != "" && tp.cfg.VersionFile() != "-" {
 		vfiles = strings.Split(tp.cfg.VersionFile(), ",")
 		for i, v := range vfiles {
@@ -568,12 +592,14 @@ OUT:
 		gh2changelog.GitPath(tp.gitPath),
 		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
 		gh2changelog.GitHubClient(tp.gh),
+		gh2changelog.TagPrefix(tp.normalizedTagPrefix),
 	)
 	if err != nil {
 		return err
 	}
 
-	changelog, orig, err := gch.Draft(ctx, nextVer.Tag(), releaseBranch, time.Now())
+	draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+	changelog, orig, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
 	if err != nil {
 		return err
 	}
@@ -668,12 +694,15 @@ OUT:
 	if tp.gh.BaseURL != nil {
 		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
 	}
-	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currVer.Tag(), nextVer.Tag(), rcBranch)
+	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
+	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currTag, nextTag, rcBranch)
 	pt := newPRTmpl(tmpl)
 	prText, err := pt.Render(&tmplArg{
 		NextVersion: nextVer.Tag(),
 		Branch:      rcBranch,
 		Changelog:   orig,
+		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
 	})
 	if err != nil {
 		return err
@@ -768,7 +797,7 @@ func mergeBody(now, update string) string {
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 
 func (tp *tagpr) getVfiles(currVer *semv) ([]string, error) {
-	vfiles := []string{}
+	var vfiles []string
 
 	if vf := tp.cfg.VersionFile(); vf != "" && vf != "-" {
 		vfiles = strings.Split(vf, ",")
@@ -783,10 +812,23 @@ func (tp *tagpr) getVfiles(currVer *semv) ([]string, error) {
 		if err := tp.cfg.SetVersionFile(vfile); err != nil {
 			return []string{}, err
 		}
-		vfiles = []string{vfile}
+		vfiles = append(vfiles, vfile)
 	}
 
 	return vfiles, nil
+}
+
+func (tp *tagpr) Exec(prog string, currVer, nextVer *semv) {
+	var progArgs []string
+	if strings.ContainsAny(prog, " \n") {
+		progArgs = []string{"-c", prog}
+		prog = "sh"
+	}
+	tp.c.Cmd(prog, progArgs, map[string]string{
+		"TAGPR_CURRENT_VERSION": currVer.Tag(),
+		"TAGPR_NEXT_VERSION":    nextVer.Tag(),
+	})
+
 }
 
 func (tp *tagpr) defaultBranch() (string, error) {
@@ -833,7 +875,7 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 	return issues.Issues, nil
 }
 
-func (tp *tagpr) generatenNextLabels(prIssues []*github.Issue) []string {
+func (tp *tagpr) generateNextLabels(prIssues []*github.Issue) []string {
 	majorLabels := tp.cfg.MajorLabels()
 	minorLabels := tp.cfg.MinorLabels()
 	var nextMinor, nextMajor bool

@@ -5,7 +5,7 @@ inputs:
   version:
     description: "A version to install tagpr"
     required: false
-    default: "v1.9.0"
+    default: "v1.11.1"
   config:
     description: "A path to the tagpr configuration file"
     required: false
@@ -16,6 +16,9 @@ outputs:
   pull_request:
     description: "Information of the pull request created by tagpr in JSON format"
     value: ${{ steps.tagpr.outputs.pull_request }}
+  base_tag:
+    description: "The base semver tag for comparison, empty if no previous tag exists"
+    value: ${{ steps.tagpr.outputs.base_tag }}
 runs:
   using: "composite"
   steps:

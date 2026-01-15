@@ -58,6 +58,15 @@ const (
 #   tagpr.commitPrefix (Optional)
 #       Prefix of commit message. Default is "[tagpr]"
 #
+#   tagpr.tagPrefix (Optional)
+#       Tag prefix for monorepo support. This allows managing multiple packages
+#       with independent versioning in a single repository.
+#       The prefix is prepended to the version tag with a slash separator.
+#       Trailing slashes in the prefix are handled automatically.
+#       Examples:
+#         - "tools" produces tags like "tools/v1.2.3"
+#         - "backend/api" produces tags like "backend/api/v1.0.0"
+#
 [tagpr]
 `
 	defaultMajorLabels       = "major"
@@ -76,6 +85,7 @@ const (
 	envMajorLabels           = "TAGPR_MAJOR_LABELS"
 	envMinorLabels           = "TAGPR_MINOR_LABELS"
 	envCommitPrefix          = "TAGPR_COMMIT_PREFIX"
+	envTagPrefix             = "TAGPR_TAG_PREFIX"
 	configReleaseBranch      = "tagpr.releaseBranch"
 	configVersionFile        = "tagpr.versionFile"
 	configVPrefix            = "tagpr.vPrefix"
@@ -88,6 +98,7 @@ const (
 	configMajorLabels        = "tagpr.majorLabels"
 	configMinorLabels        = "tagpr.minorLabels"
 	configCommitPrefix       = "tagpr.commitPrefix"
+	configTagPrefix          = "tagpr.tagPrefix"
 )
 
 type config struct {
@@ -103,6 +114,7 @@ type config struct {
 	majorLabels        *string
 	minorLabels        *string
 	commitPrefix       *string
+	tagPrefix          *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -122,125 +134,67 @@ func newConfig(gitPath string) (*config, error) {
 }
 
 func (cfg *config) Reload() error {
-	if rb := os.Getenv(envReleaseBranch); rb != "" {
-		cfg.releaseBranch = github.Ptr(rb)
-	} else {
-		out, err := cfg.gitconfig.Get(configReleaseBranch)
-		if err == nil {
-			cfg.releaseBranch = github.Ptr(out)
-		}
+	cfg.reloadField(&cfg.releaseBranch, configReleaseBranch, envReleaseBranch, "")
+
+	cfg.reloadField(&cfg.versionFile, configVersionFile, envVersionFile, "")
+
+	if err := cfg.reloadBoolField(&cfg.vPrefix, envVPrefix, configVPrefix); err != nil {
+		return err
 	}
 
-	if rb := os.Getenv(envVersionFile); rb != "" {
-		cfg.versionFile = github.Ptr(rb)
-	} else {
-		out, err := cfg.gitconfig.Get(configVersionFile)
-		if err == nil {
-			cfg.versionFile = github.Ptr(out)
-		}
+	if err := cfg.reloadBoolField(&cfg.changelog, envChangelog, configChangelog); err != nil {
+		return err
 	}
 
-	if vPrefix := os.Getenv(envVPrefix); vPrefix != "" {
-		b, err := strconv.ParseBool(vPrefix)
-		if err != nil {
+	cfg.reloadField(&cfg.command, configCommand, envCommand, "")
+
+	cfg.reloadField(&cfg.postVersionCommand, configPostVersionCommand, envPostVersionCommand, "")
+
+	cfg.reloadField(&cfg.template, configTemplate, envTemplate, "")
+
+	cfg.reloadField(&cfg.templateText, configTemplateText, envTemplateText, "")
+
+	cfg.reloadField(&cfg.release, configRelease, envRelease, "")
+
+	cfg.reloadField(&cfg.majorLabels, configMajorLabels, envMajorLabels, defaultMajorLabels)
+
+	cfg.reloadField(&cfg.minorLabels, configMinorLabels, envMinorLabels, defaultMinorLabels)
+
+	cfg.reloadField(&cfg.commitPrefix, configCommitPrefix, envCommitPrefix, defaultCommitPrefix)
+
+	cfg.reloadField(&cfg.tagPrefix, configTagPrefix, envTagPrefix, "")
+
+	return nil
+}
+
+func (cfg *config) setFromGitconfig(dst **string, gitconfigSrc, defaultSrc string) {
+	if val, err := cfg.gitconfig.Get(gitconfigSrc); err == nil {
+		*dst = github.Ptr(val)
+	} else {
+		if defaultSrc != "" {
+			*dst = github.Ptr(defaultSrc)
+		}
+	}
+}
+
+func (cfg *config) reloadField(dst **string, gitconfigSrc, envVal, defaultSrc string) {
+	if val := os.Getenv(envVal); val != "" {
+		*dst = github.Ptr(val)
+	} else {
+		cfg.setFromGitconfig(dst, gitconfigSrc, defaultSrc)
+	}
+}
+
+func (cfg *config) reloadBoolField(dst **bool, envVal, gitconfigSrc string) error {
+	if val := os.Getenv(envVal); val != "" {
+		if b, err := strconv.ParseBool(val); err != nil {
 			return err
-		}
-		cfg.vPrefix = github.Ptr(b)
-	} else {
-		b, err := cfg.gitconfig.Bool(configVPrefix)
-		if err == nil {
-			cfg.vPrefix = github.Ptr(b)
-		}
-	}
-
-	if changelog := os.Getenv(envChangelog); changelog != "" {
-		b, err := strconv.ParseBool(changelog)
-		if err != nil {
-			return err
-		}
-		cfg.changelog = github.Ptr(b)
-	} else {
-		b, err := cfg.gitconfig.Bool(configChangelog)
-		if err == nil {
-			cfg.changelog = github.Ptr(b)
-		}
-	}
-
-	if command := os.Getenv(envCommand); command != "" {
-		cfg.command = github.Ptr(command)
-	} else {
-		command, err := cfg.gitconfig.Get(configCommand)
-		if err == nil {
-			cfg.command = github.Ptr(command)
-		}
-	}
-
-	if postCommand := os.Getenv(envPostVersionCommand); postCommand != "" {
-		cfg.postVersionCommand = github.Ptr(postCommand)
-	} else {
-		postCommand, err := cfg.gitconfig.Get(configPostVersionCommand)
-		if err == nil {
-			cfg.postVersionCommand = github.Ptr(postCommand)
-		}
-	}
-
-	if tmpl := os.Getenv(envTemplate); tmpl != "" {
-		cfg.template = github.Ptr(tmpl)
-	} else {
-		tmpl, err := cfg.gitconfig.Get(configTemplate)
-		if err == nil {
-			cfg.template = github.Ptr(tmpl)
-		}
-	}
-
-	if tmplTxt := os.Getenv(envTemplateText); tmplTxt != "" {
-		cfg.templateText = github.Ptr(tmplTxt)
-	} else {
-		tmplTxt, err := cfg.gitconfig.Get(configTemplateText)
-		if err == nil {
-			cfg.templateText = github.Ptr(tmplTxt)
-		}
-	}
-
-	if rel := os.Getenv(envRelease); rel != "" {
-		cfg.release = github.Ptr(rel)
-	} else {
-		rel, err := cfg.gitconfig.Get(configRelease)
-		if err == nil {
-			cfg.release = github.Ptr(rel)
-		}
-	}
-
-	if major := os.Getenv(envMajorLabels); major != "" {
-		cfg.majorLabels = github.Ptr(major)
-	} else {
-		major, err := cfg.gitconfig.Get(configMajorLabels)
-		if err == nil {
-			cfg.majorLabels = github.Ptr(major)
 		} else {
-			cfg.majorLabels = github.Ptr(defaultMajorLabels)
+			*dst = github.Ptr(b)
 		}
-	}
-
-	if minor := os.Getenv(envMinorLabels); minor != "" {
-		cfg.minorLabels = github.Ptr(minor)
 	} else {
-		minor, err := cfg.gitconfig.Get(configMinorLabels)
-		if err == nil {
-			cfg.minorLabels = github.Ptr(minor)
-		} else {
-			cfg.minorLabels = github.Ptr(defaultMinorLabels)
-		}
-	}
-
-	if prefix := os.Getenv(envCommitPrefix); prefix != "" {
-		cfg.commitPrefix = github.Ptr(prefix)
-	} else {
-		prefix, err := cfg.gitconfig.Get(configCommitPrefix)
-		if err == nil {
-			cfg.commitPrefix = github.Ptr(prefix)
-		} else {
-			cfg.commitPrefix = github.Ptr(defaultCommitPrefix)
+		if b, err := cfg.gitconfig.Bool(gitconfigSrc); err == nil {
+			*dst = github.Ptr(b)
 		}
 	}
 
@@ -373,4 +327,8 @@ func (cfg *config) MinorLabels() []string {
 
 func (cfg *config) CommitPrefix() string {
 	return stringify(cfg.commitPrefix)
+}
+
+func (cfg *config) TagPrefix() string {
+	return stringify(cfg.tagPrefix)
 }
