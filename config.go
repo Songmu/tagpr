@@ -339,5 +339,8 @@ func (cfg *config) TagPrefix() string {
 }
 
 func (cfg *config) ChangelogFile() string {
+	if cfg.changelogFile == nil {
+		return "CHANGELOG.md"
+	}
 	return stringify(cfg.changelogFile)
 }

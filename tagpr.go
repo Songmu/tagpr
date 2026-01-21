@@ -606,6 +606,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
 		gh2changelog.GitHubClient(tp.gh),
 		gh2changelog.TagPrefix(tp.normalizedTagPrefix),
+		gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
 	)
 	if err != nil {
 		return err
@@ -618,10 +619,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	if tp.cfg.changelog == nil || *tp.cfg.changelog {
-		changelogMd := "CHANGELOG.md"
-		if tp.cfg.ChangelogFile() != "" {
-			changelogMd = tp.cfg.ChangelogFile()
-		}
+		changelogMd := tp.cfg.ChangelogFile()
 		if !exists(changelogMd) {
 			logs, _, err := gch.Changelogs(ctx, 20)
 			if err != nil {
