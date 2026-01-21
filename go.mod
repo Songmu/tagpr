@@ -6,7 +6,7 @@ toolchain go1.25.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/Songmu/gh2changelog v0.4.0
+	github.com/Songmu/gh2changelog v0.5.0
 	github.com/Songmu/gitconfig v0.2.1
 	github.com/Songmu/gitsemvers v0.1.0
 	github.com/gofri/go-github-ratelimit v1.1.1
