@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.12.0](https://github.com/Songmu/tagpr/compare/v1.11.1...v1.12.0) - 2026-01-21
+- feat: add changelogFile for monorepo support by @wreulicke in https://github.com/Songmu/tagpr/pull/283
+- build(deps): bump actions/setup-go from 6.1.0 to 6.2.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/281
+
 ## [v1.11.1](https://github.com/Songmu/tagpr/compare/v1.11.0...v1.11.1) - 2026-01-13
 - fix: add check for both release.yml and release.yaml files by @nnnkkk7 in https://github.com/Songmu/tagpr/pull/275
 - feat: add base_tag output for GitHub Actions by @178inaba in https://github.com/Songmu/tagpr/pull/277
