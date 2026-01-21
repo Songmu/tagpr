@@ -606,6 +606,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
 		gh2changelog.GitHubClient(tp.gh),
 		gh2changelog.TagPrefix(tp.normalizedTagPrefix),
+		gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
 	)
 	if err != nil {
 		return err
