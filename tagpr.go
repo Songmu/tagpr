@@ -458,130 +458,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 	out, _, err := tp.c.Git(cherryLogArgs...)
 	if err == nil {
-		var cherryPicks []string
-		for line := range strings.SplitSeq(out, "\n") {
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-			m := strings.SplitN(line, " ", 2)
-			if len(m) < 2 {
-				continue
-			}
-			commitish := m[0]
-			subject := strings.TrimSpace(m[1])
-			if subject != commitMessage && subject != changelogMessage {
-				cherryPicks = append(cherryPicks, commitish)
-			}
-		}
-		if len(cherryPicks) > 0 {
-			// Specify a commitish one by one for cherry-pick instead of multiple commitish,
-			// and apply it as much as possible.
-
-			// Delete temporary reference if it exists
-			resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
-			if err != nil && resp.StatusCode != 422 {
-				showGHError(err, resp)
-				return err
-			}
-			// Create a temporary reference
-			tempRef := &github.Reference{
-				Ref:    github.Ptr("refs/heads/tagpr-temp"),
-				Object: &github.GitObject{SHA: newCommit.SHA},
-			}
-			tempRef, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, tempRef)
-			if err != nil {
-				showGHError(err, resp)
-				return err
-			}
-
-			for i := len(cherryPicks) - 1; i >= 0; i-- {
-				commitish := cherryPicks[i]
-
-				// Get cherry-pick commit
-				cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(
-					ctx, tp.owner, tp.repo, commitish, nil)
-				if err != nil {
-					showGHError(err, resp)
-					return err
-				}
-
-				// Create a new commit
-				commit := &github.Commit{
-					Message: github.Ptr("cherry-pick: " + commitish),
-					Tree:    newCommit.Tree,
-					Parents: cherryPickCommit.Parents,
-				}
-				tempCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-				if err != nil {
-					showGHError(err, resp)
-					return err
-				}
-
-				// Update temporary reference
-				tempRef.Object.SHA = tempCommit.SHA
-				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, true)
-				if err != nil {
-					showGHError(err, resp)
-					return err
-				}
-
-				// Merge
-				mergeRequest := &github.RepositoryMergeRequest{
-					Base: github.Ptr("tagpr-temp"),
-					Head: github.Ptr(commitish),
-				}
-				mergeCommit, resp, err := tp.gh.Repositories.Merge(
-					ctx, tp.owner, tp.repo, mergeRequest)
-				if err != nil {
-					// conflict, etc. / Need error handling in case of non-conflict error?
-					if resp.StatusCode == 409 {
-						continue
-					}
-					showGHError(err, resp)
-					return err
-				}
-
-				// Create a new commit
-				// The Author is not set because setting the same Author as the original commit makes it
-				// difficult to create a Verified Commit.
-				commit = &github.Commit{
-					Message: cherryPickCommit.Commit.Message,
-					Tree:    mergeCommit.Commit.Tree,
-					Parents: []*github.Commit{newCommit},
-				}
-				newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-				if err != nil {
-					showGHError(err, resp)
-					return err
-				}
-
-				// Update temporary reference
-				tempRef.Object.SHA = newCommit.SHA
-				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, true)
-				if err != nil {
-					showGHError(err, resp)
-					return err
-				}
-			}
-
-			// Checkout the temporary reference (Files like .tagpr used in subsequent processes may have
-			// been rewritten during the cherry-pick process)
-			if _, _, err := tp.c.Git("fetch"); err != nil {
-				return err
-			}
-			if _, _, err := tp.c.Git("reset", "--hard"); err != nil {
-				return err
-			}
-			if _, _, err := tp.c.Git("checkout", "tagpr-temp"); err != nil {
-				return err
-			}
-
-			// Delete temporary reference
-			resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
-			if err != nil {
-				showGHError(err, resp)
-				return err
-			}
+		cherryPicks := extractCherryPicks(out, commitMessage, changelogMessage)
+		if err := tp.handleCherryPicks(ctx, cherryPicks, newCommit); err != nil {
+			return err
 		}
 	}
 
@@ -780,6 +659,141 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	b, _ := json.Marshal(pr)
 	tp.setOutput("pull_request", string(b))
 	return nil
+}
+
+func (tp *tagpr) handleCherryPicks(ctx context.Context, cherryPicks []string, newCommit *github.Commit) error {
+	if len(cherryPicks) > 0 {
+		// Specify a commitish one by one for cherry-pick instead of multiple commitish,
+		// and apply it as much as possible.
+
+		// Delete temporary reference if it exists
+		resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
+		if err != nil && resp.StatusCode != 422 {
+			showGHError(err, resp)
+			return err
+		}
+		// Create a temporary reference
+		tempRef := &github.Reference{
+			Ref:    github.Ptr("refs/heads/tagpr-temp"),
+			Object: &github.GitObject{SHA: newCommit.SHA},
+		}
+		tempRef, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, tempRef)
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+
+		for i := len(cherryPicks) - 1; i >= 0; i-- {
+			commitish := cherryPicks[i]
+
+			// Get cherry-pick commit
+			cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(
+				ctx, tp.owner, tp.repo, commitish, nil)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
+
+			// Create a new commit
+			commit := &github.Commit{
+				Message: github.Ptr("cherry-pick: " + commitish),
+				Tree:    newCommit.Tree,
+				Parents: cherryPickCommit.Parents,
+			}
+			tempCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
+
+			// Update temporary reference
+			tempRef.Object.SHA = tempCommit.SHA
+			_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, true)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
+
+			// Merge
+			mergeRequest := &github.RepositoryMergeRequest{
+				Base: github.Ptr("tagpr-temp"),
+				Head: github.Ptr(commitish),
+			}
+			mergeCommit, resp, err := tp.gh.Repositories.Merge(
+				ctx, tp.owner, tp.repo, mergeRequest)
+			if err != nil {
+				// conflict, etc. / Need error handling in case of non-conflict error?
+				if resp.StatusCode == 409 {
+					continue
+				}
+				showGHError(err, resp)
+				return err
+			}
+
+			// Create a new commit
+			// The Author is not set because setting the same Author as the original commit makes it
+			// difficult to create a Verified Commit.
+			commit = &github.Commit{
+				Message: cherryPickCommit.Commit.Message,
+				Tree:    mergeCommit.Commit.Tree,
+				Parents: []*github.Commit{newCommit},
+			}
+			newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
+
+			// Update temporary reference
+			tempRef.Object.SHA = newCommit.SHA
+			_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, true)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
+		}
+
+		// Checkout the temporary reference (Files like .tagpr used in subsequent processes may have
+		// been rewritten during the cherry-pick process)
+		if _, _, err := tp.c.Git("fetch"); err != nil {
+			return err
+		}
+		if _, _, err := tp.c.Git("reset", "--hard"); err != nil {
+			return err
+		}
+		if _, _, err := tp.c.Git("checkout", "tagpr-temp"); err != nil {
+			return err
+		}
+
+		// Delete temporary reference
+		resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func extractCherryPicks(out, commitMessage, changelogMessage string) []string {
+	var cherryPicks []string
+	for line := range strings.SplitSeq(out, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		m := strings.SplitN(line, " ", 2)
+		if len(m) < 2 {
+			continue
+		}
+		commitish := m[0]
+		subject := strings.TrimSpace(m[1])
+		if subject != commitMessage && subject != changelogMessage {
+			cherryPicks = append(cherryPicks, commitish)
+		}
+	}
+
+	return cherryPicks
 }
 
 func replaceCompareLink(orig, host, owner, repo, currTag, nextTag, rcBranch string) string {
