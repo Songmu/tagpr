@@ -86,6 +86,7 @@ const (
 	envMinorLabels           = "TAGPR_MINOR_LABELS"
 	envCommitPrefix          = "TAGPR_COMMIT_PREFIX"
 	envTagPrefix             = "TAGPR_TAG_PREFIX"
+	envChangelogFile         = "TAGPR_CHANGELOG_FILE"
 	configReleaseBranch      = "tagpr.releaseBranch"
 	configVersionFile        = "tagpr.versionFile"
 	configVPrefix            = "tagpr.vPrefix"
@@ -99,6 +100,7 @@ const (
 	configMinorLabels        = "tagpr.minorLabels"
 	configCommitPrefix       = "tagpr.commitPrefix"
 	configTagPrefix          = "tagpr.tagPrefix"
+	configChangelogFile      = "tagpr.changelogFile"
 )
 
 type config struct {
@@ -115,6 +117,7 @@ type config struct {
 	minorLabels        *string
 	commitPrefix       *string
 	tagPrefix          *string
+	changelogFile      *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -163,6 +166,8 @@ func (cfg *config) Reload() error {
 	cfg.reloadField(&cfg.commitPrefix, configCommitPrefix, envCommitPrefix, defaultCommitPrefix)
 
 	cfg.reloadField(&cfg.tagPrefix, configTagPrefix, envTagPrefix, "")
+
+	cfg.reloadField(&cfg.changelogFile, configChangelogFile, envChangelogFile, "")
 
 	return nil
 }
@@ -331,4 +336,8 @@ func (cfg *config) CommitPrefix() string {
 
 func (cfg *config) TagPrefix() string {
 	return stringify(cfg.tagPrefix)
+}
+
+func (cfg *config) ChangelogFile() string {
+	return stringify(cfg.changelogFile)
 }
