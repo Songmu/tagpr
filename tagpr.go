@@ -619,6 +619,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 
 	if tp.cfg.changelog == nil || *tp.cfg.changelog {
 		changelogMd := "CHANGELOG.md"
+		if tp.cfg.ChangelogFile() != "" {
+			changelogMd = tp.cfg.ChangelogFile()
+		}
 		if !exists(changelogMd) {
 			logs, _, err := gch.Changelogs(ctx, 20)
 			if err != nil {
