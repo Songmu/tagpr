@@ -434,11 +434,8 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	parent.Commit.SHA = parent.SHA
 
 	// Create a new commit
-	commit := &github.Commit{
-		Message: github.Ptr(commitMessage),
-		Tree:    parent.Commit.Tree,
-		Parents: []*github.Commit{parent.Commit},
-	}
+	commit := NewGithubCommit(github.Ptr(commitMessage), parent.Commit.Tree, []*github.Commit{parent.Commit})
+
 	if tree != nil {
 		commit.Tree = tree
 	}
@@ -506,11 +503,8 @@ func (tp *tagpr) Run(ctx context.Context) error {
 				}
 
 				// Create a new commit
-				commit := &github.Commit{
-					Message: github.Ptr("cherry-pick: " + commitish),
-					Tree:    newCommit.Tree,
-					Parents: cherryPickCommit.Parents,
-				}
+				commit := NewGithubCommit(github.Ptr("cherry-pick: "+commitish), newCommit.Tree, cherryPickCommit.Parents)
+
 				tempCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 				if err != nil {
 					showGHError(err, resp)
@@ -544,11 +538,8 @@ func (tp *tagpr) Run(ctx context.Context) error {
 				// Create a new commit
 				// The Author is not set because setting the same Author as the original commit makes it
 				// difficult to create a Verified Commit.
-				commit = &github.Commit{
-					Message: cherryPickCommit.Commit.Message,
-					Tree:    mergeCommit.Commit.Tree,
-					Parents: []*github.Commit{newCommit},
-				}
+				commit = NewGithubCommit(cherryPickCommit.Commit.Message, mergeCommit.Commit.Tree, []*github.Commit{newCommit})
+
 				newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 				if err != nil {
 					showGHError(err, resp)
@@ -650,11 +641,8 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			return err
 		}
 		// Create a new commit
-		commit = &github.Commit{
-			Message: github.Ptr(changelogMessage),
-			Tree:    tree,
-			Parents: []*github.Commit{newCommit},
-		}
+		commit = NewGithubCommit(github.Ptr(changelogMessage), tree, []*github.Commit{newCommit})
+
 		newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 		if err != nil {
 			showGHError(err, resp)
@@ -926,4 +914,12 @@ func buildChunkSearchIssuesQuery(qualifiers string, shasStr string) (chunkQuerie
 	}
 
 	return chunkQueries
+}
+
+func NewGithubCommit(message *string, tree *github.Tree, parents []*github.Commit) *github.Commit {
+	return &github.Commit{
+		Message: message,
+		Tree:    tree,
+		Parents: parents,
+	}
 }
