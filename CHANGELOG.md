@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.12.1](https://github.com/Songmu/tagpr/compare/v1.12.0...v1.12.1) - 2026-01-21
+- fix: pass changelog file path to gh2changelog by @wreulicke in https://github.com/Songmu/tagpr/pull/286
+
 ## [v1.12.0](https://github.com/Songmu/tagpr/compare/v1.11.1...v1.12.0) - 2026-01-21
 - feat: add changelogFile for monorepo support by @wreulicke in https://github.com/Songmu/tagpr/pull/283
 - build(deps): bump actions/setup-go from 6.1.0 to 6.2.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/281
