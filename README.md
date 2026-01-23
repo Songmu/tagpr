@@ -164,24 +164,7 @@ This allows managing multiple modules with independent versioning in a single re
 ### tagpr.calendarVersioning (Optional)
 Use Calendar Versioning (CalVer) instead of Semantic Versioning.
 When enabled, versions follow the `YYYY.MMDD.patch` format (e.g., `v2026.123.0` for January 23rd, 2026).
-
-```
-[tagpr]
-    calendarVersioning = true
-```
-
-Or via environment variable:
-```yaml
-- uses: Songmu/tagpr@v1
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    TAGPR_CALENDAR_VERSIONING: "true"
-```
-
-**Important:** When Calendar Versioning is enabled, the `major` and `minor` labels are ignored.
-The version is determined solely by the date:
-- Same day release: patch version increments (e.g., `v2026.123.0` → `v2026.123.1`)
-- Different day release: patch resets to 0 (e.g., `v2026.123.5` → `v2026.124.0`)
+Labels for major/minor are ignored when this option is enabled.
 
 ## GitHub Enterprise
 If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
