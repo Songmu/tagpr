@@ -65,3 +65,66 @@ func TestConfig(t *testing.T) {
 		t.Errorf("got:\n%s\nexpect:\n%s", out, expect)
 	}
 }
+
+func TestConfigCalendarVersioning(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+
+	// Initially false (not set)
+	if cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be false initially")
+	}
+
+	// Set to true
+	if err := cfg.SetCalendarVersioning(true); err != nil {
+		t.Error(err)
+	}
+	if !cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be true")
+	}
+
+	// Reload and check persistence
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+	if !cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be true after reload")
+	}
+
+	// Set to false
+	if err := cfg.SetCalendarVersioning(false); err != nil {
+		t.Error(err)
+	}
+	if cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be false")
+	}
+}
+
+func TestConfigCalendarVersioningFromEnv(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+
+	// Set environment variable
+	t.Setenv("TAGPR_CALENDAR_VERSIONING", "true")
+
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+
+	if !cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be true from env")
+	}
+}

@@ -67,6 +67,10 @@ const (
 #         - "tools" produces tags like "tools/v1.2.3"
 #         - "backend/api" produces tags like "backend/api/v1.0.0"
 #
+#   tagpr.calendarVersioning (Optional)
+#       Use Calendar Versioning (YYYY.MMDD.patch) instead of Semantic Versioning.
+#       Must be explicitly set to true to enable. Default is false (Semantic Versioning).
+#
 [tagpr]
 `
 	defaultMajorLabels       = "major"
@@ -87,6 +91,7 @@ const (
 	envCommitPrefix          = "TAGPR_COMMIT_PREFIX"
 	envTagPrefix             = "TAGPR_TAG_PREFIX"
 	envChangelogFile         = "TAGPR_CHANGELOG_FILE"
+	envCalendarVersioning    = "TAGPR_CALENDAR_VERSIONING"
 	configReleaseBranch      = "tagpr.releaseBranch"
 	configVersionFile        = "tagpr.versionFile"
 	configVPrefix            = "tagpr.vPrefix"
@@ -101,6 +106,7 @@ const (
 	configCommitPrefix       = "tagpr.commitPrefix"
 	configTagPrefix          = "tagpr.tagPrefix"
 	configChangelogFile      = "tagpr.changelogFile"
+	configCalendarVersioning = "tagpr.calendarVersioning"
 )
 
 type config struct {
@@ -118,6 +124,7 @@ type config struct {
 	commitPrefix       *string
 	tagPrefix          *string
 	changelogFile      *string
+	calendarVersioning *bool
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -168,6 +175,10 @@ func (cfg *config) Reload() error {
 	cfg.reloadField(&cfg.tagPrefix, configTagPrefix, envTagPrefix, "")
 
 	cfg.reloadField(&cfg.changelogFile, configChangelogFile, envChangelogFile, "")
+
+	if err := cfg.reloadBoolField(&cfg.calendarVersioning, envCalendarVersioning, configCalendarVersioning); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -343,4 +354,19 @@ func (cfg *config) ChangelogFile() string {
 		return "CHANGELOG.md"
 	}
 	return stringify(cfg.changelogFile)
+}
+
+func (cfg *config) CalendarVersioning() bool {
+	if cfg.calendarVersioning == nil {
+		return false
+	}
+	return *cfg.calendarVersioning
+}
+
+func (cfg *config) SetCalendarVersioning(calVer bool) error {
+	if err := cfg.set(configCalendarVersioning, strconv.FormatBool(calVer)); err != nil {
+		return err
+	}
+	cfg.calendarVersioning = github.Ptr(calVer)
+	return nil
 }
