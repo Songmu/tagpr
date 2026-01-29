@@ -124,6 +124,21 @@ func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []stri
 	return nextLabels, nil
 }
 
+func (tp *tagpr) initializeReleaseYaml(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, []byte(`changelog:
+  exclude:
+    labels:
+      - tagpr
+`), 0644); err != nil {
+		return err
+	}
+	_, _, _ = tp.c.Git("add", "-f", path)
+	return nil
+}
+
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	tp := &tagpr{c: c, gitPath: c.gitPath, out: c.outStream}
 
@@ -359,21 +374,20 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		tp.Exec(prog, currVer, nextVer)
 	}
 
-	const releaseYml = ".github/release.yml"
-	const releaseYaml = ".github/release.yaml"
-	// TODO: It would be nice to be able to add an exclude setting even if release.yml already exists.
-	if !exists(releaseYml) && !exists(releaseYaml) {
-		if err := os.MkdirAll(filepath.Dir(releaseYml), 0755); err != nil {
+	releaseYaml := tp.cfg.ReleaseYAMLPath()
+	if releaseYaml != "" && !exists(releaseYaml) {
+		if err := tp.initializeReleaseYaml(releaseYaml); err != nil {
 			return err
 		}
-		if err := os.WriteFile(releaseYml, []byte(`changelog:
-  exclude:
-    labels:
-      - tagpr
-`), 0644); err != nil {
-			return err
+	}
+	if releaseYaml == "" {
+		const defaultReleaseYml = ".github/release.yml"
+		const defaultReleaseYaml = ".github/release.yaml"
+		if !exists(defaultReleaseYml) && !exists(defaultReleaseYaml) {
+			if err := tp.initializeReleaseYaml(defaultReleaseYml); err != nil {
+				return err
+			}
 		}
-		tp.c.Git("add", "-f", releaseYml)
 	}
 
 	// Detect modified files and create a new tree object
@@ -611,13 +625,17 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
-	gch, err := gh2changelog.New(ctx,
+	opts := []gh2changelog.Option{
 		gh2changelog.GitPath(tp.gitPath),
 		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
 		gh2changelog.GitHubClient(tp.gh),
 		gh2changelog.TagPrefix(tp.normalizedTagPrefix),
 		gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
-	)
+	}
+	if tp.cfg.ReleaseYAMLPath() != "" {
+		opts = append(opts, gh2changelog.ReleaseYamlPath(tp.cfg.ReleaseYAMLPath()))
+	}
+	gch, err := gh2changelog.New(ctx, opts...)
 	if err != nil {
 		return err
 	}
