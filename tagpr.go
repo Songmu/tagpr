@@ -241,6 +241,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	currVer.asCalendarVersion = tp.cfg.CalendarVersioning()
+	currVer.calverFormat = tp.cfg.CalendarVersioningFormat()
 
 	releaseBranch := tp.cfg.ReleaseBranch()
 	if releaseBranch == "" {

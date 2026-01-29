@@ -78,20 +78,23 @@ func TestConfigCalendarVersioning(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Initially false (not set)
 	if cfg.CalendarVersioning() {
 		t.Error("CalendarVersioning should be false initially")
 	}
+	if e, g := "", cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
+	}
 
-	// Set to true
-	if err := cfg.SetCalendarVersioning(true); err != nil {
+	if err := cfg.SetCalendarVersioning("true"); err != nil {
 		t.Error(err)
 	}
 	if !cfg.CalendarVersioning() {
 		t.Error("CalendarVersioning should be true")
 	}
+	if e, g := defaultCalendarVersioningFormat, cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
+	}
 
-	// Reload and check persistence
 	if err := cfg.Reload(); err != nil {
 		t.Error(err)
 	}
@@ -99,12 +102,54 @@ func TestConfigCalendarVersioning(t *testing.T) {
 		t.Error("CalendarVersioning should be true after reload")
 	}
 
-	// Set to false
-	if err := cfg.SetCalendarVersioning(false); err != nil {
+	if err := cfg.SetCalendarVersioning("false"); err != nil {
 		t.Error(err)
 	}
 	if cfg.CalendarVersioning() {
 		t.Error("CalendarVersioning should be false")
+	}
+	if e, g := "", cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
+	}
+
+	if err := cfg.SetCalendarVersioning(""); err != nil {
+		t.Error(err)
+	}
+	if cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be false for empty string")
+	}
+	if e, g := "", cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
+	}
+}
+
+func TestConfigCalendarVersioningWithFormat(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+
+	if err := cfg.SetCalendarVersioning("YYYY.0M.MICRO"); err != nil {
+		t.Error(err)
+	}
+	if !cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be true")
+	}
+	if e, g := "YYYY.0M.MICRO", cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
+	}
+
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+	if e, g := "YYYY.0M.MICRO", cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
 	}
 }
 
@@ -112,7 +157,6 @@ func TestConfigCalendarVersioningFromEnv(t *testing.T) {
 	tmpdir := t.TempDir()
 	confPath := filepath.Join(tmpdir, defaultConfigFile)
 
-	// Set environment variable
 	t.Setenv("TAGPR_CALENDAR_VERSIONING", "true")
 
 	cfg := &config{
@@ -126,5 +170,66 @@ func TestConfigCalendarVersioningFromEnv(t *testing.T) {
 
 	if !cfg.CalendarVersioning() {
 		t.Error("CalendarVersioning should be true from env")
+	}
+	if e, g := defaultCalendarVersioningFormat, cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
+	}
+}
+
+func TestConfigCalendarVersioningFormatFromEnv(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+
+	t.Setenv("TAGPR_CALENDAR_VERSIONING", "YY.0M0D.MICRO")
+
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+
+	if !cfg.CalendarVersioning() {
+		t.Error("CalendarVersioning should be true from env")
+	}
+	if e, g := "YY.0M0D.MICRO", cfg.CalendarVersioningFormat(); e != g {
+		t.Errorf("got: %s, expect: %s", g, e)
+	}
+}
+
+func TestConfigCalendarVersioningRejectsMajorMinor(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.SetCalendarVersioning("YYYY.MAJOR.MICRO"); err == nil {
+		t.Error("expected error for MAJOR token")
+	}
+	if err := cfg.SetCalendarVersioning("YYYY.MINOR.MICRO"); err == nil {
+		t.Error("expected error for MINOR token")
+	}
+	if err := cfg.SetCalendarVersioning("YYYY.0M.MICRO"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestConfigCalendarVersioningRejectsMajorMinorFromEnv(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+
+	t.Setenv("TAGPR_CALENDAR_VERSIONING", "YYYY.MAJOR.MICRO")
+
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.Reload(); err == nil {
+		t.Error("expected error for MAJOR token in env")
 	}
 }
