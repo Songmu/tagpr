@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.14.0](https://github.com/Songmu/tagpr/compare/v1.13.0...v1.14.0) - 2026-01-29
+- feat: scoped release configuration by @wreulicke in https://github.com/Songmu/tagpr/pull/291
+- [fix] care nil ReleaseYAML by @Songmu in https://github.com/Songmu/tagpr/pull/293
+
 ## [v1.13.0](https://github.com/Songmu/tagpr/compare/v1.12.1...v1.13.0) - 2026-01-29
 - Add Calendar Versioning (CalVer) support by @fujiwara in https://github.com/Songmu/tagpr/pull/288
 - build(deps): bump actions/checkout from 6.0.1 to 6.0.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/289
