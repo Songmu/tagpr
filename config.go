@@ -1,6 +1,7 @@
 package tagpr
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -68,66 +69,84 @@ const (
 #         - "backend/api" produces tags like "backend/api/v1.0.0"
 #
 #   tagpr.calendarVersioning (Optional)
-#       Use Calendar Versioning (YYYY.MMDD.patch) instead of Semantic Versioning.
+#       Use Calendar Versioning instead of Semantic Versioning.
 #       Must be explicitly set to true to enable. Default is false (Semantic Versioning).
+#
+#   tagpr.calendarVersioningFormat (Optional)
+#       Calendar Versioning format string. Only used when calendarVersioning is true.
+#       Default is "YYYY.MMDD.MICRO".
+#       Available tokens (see https://calver.org):
+#         Year:    YYYY (4-digit), YY (2-digit), 0Y (zero-padded 2-digit)
+#         Month:   MM (no padding), 0M (zero-padded)
+#         Week:    WW (no padding), 0W (zero-padded)
+#         Day:     DD (no padding), 0D (zero-padded)
+#         Micro:   MICRO (auto-incrementing patch number for same date)
+#       Examples:
+#         - "YYYY.MMDD.MICRO" -> 2026.123.0 (Jan 23)
+#         - "YYYY.0M.MICRO" -> 2026.01.0
+#         - "YY.0M0D.MICRO" -> 26.0123.0
 #
 [tagpr]
 `
-	defaultMajorLabels       = "major"
-	defaultMinorLabels       = "minor"
-	defaultCommitPrefix      = "[tagpr]"
-	envConfigFile            = "TAGPR_CONFIG_FILE"
-	envReleaseBranch         = "TAGPR_RELEASE_BRANCH"
-	envVersionFile           = "TAGPR_VERSION_FILE"
-	envVPrefix               = "TAGPR_VPREFIX"
-	envChangelog             = "TAGPR_CHANGELOG"
-	envCommand               = "TAGPR_COMMAND"
-	envPostVersionCommand    = "TAGPR_POST_VERSION_COMMAND"
-	envTemplate              = "TAGPR_TEMPLATE"
-	envTemplateText          = "TAGPR_TEMPLATE_TEXT"
-	envRelease               = "TAGPR_RELEASE"
-	envMajorLabels           = "TAGPR_MAJOR_LABELS"
-	envMinorLabels           = "TAGPR_MINOR_LABELS"
-	envCommitPrefix          = "TAGPR_COMMIT_PREFIX"
-	envTagPrefix             = "TAGPR_TAG_PREFIX"
-	envChangelogFile         = "TAGPR_CHANGELOG_FILE"
-	envCalendarVersioning    = "TAGPR_CALENDAR_VERSIONING"
-	envReleaseYAMLPath       = "TAGPR_RELEASE_YAML_PATH"
-	configReleaseBranch      = "tagpr.releaseBranch"
-	configVersionFile        = "tagpr.versionFile"
-	configVPrefix            = "tagpr.vPrefix"
-	configChangelog          = "tagpr.changelog"
-	configCommand            = "tagpr.command"
-	configPostVersionCommand = "tagpr.postVersionCommand"
-	configTemplate           = "tagpr.template"
-	configTemplateText       = "tagpr.templateText"
-	configRelease            = "tagpr.release"
-	configMajorLabels        = "tagpr.majorLabels"
-	configMinorLabels        = "tagpr.minorLabels"
-	configCommitPrefix       = "tagpr.commitPrefix"
-	configTagPrefix          = "tagpr.tagPrefix"
-	configChangelogFile      = "tagpr.changelogFile"
-	configCalendarVersioning = "tagpr.calendarVersioning"
-	configReleaseYAMLPath    = "tagpr.releaseYAMLPath"
+	defaultMajorLabels              = "major"
+	defaultMinorLabels              = "minor"
+	defaultCommitPrefix             = "[tagpr]"
+	defaultCalendarVersioningFormat = "YYYY.MMDD.MICRO"
+	envConfigFile                   = "TAGPR_CONFIG_FILE"
+	envReleaseBranch                = "TAGPR_RELEASE_BRANCH"
+	envVersionFile                  = "TAGPR_VERSION_FILE"
+	envVPrefix                      = "TAGPR_VPREFIX"
+	envChangelog                    = "TAGPR_CHANGELOG"
+	envCommand                      = "TAGPR_COMMAND"
+	envPostVersionCommand           = "TAGPR_POST_VERSION_COMMAND"
+	envTemplate                     = "TAGPR_TEMPLATE"
+	envTemplateText                 = "TAGPR_TEMPLATE_TEXT"
+	envRelease                      = "TAGPR_RELEASE"
+	envMajorLabels                  = "TAGPR_MAJOR_LABELS"
+	envMinorLabels                  = "TAGPR_MINOR_LABELS"
+	envCommitPrefix                 = "TAGPR_COMMIT_PREFIX"
+	envTagPrefix                    = "TAGPR_TAG_PREFIX"
+	envChangelogFile                = "TAGPR_CHANGELOG_FILE"
+	envCalendarVersioning           = "TAGPR_CALENDAR_VERSIONING"
+	envCalendarVersioningFormat     = "TAGPR_CALENDAR_VERSIONING_FORMAT"
+	envReleaseYAMLPath              = "TAGPR_RELEASE_YAML_PATH"
+	configReleaseBranch             = "tagpr.releaseBranch"
+	configVersionFile               = "tagpr.versionFile"
+	configVPrefix                   = "tagpr.vPrefix"
+	configChangelog                 = "tagpr.changelog"
+	configCommand                   = "tagpr.command"
+	configPostVersionCommand        = "tagpr.postVersionCommand"
+	configTemplate                  = "tagpr.template"
+	configTemplateText              = "tagpr.templateText"
+	configRelease                   = "tagpr.release"
+	configMajorLabels               = "tagpr.majorLabels"
+	configMinorLabels               = "tagpr.minorLabels"
+	configCommitPrefix              = "tagpr.commitPrefix"
+	configTagPrefix                 = "tagpr.tagPrefix"
+	configChangelogFile             = "tagpr.changelogFile"
+	configCalendarVersioning        = "tagpr.calendarVersioning"
+	configCalendarVersioningFormat  = "tagpr.calendarVersioningFormat"
+	configReleaseYAMLPath           = "tagpr.releaseYAMLPath"
 )
 
 type config struct {
-	releaseBranch      *string
-	versionFile        *string
-	command            *string
-	postVersionCommand *string
-	template           *string
-	templateText       *string
-	release            *string
-	vPrefix            *bool
-	changelog          *bool
-	majorLabels        *string
-	minorLabels        *string
-	commitPrefix       *string
-	tagPrefix          *string
-	changelogFile      *string
-	calendarVersioning *bool
-	releaseYamlPath    *string
+	releaseBranch            *string
+	versionFile              *string
+	command                  *string
+	postVersionCommand       *string
+	template                 *string
+	templateText             *string
+	release                  *string
+	vPrefix                  *bool
+	changelog                *bool
+	majorLabels              *string
+	minorLabels              *string
+	commitPrefix             *string
+	tagPrefix                *string
+	changelogFile            *string
+	calendarVersioning       *bool
+	calendarVersioningFormat *string
+	releaseYamlPath          *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -182,6 +201,12 @@ func (cfg *config) Reload() error {
 	cfg.reloadField(&cfg.releaseYamlPath, configReleaseYAMLPath, envReleaseYAMLPath, "")
 
 	if err := cfg.reloadBoolField(&cfg.calendarVersioning, envCalendarVersioning, configCalendarVersioning); err != nil {
+		return err
+	}
+
+	cfg.reloadField(&cfg.calendarVersioningFormat, configCalendarVersioningFormat, envCalendarVersioningFormat, defaultCalendarVersioningFormat)
+
+	if err := validateCalendarVersioningFormat(cfg.CalendarVersioningFormat()); err != nil {
 		return err
 	}
 
@@ -373,6 +398,31 @@ func (cfg *config) SetCalendarVersioning(calVer bool) error {
 		return err
 	}
 	cfg.calendarVersioning = github.Ptr(calVer)
+	return nil
+}
+
+func (cfg *config) CalendarVersioningFormat() string {
+	return stringify(cfg.calendarVersioningFormat)
+}
+
+func (cfg *config) SetCalendarVersioningFormat(format string) error {
+	if err := validateCalendarVersioningFormat(format); err != nil {
+		return err
+	}
+	if err := cfg.set(configCalendarVersioningFormat, format); err != nil {
+		return err
+	}
+	cfg.calendarVersioningFormat = github.Ptr(format)
+	return nil
+}
+
+func validateCalendarVersioningFormat(format string) error {
+	if strings.Contains(format, "MAJOR") {
+		return fmt.Errorf("MAJOR token is not allowed in calendarVersioningFormat: CalVer uses date-based versioning and ignores major/minor labels")
+	}
+	if strings.Contains(format, "MINOR") {
+		return fmt.Errorf("MINOR token is not allowed in calendarVersioningFormat: CalVer uses date-based versioning and ignores major/minor labels")
+	}
 	return nil
 }
 
