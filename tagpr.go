@@ -225,6 +225,8 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		currVer.vPrefix = *tp.cfg.vPrefix
 	}
 
+	currVer.asCalendarVersion = tp.cfg.CalendarVersioning()
+
 	releaseBranch := tp.cfg.ReleaseBranch()
 	if releaseBranch == "" {
 		releaseBranch, _ = tp.defaultBranch()

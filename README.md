@@ -84,11 +84,18 @@ In addition, release items will be made into pull requests, allowing for visuali
 ## Versioning Rules
 How tagpr proposes the next version number and how to adjust it.
 
-###  How to determine the next version number of candidate
+### Semantic Versioning (Default)
+
+####  How to determine the next version number of candidate
 When creating a pull request by tagpr,  the next version number candidate is determined in the following way.
 
 - Conventional Labels: If the merged pull requests for the next release have labels named "major" or "minor," the version is determined accordingly (of course, major has priority).
 - If no conventional labels are found, the patch version is incremented.
+
+### Calendar Versioning (Optional)
+When `tagpr.calendarVersioning` is enabled, tagpr uses date-based versioning (`YYYY.MMDD.patch`).
+Labels are ignored, and versions are determined by the release date.
+See [tagpr.calendarVersioning](#tagprcalendarversioning-optional) for details.
 
 ### How to adjust the next version by yourself
 You can adjust the next version number suggested by tagpr directly on the pull request created by tagpr.
@@ -153,6 +160,11 @@ Prefix of commit message. Default is "[tagpr]"
 ### tagpr.tagPrefix (Optional)
 Tag prefix for monorepo support (e.g., `tools` produces tags like `tools/v1.2.3`).
 This allows managing multiple modules with independent versioning in a single repository.
+
+### tagpr.calendarVersioning (Optional)
+Use Calendar Versioning (CalVer) instead of Semantic Versioning.
+When enabled, versions follow the `YYYY.MMDD.patch` format (e.g., `v2026.123.0` for January 23rd, 2026).
+Labels for major/minor are ignored when this option is enabled.
 
 ## GitHub Enterprise
 If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
