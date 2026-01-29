@@ -377,5 +377,5 @@ func (cfg *config) SetCalendarVersioning(calVer bool) error {
 }
 
 func (cfg *config) ReleaseYAMLPath() string {
-	return *cfg.releaseYamlPath
+	return stringify(cfg.releaseYamlPath)
 }
