@@ -70,11 +70,7 @@ const (
 #
 #   tagpr.calendarVersioning (Optional)
 #       Use Calendar Versioning instead of Semantic Versioning.
-#       Must be explicitly set to true to enable. Default is false (Semantic Versioning).
-#
-#   tagpr.calendarVersioningFormat (Optional)
-#       Calendar Versioning format string. Only used when calendarVersioning is true.
-#       Default is "YYYY.MMDD.MICRO".
+#       Set to true for the default format (YYYY.MMDD.MICRO), or specify a custom format string.
 #       Available tokens (see https://calver.org):
 #         Year:    YYYY (4-digit), YY (2-digit), 0Y (zero-padded 2-digit)
 #         Month:   MM (no padding), 0M (zero-padded)
@@ -82,7 +78,7 @@ const (
 #         Day:     DD (no padding), 0D (zero-padded)
 #         Micro:   MICRO (auto-incrementing patch number for same date)
 #       Examples:
-#         - "YYYY.MMDD.MICRO" -> 2026.123.0 (Jan 23)
+#         - true or "YYYY.MMDD.MICRO" -> 2026.123.0 (Dec 3)
 #         - "YYYY.0M.MICRO" -> 2026.01.0
 #         - "YY.0M0D.MICRO" -> 26.0123.0
 #
@@ -92,6 +88,8 @@ const (
 	defaultMinorLabels              = "minor"
 	defaultCommitPrefix             = "[tagpr]"
 	defaultCalendarVersioningFormat = "YYYY.MMDD.MICRO"
+	calverTrue                      = "true"
+	calverFalse                     = "false"
 	envConfigFile                   = "TAGPR_CONFIG_FILE"
 	envReleaseBranch                = "TAGPR_RELEASE_BRANCH"
 	envVersionFile                  = "TAGPR_VERSION_FILE"
@@ -108,7 +106,6 @@ const (
 	envTagPrefix                    = "TAGPR_TAG_PREFIX"
 	envChangelogFile                = "TAGPR_CHANGELOG_FILE"
 	envCalendarVersioning           = "TAGPR_CALENDAR_VERSIONING"
-	envCalendarVersioningFormat     = "TAGPR_CALENDAR_VERSIONING_FORMAT"
 	envReleaseYAMLPath              = "TAGPR_RELEASE_YAML_PATH"
 	configReleaseBranch             = "tagpr.releaseBranch"
 	configVersionFile               = "tagpr.versionFile"
@@ -125,28 +122,26 @@ const (
 	configTagPrefix                 = "tagpr.tagPrefix"
 	configChangelogFile             = "tagpr.changelogFile"
 	configCalendarVersioning        = "tagpr.calendarVersioning"
-	configCalendarVersioningFormat  = "tagpr.calendarVersioningFormat"
 	configReleaseYAMLPath           = "tagpr.releaseYAMLPath"
 )
 
 type config struct {
-	releaseBranch            *string
-	versionFile              *string
-	command                  *string
-	postVersionCommand       *string
-	template                 *string
-	templateText             *string
-	release                  *string
-	vPrefix                  *bool
-	changelog                *bool
-	majorLabels              *string
-	minorLabels              *string
-	commitPrefix             *string
-	tagPrefix                *string
-	changelogFile            *string
-	calendarVersioning       *bool
-	calendarVersioningFormat *string
-	releaseYamlPath          *string
+	releaseBranch      *string
+	versionFile        *string
+	command            *string
+	postVersionCommand *string
+	template           *string
+	templateText       *string
+	release            *string
+	vPrefix            *bool
+	changelog          *bool
+	majorLabels        *string
+	minorLabels        *string
+	commitPrefix       *string
+	tagPrefix          *string
+	changelogFile      *string
+	calendarVersioning *string
+	releaseYamlPath    *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -200,11 +195,7 @@ func (cfg *config) Reload() error {
 
 	cfg.reloadField(&cfg.releaseYamlPath, configReleaseYAMLPath, envReleaseYAMLPath, "")
 
-	if err := cfg.reloadBoolField(&cfg.calendarVersioning, envCalendarVersioning, configCalendarVersioning); err != nil {
-		return err
-	}
-
-	cfg.reloadField(&cfg.calendarVersioningFormat, configCalendarVersioningFormat, envCalendarVersioningFormat, defaultCalendarVersioningFormat)
+	cfg.reloadField(&cfg.calendarVersioning, configCalendarVersioning, envCalendarVersioning, "")
 
 	if err := validateCalendarVersioningFormat(cfg.CalendarVersioningFormat()); err != nil {
 		return err
@@ -390,11 +381,18 @@ func (cfg *config) CalendarVersioning() bool {
 	if cfg.calendarVersioning == nil {
 		return false
 	}
-	return *cfg.calendarVersioning
+	val := strings.ToLower(*cfg.calendarVersioning)
+	if val == "" || val == calverFalse {
+		return false
+	}
+	return true
 }
 
-func (cfg *config) SetCalendarVersioning(calVer bool) error {
-	if err := cfg.set(configCalendarVersioning, strconv.FormatBool(calVer)); err != nil {
+func (cfg *config) SetCalendarVersioning(calVer string) error {
+	if err := validateCalendarVersioningFormat(calVer); err != nil {
+		return err
+	}
+	if err := cfg.set(configCalendarVersioning, calVer); err != nil {
 		return err
 	}
 	cfg.calendarVersioning = github.Ptr(calVer)
@@ -402,26 +400,29 @@ func (cfg *config) SetCalendarVersioning(calVer bool) error {
 }
 
 func (cfg *config) CalendarVersioningFormat() string {
-	return stringify(cfg.calendarVersioningFormat)
-}
-
-func (cfg *config) SetCalendarVersioningFormat(format string) error {
-	if err := validateCalendarVersioningFormat(format); err != nil {
-		return err
+	if cfg.calendarVersioning == nil {
+		return ""
 	}
-	if err := cfg.set(configCalendarVersioningFormat, format); err != nil {
-		return err
+	val := *cfg.calendarVersioning
+	lower := strings.ToLower(val)
+	if lower == "" || lower == calverFalse {
+		return ""
 	}
-	cfg.calendarVersioningFormat = github.Ptr(format)
-	return nil
+	if lower == calverTrue {
+		return defaultCalendarVersioningFormat
+	}
+	return val
 }
 
 func validateCalendarVersioningFormat(format string) error {
+	if format == "" || strings.ToLower(format) == calverFalse {
+		return nil
+	}
 	if strings.Contains(format, "MAJOR") {
-		return fmt.Errorf("MAJOR token is not allowed in calendarVersioningFormat: CalVer uses date-based versioning and ignores major/minor labels")
+		return fmt.Errorf("MAJOR token is not allowed in calendarVersioning: CalVer uses date-based versioning and ignores major/minor labels")
 	}
 	if strings.Contains(format, "MINOR") {
-		return fmt.Errorf("MINOR token is not allowed in calendarVersioningFormat: CalVer uses date-based versioning and ignores major/minor labels")
+		return fmt.Errorf("MINOR token is not allowed in calendarVersioning: CalVer uses date-based versioning and ignores major/minor labels")
 	}
 	return nil
 }
