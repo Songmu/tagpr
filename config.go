@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/Songmu/gitconfig"
-	"github.com/google/go-github/v74/github"
+	"github.com/google/go-github/v82/github"
 )
 
 const (
@@ -92,6 +92,7 @@ const (
 	envTagPrefix             = "TAGPR_TAG_PREFIX"
 	envChangelogFile         = "TAGPR_CHANGELOG_FILE"
 	envCalendarVersioning    = "TAGPR_CALENDAR_VERSIONING"
+	envReleaseYAMLPath       = "TAGPR_RELEASE_YAML_PATH"
 	configReleaseBranch      = "tagpr.releaseBranch"
 	configVersionFile        = "tagpr.versionFile"
 	configVPrefix            = "tagpr.vPrefix"
@@ -107,6 +108,7 @@ const (
 	configTagPrefix          = "tagpr.tagPrefix"
 	configChangelogFile      = "tagpr.changelogFile"
 	configCalendarVersioning = "tagpr.calendarVersioning"
+	configReleaseYAMLPath    = "tagpr.releaseYAMLPath"
 )
 
 type config struct {
@@ -125,6 +127,7 @@ type config struct {
 	tagPrefix          *string
 	changelogFile      *string
 	calendarVersioning *bool
+	releaseYamlPath    *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -175,6 +178,8 @@ func (cfg *config) Reload() error {
 	cfg.reloadField(&cfg.tagPrefix, configTagPrefix, envTagPrefix, "")
 
 	cfg.reloadField(&cfg.changelogFile, configChangelogFile, envChangelogFile, "")
+
+	cfg.reloadField(&cfg.releaseYamlPath, configReleaseYAMLPath, envReleaseYAMLPath, "")
 
 	if err := cfg.reloadBoolField(&cfg.calendarVersioning, envCalendarVersioning, configCalendarVersioning); err != nil {
 		return err
@@ -369,4 +374,8 @@ func (cfg *config) SetCalendarVersioning(calVer bool) error {
 	}
 	cfg.calendarVersioning = github.Ptr(calVer)
 	return nil
+}
+
+func (cfg *config) ReleaseYAMLPath() string {
+	return *cfg.releaseYamlPath
 }
