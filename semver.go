@@ -1,31 +1,40 @@
 package tagpr
 
 import (
+	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/k1LoW/calver"
 )
 
 type semv struct {
-	v *semver.Version
+	sv *semver.Version // for SemVer
+	cv *calver.Calver  // for CalVer
 
 	vPrefix           bool
 	asCalendarVersion bool
+	calverFormat      string
+	originalVersion   string // original version string for calver parsing
 }
 
 func newSemver(v string) (*semv, error) {
 	var err error
 	sv := &semv{}
-	sv.v, err = semver.NewVersion(v)
+	sv.sv, err = semver.NewVersion(v)
 	if err != nil {
 		return nil, err
 	}
 	sv.vPrefix = v[0] == 'v'
+	sv.originalVersion = v
 	return sv, nil
 }
 
 func (sv *semv) Naked() string {
-	return sv.v.String()
+	if sv.asCalendarVersion && sv.cv != nil {
+		return sv.cv.String()
+	}
+	return sv.sv.String()
 }
 
 func (sv *semv) Tag() string {
@@ -53,41 +62,63 @@ func (sv *semv) GuessNext(labels []string) *semv {
 	var nextv semver.Version
 	switch {
 	case isMajor:
-		nextv = sv.v.IncMajor()
+		nextv = sv.sv.IncMajor()
 	case isMinor:
-		nextv = sv.v.IncMinor()
+		nextv = sv.sv.IncMinor()
 	default:
-		nextv = sv.v.IncPatch()
+		nextv = sv.sv.IncPatch()
 	}
 
 	return &semv{
-		v:       &nextv,
+		sv:      &nextv,
 		vPrefix: sv.vPrefix,
 	}
 }
 
-func newCalver(now time.Time, vPrefix bool) *semv {
-	major := uint64(now.Year())                          // YYYY
-	minor := uint64(now.Month()*100) + uint64(now.Day()) // MMDD without leading zeros
-	v := semver.New(major, minor, uint64(0), "", "")
+func newCalver(now time.Time, vPrefix bool, format string) *semv {
+	cv, _ := calver.NewWithTime(format, now)
 	return &semv{
-		v:                 v,
+		cv:                cv,
 		vPrefix:           vPrefix,
 		asCalendarVersion: true,
+		calverFormat:      format,
 	}
 }
 
 func (sv *semv) nextCalver(now time.Time) *semv {
-	curr := newCalver(now, sv.vPrefix)
-	if sv.v.Major() != curr.v.Major() || sv.v.Minor() != curr.v.Minor() {
-		// Another date. Reset patch to 0
-		return curr
+	format := sv.calverFormat
+	if format == "" {
+		format = defaultCalendarVersioningFormat
 	}
-	// Same date. Increment patch
-	nextv := sv.v.IncPatch()
+
+	// Use original version string for parsing (preserves zero-padding, etc.)
+	verStr := sv.originalVersion
+	if verStr == "" {
+		verStr = sv.sv.String()
+	}
+	// Strip v prefix for parsing
+	if strings.HasPrefix(verStr, "v") {
+		verStr = verStr[1:]
+	}
+
+	// Parse current version with the format
+	currCv, err := calver.Parse(format, verStr)
+	if err != nil {
+		// If parsing fails, create new calver from current time
+		return newCalver(now, sv.vPrefix, format)
+	}
+
+	// Use NextWithTime to get the next version based on the current time
+	nextCv, err := currCv.NextWithTime(now)
+	if err != nil {
+		// If NextWithTime fails (e.g., time is in the past), create new calver
+		return newCalver(now, sv.vPrefix, format)
+	}
+
 	return &semv{
-		v:                 &nextv,
+		cv:                nextCv,
 		vPrefix:           sv.vPrefix,
 		asCalendarVersion: true,
+		calverFormat:      format,
 	}
 }

@@ -93,7 +93,7 @@ When creating a pull request by tagpr,  the next version number candidate is det
 - If no conventional labels are found, the patch version is incremented.
 
 ### Calendar Versioning (Optional)
-When `tagpr.calendarVersioning` is enabled, tagpr uses date-based versioning (`YYYY.MMDD.patch`).
+When `tagpr.calendarVersioning` is set to `true` or a format string, tagpr uses date-based versioning.
 Labels are ignored, and versions are determined by the release date.
 See [tagpr.calendarVersioning](#tagprcalendarversioning-optional) for details.
 
@@ -163,8 +163,20 @@ This allows managing multiple modules with independent versioning in a single re
 
 ### tagpr.calendarVersioning (Optional)
 Use Calendar Versioning (CalVer) instead of Semantic Versioning.
-When enabled, versions follow the `YYYY.MMDD.patch` format (e.g., `v2026.123.0` for January 23rd, 2026).
+Set to `true` to use the default format (`YYYY.MM0D.MICRO`), or specify a custom format string directly.
 Labels for major/minor are ignored when this option is enabled.
+
+Available format tokens (see https://calver.org):
+- Year: `YYYY` (4-digit), `YY` (2-digit), `0Y` (zero-padded 2-digit)
+- Month: `MM` (no padding), `0M` (zero-padded)
+- Week: `WW` (no padding), `0W` (zero-padded)
+- Day: `DD` (no padding), `0D` (zero-padded)
+- Micro: `MICRO` (auto-incrementing patch number for same date)
+
+Examples:
+- `true` or `"YYYY.MM0D.MICRO"` → `v2026.1203.0` (Dec 3rd, 2026)
+- `"YYYY.0M.MICRO"` → `v2026.01.0`
+- `"YY.0M0D.MICRO"` → `v26.0123.0`
 
 ## GitHub Enterprise
 If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
