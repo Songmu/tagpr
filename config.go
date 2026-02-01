@@ -70,7 +70,7 @@ const (
 #
 #   tagpr.calendarVersioning (Optional)
 #       Use Calendar Versioning instead of Semantic Versioning.
-#       Set to true for the default format (YYYY.MMDD.MICRO), or specify a custom format string.
+#       Set to true for the default format (YYYY.MM0D.MICRO), or specify a custom format string.
 #       Available tokens (see https://calver.org):
 #         Year:    YYYY (4-digit), YY (2-digit), 0Y (zero-padded 2-digit)
 #         Month:   MM (no padding), 0M (zero-padded)
@@ -78,7 +78,7 @@ const (
 #         Day:     DD (no padding), 0D (zero-padded)
 #         Micro:   MICRO (auto-incrementing patch number for same date)
 #       Examples:
-#         - true or "YYYY.MMDD.MICRO" -> 2026.123.0 (Dec 3)
+#         - true or "YYYY.MM0D.MICRO" -> 2026.1203.0 (Dec 3)
 #         - "YYYY.0M.MICRO" -> 2026.01.0
 #         - "YY.0M0D.MICRO" -> 26.0123.0
 #
@@ -87,7 +87,7 @@ const (
 	defaultMajorLabels              = "major"
 	defaultMinorLabels              = "minor"
 	defaultCommitPrefix             = "[tagpr]"
-	defaultCalendarVersioningFormat = "YYYY.MMDD.MICRO"
+	defaultCalendarVersioningFormat = "YYYY.MM0D.MICRO"
 	calverTrue                      = "true"
 	calverFalse                     = "false"
 	envConfigFile                   = "TAGPR_CONFIG_FILE"
