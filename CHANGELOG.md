@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.15.0](https://github.com/Songmu/tagpr/compare/v1.14.0...v1.15.0) - 2026-02-01
+- feat: allow `tagpr.calendarVersioning` to accept format string directly by @k1LoW in https://github.com/Songmu/tagpr/pull/295
+
 ## [v1.14.0](https://github.com/Songmu/tagpr/compare/v1.13.0...v1.14.0) - 2026-01-29
 - feat: scoped release configuration by @wreulicke in https://github.com/Songmu/tagpr/pull/291
 - [fix] care nil ReleaseYAML by @Songmu in https://github.com/Songmu/tagpr/pull/293
