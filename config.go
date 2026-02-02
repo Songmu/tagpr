@@ -82,6 +82,13 @@ const (
 #         - "YYYY.0M.MICRO" -> 2026.01.0
 #         - "YY.0M0D.MICRO" -> 26.0123.0
 #
+#   tagpr.fixedMajorVersion (Optional)
+#       Fix the major version for releases. When set, tagpr only considers tags
+#       with this major version. Useful for maintaining multiple major versions
+#       on different branches (e.g., v1 branch for v1.x.x, main for v2.x.x).
+#       Accepts both numeric ("1") and v-prefixed ("v1") formats.
+#       Cannot be used with calendarVersioning.
+#
 [tagpr]
 `
 	defaultMajorLabels              = "major"
@@ -107,6 +114,7 @@ const (
 	envChangelogFile                = "TAGPR_CHANGELOG_FILE"
 	envCalendarVersioning           = "TAGPR_CALENDAR_VERSIONING"
 	envReleaseYAMLPath              = "TAGPR_RELEASE_YAML_PATH"
+	envFixedMajorVersion            = "TAGPR_FIXED_MAJOR_VERSION"
 	configReleaseBranch             = "tagpr.releaseBranch"
 	configVersionFile               = "tagpr.versionFile"
 	configVPrefix                   = "tagpr.vPrefix"
@@ -123,6 +131,7 @@ const (
 	configChangelogFile             = "tagpr.changelogFile"
 	configCalendarVersioning        = "tagpr.calendarVersioning"
 	configReleaseYAMLPath           = "tagpr.releaseYAMLPath"
+	configFixedMajorVersion         = "tagpr.fixedMajorVersion"
 )
 
 type config struct {
@@ -142,6 +151,7 @@ type config struct {
 	changelogFile      *string
 	calendarVersioning *string
 	releaseYamlPath    *string
+	fixedMajorVersion  *string
 
 	conf      string
 	gitconfig *gitconfig.Config
@@ -198,6 +208,12 @@ func (cfg *config) Reload() error {
 	cfg.reloadField(&cfg.calendarVersioning, configCalendarVersioning, envCalendarVersioning, "")
 
 	if err := validateCalendarVersioningFormat(cfg.CalendarVersioningFormat()); err != nil {
+		return err
+	}
+
+	cfg.reloadField(&cfg.fixedMajorVersion, configFixedMajorVersion, envFixedMajorVersion, "")
+
+	if _, err := cfg.FixedMajorVersion(); err != nil {
 		return err
 	}
 
@@ -429,4 +445,17 @@ func validateCalendarVersioningFormat(format string) error {
 
 func (cfg *config) ReleaseYAMLPath() string {
 	return stringify(cfg.releaseYamlPath)
+}
+
+func (cfg *config) FixedMajorVersion() (*uint64, error) {
+	s := stringify(cfg.fixedMajorVersion)
+	if s == "" {
+		return nil, nil
+	}
+	s = strings.TrimPrefix(s, "v")
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid fixedMajorVersion %q: %w", stringify(cfg.fixedMajorVersion), err)
+	}
+	return &v, nil
 }

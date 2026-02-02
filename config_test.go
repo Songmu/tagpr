@@ -233,3 +233,48 @@ func TestConfigCalendarVersioningRejectsMajorMinorFromEnv(t *testing.T) {
 		t.Error("expected error for MAJOR token in env")
 	}
 }
+
+func TestFixedMajorVersion(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    *uint64
+		wantErr bool
+	}{
+		{"1", ptr(uint64(1)), false},
+		{"10", ptr(uint64(10)), false},
+		{"v1", ptr(uint64(1)), false},
+		{"v10", ptr(uint64(10)), false},
+		{"", nil, false},
+		{"abc", nil, true},
+		{"v", nil, true},
+		{"-1", nil, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			cfg := &config{
+				fixedMajorVersion: &tt.input,
+			}
+			got, err := cfg.FixedMajorVersion()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FixedMajorVersion(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if tt.want == nil {
+				if got != nil {
+					t.Errorf("FixedMajorVersion(%q) = %v, want nil", tt.input, *got)
+				}
+			} else {
+				if got == nil {
+					t.Errorf("FixedMajorVersion(%q) = nil, want %v", tt.input, *tt.want)
+				} else if *got != *tt.want {
+					t.Errorf("FixedMajorVersion(%q) = %v, want %v", tt.input, *got, *tt.want)
+				}
+			}
+		})
+	}
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
