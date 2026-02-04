@@ -21,6 +21,7 @@ import (
 	"github.com/Songmu/gitconfig"
 	"github.com/Songmu/gitsemvers"
 	"github.com/google/go-github/v82/github"
+	"github.com/k1LoW/calver"
 )
 
 const (
@@ -42,6 +43,12 @@ type tagpr struct {
 }
 
 func (tp *tagpr) latestSemverTag() string {
+	// CalVer mode: bypass gitsemvers because it normalizes version strings
+	// and loses zero-padding (e.g., v2026.0123.0 becomes invalid)
+	if tp.cfg.CalendarVersioning() {
+		return tp.latestCalverTag()
+	}
+
 	vers := (&gitsemvers.Semvers{
 		GitPath:   tp.gitPath,
 		TagPrefix: tp.cfg.TagPrefix(),
@@ -60,6 +67,72 @@ func (tp *tagpr) latestSemverTag() string {
 			return vers[0]
 		}
 	}
+	return ""
+}
+
+func (tp *tagpr) latestCalverTag() string {
+	format := tp.cfg.CalendarVersioningFormat()
+	if format == "" {
+		format = defaultCalendarVersioningFormat
+	}
+	prefix := tp.normalizedTagPrefix
+
+	out, _, err := tp.c.Git("tag", "-l")
+	if err != nil {
+		return ""
+	}
+
+	type tagCV struct {
+		tag string
+		cv  *calver.Calver
+	}
+	var tagCVs []tagCV
+
+	for _, tag := range strings.Split(out, "\n") {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+
+		if prefix != "" && !strings.HasPrefix(tag, prefix) {
+			continue
+		}
+
+		verPart := strings.TrimPrefix(tag, prefix)
+		hasVPrefix := strings.HasPrefix(verPart, "v")
+		verStr := strings.TrimPrefix(verPart, "v")
+
+		if tp.cfg.vPrefix != nil && hasVPrefix != *tp.cfg.vPrefix {
+			continue
+		}
+
+		cv, err := calver.Parse(format, verStr)
+		if err != nil {
+			continue
+		}
+
+		tagCVs = append(tagCVs, tagCV{tag: tag, cv: cv})
+	}
+
+	if len(tagCVs) == 0 {
+		return ""
+	}
+
+	cvs := make(calver.Calvers, len(tagCVs))
+	for i, tc := range tagCVs {
+		cvs[i] = tc.cv
+	}
+	latest, err := cvs.Latest()
+	if err != nil {
+		return ""
+	}
+
+	for _, tc := range tagCVs {
+		if tc.cv.String() == latest.String() {
+			return tc.tag
+		}
+	}
+
 	return ""
 }
 
