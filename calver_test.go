@@ -1,6 +1,9 @@
 package tagpr
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -171,6 +174,78 @@ func TestNextCalver(t *testing.T) {
 				t.Errorf("nextCalver().asCalendarVersion should be true")
 			}
 		})
+	}
+}
+
+// TestLatestSemverTagWithZeroPaddedCalver tests that latestSemverTag()
+// correctly returns zero-padded calver tags when CalVer mode is enabled.
+//
+// Issue: gitsemvers normalizes v2026.0123.0 -> v2026.123.0 (loses zero padding)
+// because semver treats leading zeros as invalid. This breaks calver parsing
+// when the format requires zero-padding (e.g., YYYY.0M0D.MICRO).
+func TestLatestSemverTagWithZeroPaddedCalver(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "tagpr-calver-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	runGit := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmpDir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, out)
+		}
+	}
+
+	runGit("init")
+	runGit("config", "user.email", "test@example.com")
+	runGit("config", "user.name", "Test")
+
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+	runGit("add", "test.txt")
+	runGit("commit", "-m", "initial commit")
+
+	// Create a zero-padded calver tag (0M format for January = 01)
+	runGit("tag", "v2026.0123.0")
+
+	// gitsemvers requires being in the git directory
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	c := &commander{
+		gitPath:   "git",
+		dir:       tmpDir,
+		outStream: os.Stdout,
+		errStream: os.Stderr,
+	}
+	calverFormat := "YYYY.0M0D.MICRO"
+	vPrefixTrue := true
+	tp := &tagpr{
+		c:       c,
+		gitPath: "git",
+		cfg: &config{
+			vPrefix:            &vPrefixTrue,
+			calendarVersioning: &calverFormat,
+		},
+		normalizedTagPrefix: "",
+	}
+
+	got := tp.latestSemverTag()
+	expected := "v2026.0123.0"
+
+	if got != expected {
+		t.Errorf("latestSemverTag() = %q, want %q", got, expected)
 	}
 }
 
