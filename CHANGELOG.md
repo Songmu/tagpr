@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.15.1](https://github.com/Songmu/tagpr/compare/v1.15.0...v1.15.1) - 2026-02-06
+- docs: improve README for labels and env vars by @tokuhirom in https://github.com/Songmu/tagpr/pull/300
+- Use scoped release yaml path in github releases by @wreulicke in https://github.com/Songmu/tagpr/pull/304
+
 ## [v1.15.0](https://github.com/Songmu/tagpr/compare/v1.14.0...v1.15.0) - 2026-02-01
 - feat: allow `tagpr.calendarVersioning` to accept format string directly by @k1LoW in https://github.com/Songmu/tagpr/pull/295
 
