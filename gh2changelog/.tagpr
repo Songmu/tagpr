@@ -2,5 +2,6 @@
     vPrefix = true
     releaseBranch = main
     versionFile = version.go
+    changelog = CHANGELOG.md
     release = false
     tagPrefix = gh2changelog/
