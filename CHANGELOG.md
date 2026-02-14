@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.16.0](https://github.com/Songmu/tagpr/compare/v1.15.0...v1.16.0) - 2026-02-14
+- docs: improve README for labels and env vars by @tokuhirom in https://github.com/Songmu/tagpr/pull/300
+- Use scoped release yaml path in github releases by @wreulicke in https://github.com/Songmu/tagpr/pull/304
+- fix: latestSemverTag returns empty for zero-padded calver tags by @k1LoW in https://github.com/Songmu/tagpr/pull/303
+- build(deps): bump golang.org/x/oauth2 from 0.34.0 to 0.35.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/305
+- build(deps): bump github.com/Songmu/gitconfig from 0.2.1 to 0.2.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/299
+- Migrate gh2changelog to monorepo as local submodule by @Copilot in https://github.com/Songmu/tagpr/pull/307
+- Fix: validate tagPrefix in isTagPR for monorepo isolation by @Copilot in https://github.com/Songmu/tagpr/pull/311
+
 ## [v1.15.0](https://github.com/Songmu/tagpr/compare/v1.14.0...v1.15.0) - 2026-02-01
 - feat: allow `tagpr.calendarVersioning` to accept format string directly by @k1LoW in https://github.com/Songmu/tagpr/pull/295
 
