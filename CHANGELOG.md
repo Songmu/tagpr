@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.17.1](https://github.com/Songmu/tagpr/compare/v1.17.0...v1.17.1) - 2026-02-14
+- add gh2changelog/LICENSE by @Songmu in https://github.com/Songmu/tagpr/pull/313
+
 ## [v1.17.0](https://github.com/Songmu/tagpr/compare/v1.16.0...v1.17.0) - 2026-02-14
 - Add fixedMajorVersion option for multiple major version support by @Konboi in https://github.com/Songmu/tagpr/pull/296
 
