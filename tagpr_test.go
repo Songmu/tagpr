@@ -398,3 +398,144 @@ func TestBuildGitLogArgsWithPathFilter(t *testing.T) {
 		})
 	}
 }
+
+func TestIsTagPR(t *testing.T) {
+	tagprLabel := "tagpr"
+
+	tests := []struct {
+		name             string
+		normalizedPrefix string
+		branchName       string
+		hasTagprLabel    bool
+		want             bool
+	}{
+		{
+			name:             "nil PR",
+			normalizedPrefix: "",
+			branchName:       "",
+			hasTagprLabel:    false,
+			want:             false,
+		},
+		{
+			name:             "no prefix - matching root branch",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-v1.0.0",
+			hasTagprLabel:    true,
+			want:             true,
+		},
+		{
+			name:             "no prefix - submodule branch (should reject)",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-gh2changelog-v0.6.0",
+			hasTagprLabel:    true,
+			want:             false,
+		},
+		{
+			name:             "with prefix gh2changelog/ - matching branch",
+			normalizedPrefix: "gh2changelog/",
+			branchName:       "tagpr-from-gh2changelog-v0.6.0",
+			hasTagprLabel:    true,
+			want:             true,
+		},
+		{
+			name:             "with prefix gh2changelog/ - root branch (should reject)",
+			normalizedPrefix: "gh2changelog/",
+			branchName:       "tagpr-from-v1.0.0",
+			hasTagprLabel:    true,
+			want:             false,
+		},
+		{
+			name:             "with prefix gh2changelog/ - other submodule (should reject)",
+			normalizedPrefix: "gh2changelog/",
+			branchName:       "tagpr-from-api-v2.0.0",
+			hasTagprLabel:    true,
+			want:             false,
+		},
+		{
+			name:             "missing tagpr label",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-v1.0.0",
+			hasTagprLabel:    false,
+			want:             false,
+		},
+		{
+			name:             "wrong branch prefix",
+			normalizedPrefix: "",
+			branchName:       "feature-branch",
+			hasTagprLabel:    true,
+			want:             false,
+		},
+		{
+			name:             "CalVer tag without v prefix",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-2026.01.0",
+			hasTagprLabel:    true,
+			want:             true,
+		},
+		{
+			name:             "nested prefix packages/core/",
+			normalizedPrefix: "packages/core/",
+			branchName:       "tagpr-from-packages-core-v1.0.0",
+			hasTagprLabel:    true,
+			want:             true,
+		},
+		{
+			name:             "first release v0.0.0",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-v0.0.0",
+			hasTagprLabel:    true,
+			want:             true,
+		},
+		{
+			name:             "semver without v prefix",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-1.0.0",
+			hasTagprLabel:    true,
+			want:             true,
+		},
+		{
+			name:             "root module, module name starts with digit, should be rejected",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-2test-v1.0.0",
+			hasTagprLabel:    true,
+			want:             false,
+		},
+		{
+			name:             "root module, module name is 'v', should be rejected",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-v-v1.0.0",
+			hasTagprLabel:    true,
+			want:             false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a tagpr instance with the specified prefix
+			tp := &tagpr{
+				normalizedTagPrefix: tt.normalizedPrefix,
+			}
+
+			// Create PR object
+			var pr *github.PullRequest
+			if tt.branchName != "" {
+				pr = &github.PullRequest{
+					Head: &github.PullRequestBranch{
+						Ref: &tt.branchName,
+					},
+					Labels: []*github.Label{},
+				}
+
+				// Add labels
+				if tt.hasTagprLabel {
+					pr.Labels = append(pr.Labels, &github.Label{Name: &tagprLabel})
+				}
+			}
+
+			got := tp.isTagPR(pr)
+			if got != tt.want {
+				t.Errorf("isTagPR() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

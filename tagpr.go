@@ -269,15 +269,57 @@ func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
 	return tp, nil
 }
 
-func isTagPR(pr *github.PullRequest) bool {
-	if pr == nil || pr.Head == nil || pr.Head.Ref == nil || !strings.HasPrefix(*pr.Head.Ref, branchPrefix) {
+// isTagPR checks if a PR is a tagpr-generated PR that matches this instance's configuration
+func (tp *tagpr) isTagPR(pr *github.PullRequest) bool {
+	// Basic validation
+	if pr == nil {
 		return false
 	}
-	for _, label := range pr.Labels {
-		if label.GetName() == autoLabelName {
+	if pr.Head == nil || pr.Head.Ref == nil {
+		return false
+	}
+
+	headRef := *pr.Head.Ref
+
+	// Check branch prefix
+	if !strings.HasPrefix(headRef, branchPrefix) {
+		return false
+	}
+
+	// Extract suffix after branch prefix
+	suffix := headRef[len(branchPrefix):]
+
+	// Get expected prefix for this tagpr instance
+	// branchSafePrefix converts tag prefixes like "gh2changelog/" to "gh2changelog-"
+	expectedBranchPrefix := branchSafePrefix(tp.normalizedTagPrefix)
+
+	// Validate prefix matches configuration
+	matched := false
+	if expectedBranchPrefix == "" {
+		// Root module (no prefix): reject branches with module prefixes
+		// Find where version begins (first 'v' or digit)
+		versionPos := strings.IndexFunc(suffix, func(r rune) bool {
+			return r == 'v' || (r >= '0' && r <= '9')
+		})
+		// Version must start at position 0 (no module prefix before it)
+		// If no version marker found, versionPos is -1 and matched stays false
+		matched = (versionPos == 0 && !strings.ContainsRune(suffix, '-'))
+	} else {
+		// Submodule (has prefix): branch must contain our prefix
+		matched = strings.HasPrefix(suffix, expectedBranchPrefix)
+	}
+
+	if !matched {
+		return false
+	}
+
+	// Check for tagpr label
+	for _, lbl := range pr.Labels {
+		if lbl.GetName() == autoLabelName {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -338,7 +380,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 
 	// If the latest commit is a merge commit of the pull request by tagpr,
 	// tag the semver to the commit and create a release and exit.
-	if pr, err := tp.latestPullRequest(ctx); err != nil || isTagPR(pr) {
+	if pr, err := tp.latestPullRequest(ctx); err != nil || tp.isTagPR(pr) {
 		if err != nil {
 			return err
 		}
