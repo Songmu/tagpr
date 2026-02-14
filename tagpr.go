@@ -17,7 +17,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Songmu/gh2changelog"
+	"github.com/Songmu/tagpr/gh2changelog"
 	"github.com/Songmu/gitconfig"
 	"github.com/Songmu/gitsemvers"
 	"github.com/google/go-github/v82/github"
