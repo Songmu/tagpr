@@ -493,6 +493,20 @@ func TestIsTagPR(t *testing.T) {
 			hasTagprLabel:    true,
 			want:             true,
 		},
+		{
+			name:             "root module, module name starts with digit, should be rejected",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-2test-v1.0.0",
+			hasTagprLabel:    true,
+			want:             false,
+		},
+		{
+			name:             "root module, module name is 'v', should be rejected",
+			normalizedPrefix: "",
+			branchName:       "tagpr-from-v-v1.0.0",
+			hasTagprLabel:    true,
+			want:             false,
+		},
 	}
 
 	for _, tt := range tests {
