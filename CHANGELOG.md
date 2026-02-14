@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.17.0](https://github.com/Songmu/tagpr/compare/v1.16.0...v1.17.0) - 2026-02-14
+- Add fixedMajorVersion option for multiple major version support by @Konboi in https://github.com/Songmu/tagpr/pull/296
+
 ## [v1.16.0](https://github.com/Songmu/tagpr/compare/v1.15.0...v1.16.0) - 2026-02-14
 - docs: improve README for labels and env vars by @tokuhirom in https://github.com/Songmu/tagpr/pull/300
 - Use scoped release yaml path in github releases by @wreulicke in https://github.com/Songmu/tagpr/pull/304
