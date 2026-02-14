@@ -290,6 +290,7 @@ func (tp *tagpr) isTagPR(pr *github.PullRequest) bool {
 	suffix := headRef[len(branchPrefix):]
 
 	// Get expected prefix for this tagpr instance
+	// branchSafePrefix converts tag prefixes like "gh2changelog/" to "gh2changelog-"
 	expectedBranchPrefix := branchSafePrefix(tp.normalizedTagPrefix)
 
 	// Validate prefix matches configuration
@@ -301,6 +302,7 @@ func (tp *tagpr) isTagPR(pr *github.PullRequest) bool {
 			return r == 'v' || (r >= '0' && r <= '9')
 		})
 		// Version must start at position 0 (no module prefix before it)
+		// If no version marker found, versionPos is -1 and matched stays false
 		matched = (versionPos == 0)
 	} else {
 		// Submodule (has prefix): branch must contain our prefix

@@ -401,7 +401,6 @@ func TestBuildGitLogArgsWithPathFilter(t *testing.T) {
 
 func TestIsTagPR(t *testing.T) {
 	tagprLabel := "tagpr"
-	otherLabel := "enhancement"
 
 	tests := []struct {
 		name             string
@@ -516,8 +515,6 @@ func TestIsTagPR(t *testing.T) {
 				// Add labels
 				if tt.hasTagprLabel {
 					pr.Labels = append(pr.Labels, &github.Label{Name: &tagprLabel})
-				} else {
-					pr.Labels = append(pr.Labels, &github.Label{Name: &otherLabel})
 				}
 			}
 
