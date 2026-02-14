@@ -303,7 +303,7 @@ func (tp *tagpr) isTagPR(pr *github.PullRequest) bool {
 		})
 		// Version must start at position 0 (no module prefix before it)
 		// If no version marker found, versionPos is -1 and matched stays false
-		matched = (versionPos == 0)
+		matched = (versionPos == 0 && !strings.ContainsRune(suffix, '-'))
 	} else {
 		// Submodule (has prefix): branch must contain our prefix
 		matched = strings.HasPrefix(suffix, expectedBranchPrefix)
