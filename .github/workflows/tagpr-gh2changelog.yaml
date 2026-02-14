@@ -1,0 +1,37 @@
+name: tagpr-gh2changelog
+on:
+  push:
+    branches:
+    - "main"
+    paths:
+    - "gh2changelog/**"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+jobs:
+  tagpr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Generate token
+      id: generate_token
+      uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: read
+    - name: checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+        token: ${{ steps.generate_token.outputs.token }}
+    - name: tagpr
+      uses: Songmu/tagpr@78a926ba835e34721053309043aee696ba9c70b1 # v1.15.0
+      with:
+        config: gh2changelog/.tagpr
+      env:
+        GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}

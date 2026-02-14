@@ -1,0 +1,7 @@
+[tagpr]
+    vPrefix = true
+    releaseBranch = main
+    versionFile = gh2changelog/version.go
+    changelogFile = gh2changelog/CHANGELOG.md
+    release = false
+    tagPrefix = gh2changelog/
