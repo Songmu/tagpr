@@ -1,5 +1,7 @@
 # Changelog
 
+## [v0.7.0](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.6.0...gh2changelog/v0.7.0) - 2026-02-14
+
 ## [v0.6.0](https://github.com/Songmu/gh2changelog/compare/v0.5.0...v0.6.0) - 2026-01-28
 - Enable to configure release yaml by @wreulicke in https://github.com/Songmu/gh2changelog/pull/45
 - Bump actions/checkout from 6.0.1 to 6.0.2 by @dependabot[bot] in https://github.com/Songmu/gh2changelog/pull/44
