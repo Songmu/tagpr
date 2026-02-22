@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,11 +24,12 @@ type releaseNoteGenerator interface {
 
 // GH2Changelog is to output changelogs
 type GH2Changelog struct {
-	gitPath         string
-	repoPath        string
-	tagPrefix       string
-	changelogMdPath string
-	releaseYamlPath *string
+	gitPath           string
+	repoPath          string
+	tagPrefix         string
+	changelogMdPath   string
+	releaseYamlPath   *string
+	filteredMajorVersion *uint64
 
 	owner, repo, remoteName string
 	outStream, errStream    io.Writer
@@ -66,6 +68,9 @@ func New(ctx context.Context, opts ...Option) (*GH2Changelog, error) {
 			RepoPath:  gch.repoPath,
 			TagPrefix: gch.tagPrefix,
 		}).VersionStrings()
+	}
+	if gch.filteredMajorVersion != nil {
+		gch.semvers = filterByMajorVersion(gch.semvers, gch.tagPrefix, *gch.filteredMajorVersion)
 	}
 
 	var err error
@@ -273,6 +278,26 @@ func parseGitURL(u string) (*url.URL, error) {
 }
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
+
+func filterByMajorVersion(vers []string, tagPrefix string, major uint64) []string {
+	var filtered []string
+	for _, v := range vers {
+		s := strings.TrimPrefix(v, tagPrefix)
+		s = strings.TrimPrefix(s, "v")
+		parts := strings.SplitN(s, ".", 2)
+		if len(parts) == 0 {
+			continue
+		}
+		n, err := strconv.ParseUint(parts[0], 10, 64)
+		if err != nil {
+			continue
+		}
+		if n == major {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
+}
 
 func (gch *GH2Changelog) defaultBranch() (string, error) {
 	// `git symbolic-ref refs/remotes/origin/HEAD` sometimes doesn't work

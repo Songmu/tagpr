@@ -54,3 +54,9 @@ func ReleaseYamlPath(p string) Option {
 		gch.releaseYamlPath = &p
 	}
 }
+
+func FilteredMajorVersion(v uint64) Option {
+	return func(gch *GH2Changelog) {
+		gch.filteredMajorVersion = &v
+	}
+}
