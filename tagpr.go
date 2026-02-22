@@ -764,6 +764,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	if tp.cfg.ReleaseYAMLPath() != "" {
 		opts = append(opts, gh2changelog.ReleaseYamlPath(tp.cfg.ReleaseYAMLPath()))
 	}
+	if fixedMajor, err := tp.cfg.FixedMajorVersion(); err == nil && fixedMajor != nil {
+		opts = append(opts, gh2changelog.FilteredMajorVersion(*fixedMajor))
+	}
 	gch, err := gh2changelog.New(ctx, opts...)
 	if err != nil {
 		return err
