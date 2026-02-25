@@ -2,6 +2,8 @@ module github.com/Songmu/tagpr
 
 go 1.25.0
 
+toolchain go1.26.0
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Songmu/gitconfig v0.2.2
