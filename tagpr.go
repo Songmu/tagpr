@@ -468,22 +468,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			addingLabels = append(addingLabels, l)
 		}
 	}
-
-	var vfiles []string
-	if vf := tp.cfg.VersionFile(); vf != "" && vf != "-" {
-		vfiles = strings.Split(vf, ",")
-		for i, v := range vfiles {
-			vfiles[i] = strings.TrimSpace(v)
-		}
-	} else if tp.cfg.versionFile == nil {
-		vfile, err := detectVersionFile(".", currVer)
-		if err != nil {
-			return err
-		}
-		if err := tp.cfg.SetVersionFile(vfile); err != nil {
-			return err
-		}
-		vfiles = []string{vfile}
+	vfiles, err := tp.getVfiles(currVer)
+	if err != nil {
+		return err
 	}
 
 	if prog := tp.cfg.Command(); prog != "" {
@@ -973,6 +960,28 @@ func mergeBody(now, update string) string {
 
 var headBranchReg = regexp.MustCompile(`(?m)^\s*HEAD branch: (.*)$`)
 
+func (tp *tagpr) getVfiles(currVer *semv) ([]string, error) {
+	var vfiles []string
+
+	if vf := tp.cfg.VersionFile(); vf != "" && vf != "-" {
+		vfiles = strings.Split(vf, ",")
+		for i, v := range vfiles {
+			vfiles[i] = strings.TrimSpace(v)
+		}
+	} else if tp.cfg.versionFile == nil {
+		vfile, err := detectVersionFile(".", currVer)
+		if err != nil {
+			return []string{}, err
+		}
+		if err := tp.cfg.SetVersionFile(vfile); err != nil {
+			return []string{}, err
+		}
+		vfiles = append(vfiles, vfile)
+	}
+
+	return vfiles, nil
+}
+
 func (tp *tagpr) Exec(prog string, currVer, nextVer *semv) {
 	var progArgs []string
 	if strings.ContainsAny(prog, " \n") {
@@ -983,6 +992,7 @@ func (tp *tagpr) Exec(prog string, currVer, nextVer *semv) {
 		"TAGPR_CURRENT_VERSION": currVer.Tag(),
 		"TAGPR_NEXT_VERSION":    nextVer.Tag(),
 	})
+
 }
 
 func (tp *tagpr) defaultBranch() (string, error) {
