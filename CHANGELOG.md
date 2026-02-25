@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.17.1](https://github.com/Songmu/tagpr/compare/v1.17.0...v1.17.1) - 2026-02-25
+- add gh2changelog/LICENSE by @Songmu in https://github.com/Songmu/tagpr/pull/313
+- Fix PR description including already shipped PRs when using fixedMajorVersion by @Konboi in https://github.com/Songmu/tagpr/pull/317
+- build(deps): bump Songmu/tagpr from 1.15.0 to 1.17.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/316
+- update google/go-github from v82 to v83 by @Songmu in https://github.com/Songmu/tagpr/pull/319
+
 ## [v1.17.0](https://github.com/Songmu/tagpr/compare/v1.16.0...v1.17.0) - 2026-02-14
 - Add fixedMajorVersion option for multiple major version support by @Konboi in https://github.com/Songmu/tagpr/pull/296
 
