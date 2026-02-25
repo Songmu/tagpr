@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Songmu/gitsemvers"
-	"github.com/google/go-github/v82/github"
+	"github.com/google/go-github/v83/github"
 )
 
 type releaseNoteGenerator interface {
