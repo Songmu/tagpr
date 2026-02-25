@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.7.2](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.1...gh2changelog/v0.7.2) - 2026-02-25
+- Fix PR description including already shipped PRs when using fixedMajorVersion by @Konboi in https://github.com/Songmu/tagpr/pull/317
+- build(deps): bump Songmu/tagpr from 1.15.0 to 1.17.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/316
+- update google/go-github from v82 to v83 by @Songmu in https://github.com/Songmu/tagpr/pull/319
+
 ## [v0.7.1](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.0...gh2changelog/v0.7.1) - 2026-02-14
 - Fix: validate tagPrefix in isTagPR for monorepo isolation by @Copilot in https://github.com/Songmu/tagpr/pull/311
 - Add fixedMajorVersion option for multiple major version support by @Konboi in https://github.com/Songmu/tagpr/pull/296
