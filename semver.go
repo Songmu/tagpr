@@ -31,8 +31,11 @@ func newSemver(v string) (*semv, error) {
 }
 
 func (sv *semv) Naked() string {
-	if sv.asCalendarVersion && sv.cv != nil {
-		return sv.cv.String()
+	if sv.asCalendarVersion {
+		if sv.cv != nil {
+			return sv.cv.String()
+		}
+		return strings.TrimPrefix(sv.originalVersion, "v")
 	}
 	return sv.sv.String()
 }

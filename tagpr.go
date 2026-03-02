@@ -748,9 +748,17 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 	if len(vfiles) > 0 && vfiles[0] != "" {
-		nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer.vPrefix)
-		if nVer != nil && nVer.Naked() != nextVer.Naked() {
-			nextVer = nVer
+		if tp.cfg.CalendarVersioning() {
+			for _, vfile := range vfiles {
+				if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
+					return err
+				}
+			}
+		} else {
+			nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer.vPrefix)
+			if nVer != nil && nVer.Naked() != nextVer.Naked() {
+				nextVer = nVer
+			}
 		}
 	}
 
