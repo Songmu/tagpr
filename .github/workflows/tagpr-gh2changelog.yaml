@@ -17,7 +17,7 @@ jobs:
     steps:
     - name: Generate token
       id: generate_token
-      uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+      uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
       with:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.PRIVATE_KEY }}
@@ -30,7 +30,7 @@ jobs:
         persist-credentials: false
         token: ${{ steps.generate_token.outputs.token }}
     - name: tagpr
-      uses: Songmu/tagpr@da82ed6743aec90049892070edd5561335904a9e # v1.17.0
+      uses: Songmu/tagpr@b3fb89424646b06c8aa460f50307c60b6a541425 # v1.17.1
       with:
         config: gh2changelog/.tagpr
       env:
