@@ -154,6 +154,30 @@ func TestNextCalver(t *testing.T) {
 			format:  "YY.0M0D.MICRO",
 			want:    "26.0123.1",
 		},
+		{
+			name:    "YYYY.0M0D.MICRO format cross date (user bug scenario)",
+			current: "2026.0227.10",
+			now:     time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC),
+			vPrefix: false,
+			format:  "YYYY.0M0D.MICRO",
+			want:    "2026.0302.0",
+		},
+		{
+			name:    "YYYY.0M0D.MICRO format cross date with v prefix",
+			current: "v2026.0227.10",
+			now:     time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC),
+			vPrefix: true,
+			format:  "YYYY.0M0D.MICRO",
+			want:    "v2026.0302.0",
+		},
+		{
+			name:    "YYYY.0M0D.MICRO format same date increments micro",
+			current: "2026.0302.0",
+			now:     time.Date(2026, 3, 2, 12, 0, 0, 0, time.UTC),
+			vPrefix: false,
+			format:  "YYYY.0M0D.MICRO",
+			want:    "2026.0302.1",
+		},
 	}
 
 	for _, tt := range tests {
@@ -221,6 +245,63 @@ func TestGuessNextWithCalver(t *testing.T) {
 			next := sv.nextCalver(tt.now)
 			if got := next.Tag(); got != tt.want {
 				t.Errorf("nextCalver().Tag() = %s, want %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNakedPreservesZeroPadding(t *testing.T) {
+	tests := []struct {
+		name      string
+		version   string
+		format    string
+		wantNaked string
+		wantTag   string
+	}{
+		{
+			name:      "YYYY.0M0D.MICRO preserves zero-padded month+day",
+			version:   "2026.0227.10",
+			format:    "YYYY.0M0D.MICRO",
+			wantNaked: "2026.0227.10",
+			wantTag:   "2026.0227.10",
+		},
+		{
+			name:      "YYYY.0M0D.MICRO with v prefix preserves zero-padding",
+			version:   "v2026.0302.0",
+			format:    "YYYY.0M0D.MICRO",
+			wantNaked: "2026.0302.0",
+			wantTag:   "v2026.0302.0",
+		},
+		{
+			name:      "YY.0M0D.MICRO preserves zero-padded month+day",
+			version:   "26.0123.5",
+			format:    "YY.0M0D.MICRO",
+			wantNaked: "26.0123.5",
+			wantTag:   "26.0123.5",
+		},
+		{
+			name:      "YYYY.0M.MICRO preserves zero-padded month",
+			version:   "2026.01.3",
+			format:    "YYYY.0M.MICRO",
+			wantNaked: "2026.01.3",
+			wantTag:   "2026.01.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sv, err := newSemver(tt.version)
+			if err != nil {
+				t.Fatalf("newSemver(%q) failed: %v", tt.version, err)
+			}
+			sv.asCalendarVersion = true
+			sv.calverFormat = tt.format
+
+			if got := sv.Naked(); got != tt.wantNaked {
+				t.Errorf("Naked() = %q, want %q", got, tt.wantNaked)
+			}
+			if got := sv.Tag(); got != tt.wantTag {
+				t.Errorf("Tag() = %q, want %q", got, tt.wantTag)
 			}
 		})
 	}
