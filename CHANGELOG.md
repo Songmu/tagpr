@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.17.2](https://github.com/Songmu/tagpr/compare/v1.17.1...v1.17.2) - 2026-03-17
+- build(deps): bump actions/setup-go from 6.2.0 to 6.3.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/322
+- build(deps): bump Songmu/tagpr from 1.17.0 to 1.17.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/323
+- build(deps): bump golang.org/x/oauth2 from 0.35.0 to 0.36.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/325
+- build(deps): bump actions/create-github-app-token from 2.2.1 to 3.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/327
+
 ## [v1.17.1](https://github.com/Songmu/tagpr/compare/v1.17.0...v1.17.1) - 2026-02-25
 - add gh2changelog/LICENSE by @Songmu in https://github.com/Songmu/tagpr/pull/313
 - Fix PR description including already shipped PRs when using fixedMajorVersion by @Konboi in https://github.com/Songmu/tagpr/pull/317
