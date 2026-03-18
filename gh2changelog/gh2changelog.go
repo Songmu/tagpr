@@ -24,11 +24,11 @@ type releaseNoteGenerator interface {
 
 // GH2Changelog is to output changelogs
 type GH2Changelog struct {
-	gitPath           string
-	repoPath          string
-	tagPrefix         string
-	changelogMdPath   string
-	releaseYamlPath   *string
+	gitPath              string
+	repoPath             string
+	tagPrefix            string
+	changelogMdPath      string
+	releaseYamlPath      *string
 	filteredMajorVersion *uint64
 
 	owner, repo, remoteName string

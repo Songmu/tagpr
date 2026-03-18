@@ -460,6 +460,34 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			labels = append(labels, l.GetName())
 		}
 	}
+
+	// When no PR is found for the current branch, search for any stale tagpr PRs
+	// on other branches (e.g., after a new tag was created between runs with CalVer).
+	// Collect their labels and close them before creating a new PR to avoid duplicates.
+	var staleTagPRs []*github.PullRequest
+	if currTagPR == nil {
+		otherPulls, resp, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
+			&github.PullRequestListOptions{
+				Base: releaseBranch,
+				ListOptions: github.ListOptions{
+					PerPage: 100,
+				},
+			})
+		if err != nil {
+			showGHError(err, resp)
+		}
+		for _, p := range otherPulls {
+			if tp.isTagPR(p) && p.Head.GetRef() != rcBranch {
+				staleTagPRs = append(staleTagPRs, p)
+				for _, l := range p.Labels {
+					if !slices.Contains(labels, l.GetName()) {
+						labels = append(labels, l.GetName())
+					}
+				}
+			}
+		}
+	}
+
 	nextVer := currVer.GuessNext(append(labels, nextLabels...))
 	var addingLabels []string
 
@@ -892,6 +920,15 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		body = strings.TrimSpace(stuffs[1])
 	}
 	if currTagPR == nil {
+		// Close any stale tagpr PRs on other branches before creating the new one.
+		// This prevents duplicate tagpr PRs when currVer advances (e.g., CalVer new tag).
+		for _, stalePR := range staleTagPRs {
+			_, resp, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, stalePR.GetNumber(),
+				&github.PullRequest{State: github.Ptr("closed")})
+			if err != nil {
+				showGHError(err, resp)
+			}
+		}
 		pr, resp, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, &github.NewPullRequest{
 			Title: github.Ptr(title),
 			Body:  github.Ptr(body),
