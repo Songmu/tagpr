@@ -2,7 +2,9 @@ package tagpr
 
 import (
 	"context"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v83/github"
 )
@@ -13,16 +15,32 @@ func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, er
 	if err != nil {
 		return nil, err
 	}
-	pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
-		ctx, tp.owner, tp.repo, commitish, nil)
-	if err != nil {
-		showGHError(err, resp)
-		return nil, err
+
+	// Retry because GitHub's internal commit-to-PR index may not be updated
+	// immediately after a merge, causing the API to return an empty list.
+	// This is especially common with squash merges but can also happen with
+	// regular merge commits when the workflow triggers within seconds.
+	// See https://github.com/Songmu/tagpr/issues/330
+	const maxRetries = 3
+	const retryInterval = 2 * time.Second
+
+	for i := range maxRetries {
+		pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
+			ctx, tp.owner, tp.repo, commitish, nil)
+		if err != nil {
+			showGHError(err, resp)
+			return nil, err
+		}
+		if len(pulls) > 0 {
+			return pulls[0], nil
+		}
+		if i < maxRetries-1 {
+			log.Printf("ListPullRequestsWithCommit returned empty for %s, retrying in %s (%d/%d)",
+				commitish, retryInterval, i+1, maxRetries)
+			time.Sleep(retryInterval)
+		}
 	}
-	if len(pulls) == 0 {
-		return nil, nil
-	}
-	return pulls[0], nil
+	return nil, nil
 }
 
 func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
