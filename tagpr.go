@@ -30,6 +30,7 @@ const (
 	autoChangelogMessage = "update CHANGELOG.md"
 	autoLabelName        = "tagpr"
 	branchPrefix         = "tagpr-from-"
+	dependabotLogin      = "dependabot[bot]"
 )
 
 type tagpr struct {
@@ -1037,11 +1038,18 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 	return issues.Issues, nil
 }
 
+func isDependabotPR(issue *github.Issue) bool {
+	return issue.GetUser().GetLogin() == dependabotLogin
+}
+
 func (tp *tagpr) generateNextLabels(prIssues []*github.Issue) []string {
 	majorLabels := tp.cfg.MajorLabels()
 	minorLabels := tp.cfg.MinorLabels()
 	var nextMinor, nextMajor bool
 	for _, issue := range prIssues {
+		if isDependabotPR(issue) {
+			continue
+		}
 		for _, l := range issue.Labels {
 			if slices.Contains(minorLabels, l.GetName()) {
 				nextMinor = true
