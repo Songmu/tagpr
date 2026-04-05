@@ -307,6 +307,106 @@ func TestGenerateNextLabels(t *testing.T) {
 	}
 }
 
+func TestGenerateNextLabels_DependabotIgnored(t *testing.T) {
+	major := "major"
+	minor := "minor"
+	depLogin := dependabotLogin
+	normalLogin := "octocat"
+
+	newIssue := func(login string, labels []*github.Label) *github.Issue {
+		return &github.Issue{
+			User:   &github.User{Login: &login},
+			Labels: labels,
+		}
+	}
+
+	tests := map[string]struct {
+		prIssues []*github.Issue
+		want     []string
+	}{
+		"dependabot major label ignored": {
+			[]*github.Issue{newIssue(depLogin, []*github.Label{newGithubLabel(&major)})},
+			[]string{},
+		},
+		"dependabot minor label ignored": {
+			[]*github.Issue{newIssue(depLogin, []*github.Label{newGithubLabel(&minor)})},
+			[]string{},
+		},
+		"dependabot major and minor labels ignored": {
+			[]*github.Issue{newIssue(depLogin, []*github.Label{newGithubLabel(&major), newGithubLabel(&minor)})},
+			[]string{},
+		},
+		"normal PR major label respected": {
+			[]*github.Issue{newIssue(normalLogin, []*github.Label{newGithubLabel(&major)})},
+			[]string{"tagpr:major"},
+		},
+		"mixed dependabot and normal PR": {
+			[]*github.Issue{
+				newIssue(depLogin, []*github.Label{newGithubLabel(&major)}),
+				newIssue(normalLogin, []*github.Label{newGithubLabel(&minor)}),
+			},
+			[]string{"tagpr:minor"},
+		},
+		"only dependabot PRs results in patch": {
+			[]*github.Issue{
+				newIssue(depLogin, []*github.Label{newGithubLabel(&major)}),
+				newIssue(depLogin, []*github.Label{newGithubLabel(&minor)}),
+			},
+			[]string{},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			tp, err := newTagPR(context.Background(), &commander{
+				gitPath: "git", outStream: os.Stdout, errStream: os.Stderr, dir: "."},
+			)
+			if err != nil {
+				t.Error(err)
+			}
+
+			got := tp.generateNextLabels(tt.prIssues)
+
+			if len(got) == 0 && len(tt.want) == 0 {
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got:\n%s,\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsDependabotPR(t *testing.T) {
+	tests := map[string]struct {
+		login string
+		want  bool
+	}{
+		"dependabot bot": {"dependabot[bot]", true},
+		"normal user":    {"octocat", false},
+		"empty login":    {"", false},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			issue := &github.Issue{
+				User: &github.User{Login: &tt.login},
+			}
+			if got := isDependabotPR(issue); got != tt.want {
+				t.Errorf("isDependabotPR() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	t.Run("nil user", func(t *testing.T) {
+		issue := &github.Issue{}
+		if got := isDependabotPR(issue); got != false {
+			t.Errorf("isDependabotPR() = %v, want false", got)
+		}
+	})
+}
+
 func TestLatestSemverTag(t *testing.T) {
 	vPrefixTrue := true
 	vPrefixFalse := false
