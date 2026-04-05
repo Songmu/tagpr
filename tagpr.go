@@ -930,6 +930,13 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 	currTagPR.Title = github.Ptr(title)
 	currTagPR.Body = github.Ptr(mergeBody(*currTagPR.Body, body))
+	// Clear Base so go-github does not include the `base` field in the PATCH
+	// payload. When `base` is sent shortly after an UpdateRef (force-push),
+	// GitHub emits a duplicate `pull_request.synchronize` webhook, causing
+	// pull_request-triggered workflows to run twice on the same SHA.
+	// Release PRs never change their base branch, so this is safe.
+	// See: https://github.com/google/go-github/issues/1250
+	currTagPR.Base = nil
 	pr, resp, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
 	if err != nil {
 		showGHError(err, resp)
