@@ -100,6 +100,7 @@ tagpr uses labels in two layers: merged PRs since the last release, and the rele
 - tagpr always adds the label `tagpr` to its own release PR so it can recognize it later.
 - You can change which labels on merged PRs map to major/minor by configuring `tagpr.majorLabels` and `tagpr.minorLabels` (or their environment variable equivalents).
 - You can force a major or minor bump by adding `tagpr:major` or `tagpr:minor` to the release PR.
+- **Dependabot PRs are excluded**: Labels on pull requests created by Dependabot (`dependabot[bot]`) are always ignored when determining the next version. Dependabot automatically adds `major`/`minor` labels based on the dependency's own SemVer change, which is unrelated to the project's versioning. This prevents unintended version bumps caused by dependency updates.
 
 ### Calendar Versioning (Optional)
 When `tagpr.calendarVersioning` is set to `true` or a format string, tagpr uses date-based versioning.
