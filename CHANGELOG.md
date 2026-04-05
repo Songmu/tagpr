@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.18.1](https://github.com/Songmu/tagpr/compare/v1.18.0...v1.18.1) - 2026-04-05
+- Clear PR Base before Edit to avoid duplicate synchronize webhooks by @178inaba in https://github.com/Songmu/tagpr/pull/336
+
 ## [v1.18.0](https://github.com/Songmu/tagpr/compare/v1.17.1...v1.18.0) - 2026-04-05
 - build(deps): bump actions/setup-go from 6.2.0 to 6.3.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/322
 - build(deps): bump Songmu/tagpr from 1.17.0 to 1.17.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/323
