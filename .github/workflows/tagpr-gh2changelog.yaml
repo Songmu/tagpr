@@ -30,7 +30,7 @@ jobs:
         persist-credentials: false
         token: ${{ steps.generate_token.outputs.token }}
     - name: tagpr
-      uses: Songmu/tagpr@b3fb89424646b06c8aa460f50307c60b6a541425 # v1.17.1
+      uses: Songmu/tagpr@9d0f650553240dab1fa907eca27e3fd5b586e538 # v1.18.1
       with:
         config: gh2changelog/.tagpr
       env:
