@@ -405,7 +405,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		tp.setOutput("pull_request", string(b))
 		return nil
 	}
-	mergeLogArgs := []string{"log", "--merges", "--pretty=format:%P",
+	mergeLogArgs := []string{"log", "--merges", "--first-parent", "--pretty=format:%P",
 		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
 	if tp.normalizedTagPrefix != "" {
 		mergeLogArgs = append(mergeLogArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))

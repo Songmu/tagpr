@@ -472,9 +472,9 @@ func TestBuildGitLogArgsWithPathFilter(t *testing.T) {
 		},
 		{
 			name:                "merge log with prefix",
-			baseArgs:            []string{"log", "--merges", "--pretty=format:%P", "v1.0.0..origin/main"},
+			baseArgs:            []string{"log", "--merges", "--first-parent", "--pretty=format:%P", "v1.0.0..origin/main"},
 			normalizedTagPrefix: "packages/core/",
-			wantArgs:            []string{"log", "--merges", "--pretty=format:%P", "v1.0.0..origin/main", "--", "packages/core"},
+			wantArgs:            []string{"log", "--merges", "--first-parent", "--pretty=format:%P", "v1.0.0..origin/main", "--", "packages/core"},
 		},
 		{
 			name:                "cherry-pick log with prefix",
