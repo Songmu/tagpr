@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.18.2](https://github.com/Songmu/tagpr/compare/v1.18.1...v1.18.2) - 2026-04-12
+- fix: respect version labels in monorepo using --first-parent by @Ito-Ryu in https://github.com/Songmu/tagpr/pull/340
+
 ## [v1.18.1](https://github.com/Songmu/tagpr/compare/v1.18.0...v1.18.1) - 2026-04-05
 - Clear PR Base before Edit to avoid duplicate synchronize webhooks by @178inaba in https://github.com/Songmu/tagpr/pull/336
 
