@@ -60,3 +60,11 @@ func FilteredMajorVersion(v uint64) Option {
 		gch.filteredMajorVersion = &v
 	}
 }
+
+// VersionTags sets the version tag list directly, bypassing gitsemvers auto-detection.
+// This is useful when the versioning scheme (e.g., CalVer) is not compatible with semver parsing.
+func VersionTags(vers []string) Option {
+	return func(gch *GH2Changelog) {
+		gch.semvers = vers
+	}
+}
