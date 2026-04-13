@@ -500,11 +500,18 @@ func TestCalverWithMixedSemverTags(t *testing.T) {
 		},
 		// calver disabled
 		{
-			name:    "falls back to semver when calver format is empty",
+			name:    "falls back to semver with zero-padded calver tag ignored",
 			tags:    []string{"v1.0.0", "v7.8.0", "v2026.0403.0"},
 			vPrefix: true,
 			format:  "",
 			wantTag: "v7.8.0",
+		},
+		{
+			name:    "falls back to semver with non-zero-padded calver tag also matched",
+			tags:    []string{"v1.0.0", "v7.8.0", "v2026.403.0"},
+			vPrefix: true,
+			format:  "",
+			wantTag: "v2026.403.0",
 		},
 	}
 
