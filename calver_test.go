@@ -427,6 +427,154 @@ func TestCalverWithTagPrefix(t *testing.T) {
 	}
 }
 
+// TestCalverWithMixedSemverTags verifies that latestSemverTag() correctly
+// returns the latest calver tag when both semver and calver tags exist,
+// ignoring semver tags that don't match the calver format.
+func TestCalverWithMixedSemverTags(t *testing.T) {
+	tests := []struct {
+		name    string
+		tags    []string
+		vPrefix bool
+		format  string
+		wantTag string
+	}{
+		// defaultCalendarVersioningFormat (YYYY.MM0D.MICRO) - no leading zeros
+		{
+			name:    "default format: ignores semver tags and returns latest calver tag",
+			tags:    []string{"v7.8.0", "v2026.403.0"},
+			vPrefix: true,
+			format:  defaultCalendarVersioningFormat,
+			wantTag: "v2026.403.0",
+		},
+		{
+			name:    "default format: returns latest calver among multiple calver and semver tags",
+			tags:    []string{"v1.0.0", "v2.3.4", "v2026.403.1", "v2026.403.3"},
+			vPrefix: true,
+			format:  defaultCalendarVersioningFormat,
+			wantTag: "v2026.403.3",
+		},
+		{
+			name:    "default format: returns empty when no calver tags exist",
+			tags:    []string{"v1.0.0", "v7.8.0"},
+			vPrefix: true,
+			format:  defaultCalendarVersioningFormat,
+			wantTag: "",
+		},
+		// zero-padded format (YYYY.0M0D.MICRO) - produces leading zeros that
+		// gitsemvers rejects as invalid semver
+		{
+			name:    "zero-padded format: ignores semver tags and returns latest calver tag",
+			tags:    []string{"v7.8.0", "v2026.0403.0"},
+			vPrefix: true,
+			format:  "YYYY.0M0D.MICRO",
+			wantTag: "v2026.0403.0",
+		},
+		{
+			name:    "zero-padded format: returns latest calver among multiple calver and semver tags",
+			tags:    []string{"v1.0.0", "v2.3.4", "v2026.0403.1", "v2026.0403.3"},
+			vPrefix: true,
+			format:  "YYYY.0M0D.MICRO",
+			wantTag: "v2026.0403.3",
+		},
+		{
+			name:    "zero-padded format: returns empty when no calver tags exist",
+			tags:    []string{"v1.0.0", "v7.8.0"},
+			vPrefix: true,
+			format:  "YYYY.0M0D.MICRO",
+			wantTag: "",
+		},
+		// format filters: only tags matching the configured format are recognized
+		{
+			name:    "zero-padded format ignores non-zero-padded tags",
+			tags:    []string{"v7.8.0", "v2026.403.0", "v2026.0403.0"},
+			vPrefix: true,
+			format:  "YYYY.0M0D.MICRO",
+			wantTag: "v2026.0403.0",
+		},
+		{
+			name:    "default format ignores zero-padded tags",
+			tags:    []string{"v7.8.0", "v2026.0403.0", "v2026.403.0"},
+			vPrefix: true,
+			format:  defaultCalendarVersioningFormat,
+			wantTag: "v2026.403.0",
+		},
+		// calver disabled
+		{
+			name:    "falls back to semver when calver format is empty",
+			tags:    []string{"v1.0.0", "v7.8.0", "v2026.0403.0"},
+			vPrefix: true,
+			format:  "",
+			wantTag: "v7.8.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir, err := os.MkdirTemp("", "tagpr-calver-mixed-test-*")
+			if err != nil {
+				t.Fatalf("failed to create temp dir: %v", err)
+			}
+			t.Cleanup(func() { os.RemoveAll(tmpDir) })
+
+			runGit := func(args ...string) {
+				cmd := exec.Command("git", args...)
+				cmd.Dir = tmpDir
+				cmd.Env = append(os.Environ(),
+					"GIT_AUTHOR_NAME=Test",
+					"GIT_AUTHOR_EMAIL=test@example.com",
+					"GIT_COMMITTER_NAME=Test",
+					"GIT_COMMITTER_EMAIL=test@example.com",
+				)
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("git %v failed: %v\n%s", args, err, out)
+				}
+			}
+
+			runGit("init")
+			runGit("config", "user.email", "test@example.com")
+			runGit("config", "user.name", "Test")
+
+			testFile := filepath.Join(tmpDir, "test.txt")
+			if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+				t.Fatalf("failed to write test file: %v", err)
+			}
+			runGit("add", "test.txt")
+			runGit("commit", "-m", "initial commit")
+
+			for _, tag := range tt.tags {
+				runGit("tag", tag)
+			}
+
+			// gitsemvers (used in semver fallback path) relies on the current
+			// working directory, so chdir to the temp repo.
+			origDir, _ := os.Getwd()
+			os.Chdir(tmpDir)
+			t.Cleanup(func() { os.Chdir(origDir) })
+
+			c := &commander{
+				gitPath:   "git",
+				dir:       tmpDir,
+				outStream: os.Stdout,
+				errStream: os.Stderr,
+			}
+			tp := &tagpr{
+				c:       c,
+				gitPath: "git",
+				cfg: &config{
+					vPrefix:            &tt.vPrefix,
+					calendarVersioning: &tt.format,
+				},
+				normalizedTagPrefix: "",
+			}
+
+			got := tp.latestSemverTag()
+			if got != tt.wantTag {
+				t.Errorf("latestSemverTag() = %q, want %q", got, tt.wantTag)
+			}
+		})
+	}
+}
+
 func TestZeroPaddedCalver(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "tagpr-calver-test-*")
 	if err != nil {
