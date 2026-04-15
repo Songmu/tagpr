@@ -776,6 +776,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	if fixedMajor, err := tp.cfg.FixedMajorVersion(); err == nil && fixedMajor != nil {
 		opts = append(opts, gh2changelog.FilteredMajorVersion(*fixedMajor))
 	}
+	if tp.cfg.CalendarVersioning() && latestSemverTag != "" {
+		opts = append(opts, gh2changelog.VersionTags([]string{latestSemverTag}))
+	}
 	gch, err := gh2changelog.New(ctx, opts...)
 	if err != nil {
 		return err
