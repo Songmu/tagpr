@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.7.3](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.2...gh2changelog/v0.7.3) - 2026-04-15
+- build(deps): bump actions/setup-go from 6.2.0 to 6.3.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/322
+- build(deps): bump Songmu/tagpr from 1.17.0 to 1.17.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/323
+- build(deps): bump golang.org/x/oauth2 from 0.35.0 to 0.36.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/325
+- build(deps): bump actions/create-github-app-token from 2.2.1 to 3.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/327
+- Add retry to latestPullRequest for commit-to-PR index race condition by @babarot in https://github.com/Songmu/tagpr/pull/333
+- fix: CalVer not working correctly with zero-padded formats (fixes #320) by @oharo3109 in https://github.com/Songmu/tagpr/pull/321
+- Ignore labels from Dependabot PRs in version determination by @Songmu in https://github.com/Songmu/tagpr/pull/334
+- build(deps): bump actions/setup-go from 6.3.0 to 6.4.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/331
+- build(deps): bump codecov/codecov-action from 5.5.2 to 6.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/332
+- Clear PR Base before Edit to avoid duplicate synchronize webhooks by @178inaba in https://github.com/Songmu/tagpr/pull/336
+- fix: respect version labels in monorepo using --first-parent by @Ito-Ryu in https://github.com/Songmu/tagpr/pull/340
+- Fix previous tag detection after switching from semver to calver by @katutoshi in https://github.com/Songmu/tagpr/pull/342
+
 ## [v0.7.2](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.1...gh2changelog/v0.7.2) - 2026-02-25
 - Fix PR description including already shipped PRs when using fixedMajorVersion by @Konboi in https://github.com/Songmu/tagpr/pull/317
 - build(deps): bump Songmu/tagpr from 1.15.0 to 1.17.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/316
