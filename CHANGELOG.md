@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.18.3](https://github.com/Songmu/tagpr/compare/v1.18.2...v1.18.3) - 2026-04-17
+- Fix previous tag detection after switching from semver to calver by @katutoshi in https://github.com/Songmu/tagpr/pull/342
+- build(deps): bump Songmu/tagpr from 1.17.1 to 1.18.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/343
+- build(deps): bump actions/create-github-app-token from 3.0.0 to 3.1.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/344
+
 ## [v1.18.2](https://github.com/Songmu/tagpr/compare/v1.18.1...v1.18.2) - 2026-04-12
 - fix: respect version labels in monorepo using --first-parent by @Ito-Ryu in https://github.com/Songmu/tagpr/pull/340
 
