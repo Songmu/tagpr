@@ -130,6 +130,8 @@ func versionFile(files []string) (string, string) {
 			return f, "javascript"
 		case "pom.xml":
 			return f, "java"
+		case "cargo.toml":
+			return f, "rust"
 		case "meta.json":
 			if meta == "" {
 				meta = f

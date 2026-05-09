@@ -73,3 +73,14 @@ func TestDetectVersionFile_perl(t *testing.T) {
 		t.Errorf("error: %s", f)
 	}
 }
+
+func TestDetectVersionFile_rust(t *testing.T) {
+	v, _ := newSemver("v1.0.0")
+	f, err := detectVersionFile("testdata/rust", v)
+	if err != nil {
+		t.Errorf("error should be nil, but: %s", err)
+	}
+	if f != "Cargo.toml" {
+		t.Errorf("error: %s", f)
+	}
+}
