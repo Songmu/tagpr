@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.19.0](https://github.com/Songmu/tagpr/compare/v1.18.3...v1.19.0) - 2026-05-09
+- build(deps): bump github.com/Masterminds/semver/v3 from 3.4.0 to 3.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/349
+- build(deps): bump Songmu/tagpr from 1.18.2 to 1.18.3 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/348
+- feat: support Cargo.toml as a version file for Rust projects by @gfx in https://github.com/Songmu/tagpr/pull/350
+
 ## [v1.18.3](https://github.com/Songmu/tagpr/compare/v1.18.2...v1.18.3) - 2026-04-17
 - Fix previous tag detection after switching from semver to calver by @katutoshi in https://github.com/Songmu/tagpr/pull/342
 - build(deps): bump Songmu/tagpr from 1.17.1 to 1.18.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/343
