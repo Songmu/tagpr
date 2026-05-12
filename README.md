@@ -29,7 +29,7 @@ jobs:
       pull-requests: write
       issues: read
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         persist-credentials: false
     - uses: Songmu/tagpr@v1
@@ -59,7 +59,7 @@ jobs:
       pull-requests: write
       issues: read
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         token: ${{ secrets.GH_PAT }}
         persist-credentials: false
@@ -195,6 +195,12 @@ Examples:
 - `"YYYY.0M.MICRO"` → `v2026.01.0`
 - `"YY.0M0D.MICRO"` → `v26.0123.0`
 
+### tagpr.fixedMajorVersion (Optional)
+Fix the major version for releases. When set, tagpr only considers tags with this major version.
+This is useful for maintaining multiple major versions on different branches, such as a `v1` branch for `v1.x.x` releases and `main` for `v2.x.x` releases.
+Accepts both numeric (`1`) and v-prefixed (`v1`) formats.
+This option cannot be used with `tagpr.calendarVersioning`.
+
 ## GitHub Enterprise
 If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
 
@@ -227,7 +233,7 @@ The tagpr produces output to be used in conjunction with subsequent GitHub Actio
 It is useful to see if tag is available and to run tasks after release. The following is an example of running action-update-semver after release.
 
 ```yaml
-- uses: actions/checkout@v5
+- uses: actions/checkout@v6
   with:
     persist-credentials: false
 - id: tagpr
