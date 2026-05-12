@@ -195,6 +195,12 @@ Examples:
 - `"YYYY.0M.MICRO"` → `v2026.01.0`
 - `"YY.0M0D.MICRO"` → `v26.0123.0`
 
+### tagpr.fixedMajorVersion (Optional)
+Fix the major version for releases. When set, tagpr only considers tags with this major version.
+This is useful for maintaining multiple major versions on different branches, such as a `v1` branch for `v1.x.x` releases and `main` for `v2.x.x` releases.
+Accepts both numeric (`1`) and v-prefixed (`v1`) formats.
+This option cannot be used with `tagpr.calendarVersioning`.
+
 ## GitHub Enterprise
 If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
 
