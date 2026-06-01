@@ -36,7 +36,8 @@ func convertKeepAChangelogFormat(md string, d time.Time) string {
 		// empty
 		return heading + "\n"
 	}
-	md = strings.Replace(md, origHeading, heading, 1)
+	// Insert a blank line after the heading to be markdownlint-safe (MD022).
+	md = strings.Replace(md, origHeading, heading+"\n", 1)
 	md = strings.ReplaceAll(md, "\n* ", "\n- ")
 	md = newContribReg.ReplaceAllString(md, "")
 

@@ -19,6 +19,7 @@ func TestConvertKeepAChangelogFormat(t *testing.T) {
 `
 
 	expect := `## [v0.0.1](https://github.com/Songmu/gh2changelog/commits/v0.0.1) - 2022-08-16
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `

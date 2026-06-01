@@ -26,6 +26,7 @@ func TestGH2Changelog(t *testing.T) {
 		t.Error(err)
 	}
 	expect := `## [v1.0.1](https://github.com/Songmu/gh2changelog/commits/v1.0.1) - 2022-09-03
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `
@@ -38,6 +39,7 @@ func TestGH2Changelog(t *testing.T) {
 		t.Error(err)
 	}
 	expect = `## [v1.0.1](https://github.com/Songmu/gh2changelog/commits/v1.0.1) - 2022-08-17
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `
@@ -50,6 +52,7 @@ func TestGH2Changelog(t *testing.T) {
 		t.Error(err)
 	}
 	expect = `## [Unreleased](https://github.com/Songmu/gh2changelog/commits/HEAD)
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `
@@ -62,6 +65,7 @@ func TestGH2Changelog(t *testing.T) {
 		t.Error(err)
 	}
 	expect = `## [v1.0.1](https://github.com/Songmu/gh2changelog/commits/v1.0.1) - 2022-08-17
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `
@@ -75,6 +79,7 @@ func TestGH2Changelog(t *testing.T) {
 	}
 	out = outs[0]
 	expect = `## [v1.0.1](https://github.com/Songmu/gh2changelog/commits/v1.0.1) - 2022-08-17
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `
@@ -89,6 +94,7 @@ func TestGH2Changelog(t *testing.T) {
 	expect = `# Changelog
 
 ## [v1.0.1](https://github.com/Songmu/gh2changelog/commits/v1.0.1) - 2022-08-17
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `
@@ -103,10 +109,12 @@ func TestGH2Changelog(t *testing.T) {
 	expect = `# Changelog
 
 ## [Unreleased](https://github.com/Songmu/gh2changelog/commits/HEAD)
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 
 ## [v1.0.1](https://github.com/Songmu/gh2changelog/commits/v1.0.1) - 2022-08-17
+
 - add github.go for github client by @Songmu in https://github.com/Songmu/gh2changelog/pull/1
 - tagging semver to merged gh2changelog by @Songmu in https://github.com/Songmu/gh2changelog/pull/19
 `
