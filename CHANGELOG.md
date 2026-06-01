@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.20.0](https://github.com/Songmu/tagpr/compare/v1.19.0...v1.20.0) - 2026-06-01
+
+- docs: update README configuration and checkout examples by @shamaton in https://github.com/Songmu/tagpr/pull/353
+- Add blank line after changelog heading to be markdownlint-safe by @gfx in https://github.com/Songmu/tagpr/pull/358
+- build(deps): bump github.com/k1LoW/calver from 1.0.1 to 1.0.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/357
+- build(deps): bump codecov/codecov-action from 6.0.0 to 6.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/356
+- build(deps): bump actions/create-github-app-token from 3.1.1 to 3.2.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/355
+- build(deps): bump Songmu/tagpr from 1.18.3 to 1.19.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/352
+
 ## [v1.19.0](https://github.com/Songmu/tagpr/compare/v1.18.3...v1.19.0) - 2026-05-09
 - build(deps): bump github.com/Masterminds/semver/v3 from 3.4.0 to 3.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/349
 - build(deps): bump Songmu/tagpr from 1.18.2 to 1.18.3 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/348
