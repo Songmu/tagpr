@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.7.4](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.3...gh2changelog/v0.7.4) - 2026-06-01
+- build(deps): bump github.com/Masterminds/semver/v3 from 3.4.0 to 3.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/349
+- build(deps): bump Songmu/tagpr from 1.18.2 to 1.18.3 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/348
+- feat: support Cargo.toml as a version file for Rust projects by @gfx in https://github.com/Songmu/tagpr/pull/350
+- docs: update README configuration and checkout examples by @shamaton in https://github.com/Songmu/tagpr/pull/353
+- Add blank line after changelog heading to be markdownlint-safe by @gfx in https://github.com/Songmu/tagpr/pull/358
+
 ## [v0.7.3](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.2...gh2changelog/v0.7.3) - 2026-04-15
 - build(deps): bump actions/setup-go from 6.2.0 to 6.3.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/322
 - build(deps): bump Songmu/tagpr from 1.17.0 to 1.17.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/323
