@@ -250,6 +250,31 @@ func TestGuessNextWithCalver(t *testing.T) {
 	}
 }
 
+// TestRetrieveVersionFromFilePreservesCalverPadding reproduces issue #345
+// Problem 1: when tagRelease reads the next version from a version file, the
+// resulting semv must inherit the calver scheme from the reference semv,
+// otherwise Naked()/Tag() normalize via Masterminds/semver and strip the
+// month's leading zero (v2026.0415.0 -> v2026.415.0).
+func TestRetrieveVersionFromFilePreservesCalverPadding(t *testing.T) {
+	dir := t.TempDir()
+	vf := filepath.Join(dir, "RELEASE_VERSION")
+	if err := os.WriteFile(vf, []byte("v2026.0415.0\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	ref := &semv{vPrefix: true, asCalendarVersion: true, calverFormat: "YYYY.0M0D.MICRO"}
+	ver, err := retrieveVersionFromFile(vf, ref)
+	if err != nil {
+		t.Fatalf("retrieveVersionFromFile failed: %v", err)
+	}
+	if got := ver.Tag(); got != "v2026.0415.0" {
+		t.Errorf("Tag() = %q, want %q (leading zero must be preserved)", got, "v2026.0415.0")
+	}
+	if got := ver.Naked(); got != "2026.0415.0" {
+		t.Errorf("Naked() = %q, want %q (leading zero must be preserved)", got, "2026.0415.0")
+	}
+}
+
 func TestNakedPreservesZeroPadding(t *testing.T) {
 	tests := []struct {
 		name      string

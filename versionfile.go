@@ -197,7 +197,11 @@ func bumpVersionFile(fpath string, from, to *semv) error {
 	return os.WriteFile(fpath, updated, 0666)
 }
 
-func retrieveVersionFromFile(fpath string, vPrefix bool) (*semv, error) {
+// retrieveVersionFromFile reads a version string from fpath and constructs a
+// semv that inherits the versioning scheme (vPrefix/calver) from ref. The
+// scheme must be inherited: a calver value parsed without asCalendarVersion set
+// gets normalized via Masterminds/semver, stripping zero-padding (see #345).
+func retrieveVersionFromFile(fpath string, ref *semv) (*semv, error) {
 	bs, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, err
@@ -212,8 +216,14 @@ func retrieveVersionFromFile(fpath string, vPrefix bool) (*semv, error) {
 		}
 		ver = string(m[1])
 	}
-	if vPrefix {
+	if ref.vPrefix {
 		ver = "v" + ver
 	}
-	return newSemver(ver)
+	sv, err := newSemver(ver)
+	if err != nil {
+		return nil, err
+	}
+	sv.asCalendarVersion = ref.asCalendarVersion
+	sv.calverFormat = ref.calverFormat
+	return sv, nil
 }
