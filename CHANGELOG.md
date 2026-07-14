@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.20.1](https://github.com/Songmu/tagpr/compare/v1.20.0...v1.20.1) - 2026-07-14
+
+- fix: preserve CalVer zero-padding when tagging from a version file by @usadamasa in https://github.com/Songmu/tagpr/pull/363
+- build(deps): bump actions/setup-go from 6.4.0 to 6.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/366
+- build(deps): bump Songmu/tagpr from 1.19.0 to 1.20.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/360
+- build(deps): bump codecov/codecov-action from 6.0.1 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/362
+- build(deps): bump reviewdog/action-staticcheck from 1.28.0 to 1.29.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/364
+- build(deps): bump actions/checkout from 6.0.2 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/365
+
 ## [v1.20.0](https://github.com/Songmu/tagpr/compare/v1.19.0...v1.20.0) - 2026-06-01
 
 - docs: update README configuration and checkout examples by @shamaton in https://github.com/Songmu/tagpr/pull/353
