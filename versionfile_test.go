@@ -28,7 +28,7 @@ func TestFileOrder(t *testing.T) {
 	}
 }
 func TestRetrieveVersionFile(t *testing.T) {
-	ver, err := retrieveVersionFromFile("version.go", false)
+	ver, err := retrieveVersionFromFile("version.go", &semv{vPrefix: false})
 	if err != nil {
 		t.Error(err)
 	}
@@ -36,17 +36,17 @@ func TestRetrieveVersionFile(t *testing.T) {
 		t.Errorf("detected: %s, expected: %s", ver.Naked(), version)
 	}
 
-	ver, _ = retrieveVersionFromFile("testdata/vfile1", true)
+	ver, _ = retrieveVersionFromFile("testdata/vfile1", &semv{vPrefix: true})
 	if e, g := "v1.2.3", ver.Tag(); e != g {
 		t.Errorf("got: %s, expected: %s", g, e)
 	}
 
-	ver, _ = retrieveVersionFromFile("testdata/vfile2", false)
+	ver, _ = retrieveVersionFromFile("testdata/vfile2", &semv{vPrefix: false})
 	if e, g := "1.3.5", ver.Tag(); e != g {
 		t.Errorf("got: %s, expected: %s", g, e)
 	}
 
-	ver, _ = retrieveVersionFromFile("testdata/vfile3", false)
+	ver, _ = retrieveVersionFromFile("testdata/vfile3", &semv{vPrefix: false})
 	if e, g := "12.3.4", ver.Tag(); e != g {
 		t.Errorf("got: %s, expected: %s", g, e)
 	}

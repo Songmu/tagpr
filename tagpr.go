@@ -756,7 +756,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 				}
 			}
 		} else {
-			nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer.vPrefix)
+			nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer)
 			if nVer != nil && nVer.Naked() != nextVer.Naked() {
 				nextVer = nVer
 			}
