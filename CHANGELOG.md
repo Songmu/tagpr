@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.20.2](https://github.com/Songmu/tagpr/compare/v1.20.1...v1.20.2) - 2026-07-21
+
+- docs: clarify tagpr.versionFile behavior by @tokuhirom in https://github.com/Songmu/tagpr/pull/370
+
 ## [v1.20.1](https://github.com/Songmu/tagpr/compare/v1.20.0...v1.20.1) - 2026-07-14
 
 - fix: preserve CalVer zero-padding when tagging from a version file by @usadamasa in https://github.com/Songmu/tagpr/pull/363
