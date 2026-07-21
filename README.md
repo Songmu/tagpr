@@ -128,11 +128,13 @@ Generally, it is "main." It is the branch for releases. The tagpr tracks this br
 creates or updates a pull request as a release candidate, or tags when they are merged.
 
 ### tagpr.versionFile
-Versioning file containing the semantic version needed to be updated at release.
-It will be synchronized with the "git tag".
-Often this is a meta-information file such as gemspec, setup.cfg, package.json, etc.
-Sometimes the source code file, such as version.go or Bar.pm, is used.
-If you do not want to use versioning files but only git tags, specify the "-" string here.
+File that holds the semantic version, kept in sync with the git tag: the next
+version is written into it when the release pull request is prepared, and read
+back from it to decide the tag at merge time (so editing the version in the pull
+request works). Often this is a meta-information file such as gemspec, setup.cfg,
+or package.json, but a source file such as version.go or Bar.pm is also common.
+If left empty, tagpr scans the repository and picks a likely file automatically.
+Specify "-" to rely on git tags only and skip file updates entirely.
 You can specify multiple version files by comma separated strings.
 
 ### tagpr.vPrefix
