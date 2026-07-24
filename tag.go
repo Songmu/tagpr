@@ -100,9 +100,18 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return nil
 	}
 
+	// To avoid putting pull requests created by tagpr itself in the release notes,
+	// we generate release notes in advance.
+	// Get the previous commitish to avoid picking up the merge of the pull
+	// request made by tagpr.
+	targetCommitish, _, err := tp.c.Git("rev-parse", "HEAD~")
+	if err != nil {
+		return nil
+	}
+
 	var releaseName, releaseBody string
 	if prog := tp.cfg.ReleaseNoteCommand(); prog != "" {
-		out, err := tp.execReleaseNoteCommand(prog, latestSemverTag, fullNextTag)
+		out, err := tp.execReleaseNoteCommand(prog, latestSemverTag, fullNextTag, targetCommitish)
 		if err != nil {
 			return fmt.Errorf("releaseNoteCommand failed: %w", err)
 		}
@@ -113,14 +122,6 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 			previousTag = nil
 		}
 
-		// To avoid putting pull requests created by tagpr itself in the release notes,
-		// we generate release notes in advance.
-		// Get the previous commitish to avoid picking up the merge of the pull
-		// request made by tagpr.
-		targetCommitish, _, err := tp.c.Git("rev-parse", "HEAD~")
-		if err != nil {
-			return nil
-		}
 		releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
 			ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
 				TagName:               fullNextTag,
