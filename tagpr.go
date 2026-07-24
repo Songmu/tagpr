@@ -790,6 +790,16 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 
+	if prog := tp.cfg.ReleaseNoteCommand(); prog != "" {
+		out, err := tp.execReleaseNoteCommand(prog, latestSemverTag, draftNextTag)
+		if err != nil {
+			return fmt.Errorf("releaseNoteCommand failed: %w", err)
+		}
+		if out != "" {
+			changelog = strings.TrimRight(changelog, "\n") + "\n\n" + out + "\n"
+		}
+	}
+
 	if tp.cfg.changelog == nil || *tp.cfg.changelog {
 		changelogMd := tp.cfg.ChangelogFile()
 		if !exists(changelogMd) {
@@ -1002,6 +1012,23 @@ func (tp *tagpr) Exec(prog string, currVer, nextVer *semv) {
 		"TAGPR_CURRENT_VERSION": currVer.Tag(),
 		"TAGPR_NEXT_VERSION":    nextVer.Tag(),
 	})
+}
+
+// execReleaseNoteCommand runs prog with baseRef and headRef as positional
+// arguments ($1 and $2), returning its trimmed standard output.
+func (tp *tagpr) execReleaseNoteCommand(prog, baseRef, headRef string) (string, error) {
+	var progArgs []string
+	if strings.ContainsAny(prog, " \n") {
+		progArgs = []string{"-c", prog, "sh", baseRef, headRef}
+		prog = "sh"
+	} else {
+		progArgs = []string{baseRef, headRef}
+	}
+	out, _, err := tp.c.Cmd(prog, progArgs, map[string]string{
+		"TAGPR_BASE_REF": baseRef,
+		"TAGPR_HEAD_REF": headRef,
+	})
+	return out, err
 }
 
 func (tp *tagpr) defaultBranch() (string, error) {

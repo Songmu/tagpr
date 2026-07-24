@@ -3,6 +3,7 @@ package tagpr
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -638,4 +639,47 @@ func TestIsTagPR(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExecReleaseNoteCommand(t *testing.T) {
+	tp := &tagpr{
+		c: &commander{outStream: io.Discard, errStream: io.Discard},
+	}
+
+	t.Run("plain command receives base/head ref as positional args", func(t *testing.T) {
+		out, err := tp.execReleaseNoteCommand("echo", "v1.0.0", "v1.1.0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "v1.0.0 v1.1.0"; out != want {
+			t.Errorf("got: %q, want: %q", out, want)
+		}
+	})
+
+	t.Run("shell script receives base/head ref via $1 and $2", func(t *testing.T) {
+		out, err := tp.execReleaseNoteCommand(`echo "$1 $2"`, "v1.0.0", "v1.1.0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "v1.0.0 v1.1.0"; out != want {
+			t.Errorf("got: %q, want: %q", out, want)
+		}
+	})
+
+	t.Run("first release has empty base ref", func(t *testing.T) {
+		out, err := tp.execReleaseNoteCommand(`echo "[$1] $2"`, "", "v1.0.0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "[] v1.0.0"; out != want {
+			t.Errorf("got: %q, want: %q", out, want)
+		}
+	})
+
+	t.Run("non-zero exit status is returned as an error", func(t *testing.T) {
+		_, err := tp.execReleaseNoteCommand("false", "v1.0.0", "v1.1.0")
+		if err == nil {
+			t.Error("want error, got nil")
+		}
+	})
 }

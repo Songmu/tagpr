@@ -2,6 +2,7 @@ package tagpr
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -123,6 +124,21 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	if !tp.cfg.Release() {
 		return nil
 	}
+
+	if prog := tp.cfg.ReleaseNoteCommand(); prog != "" {
+		baseRef := ""
+		if previousTag != nil {
+			baseRef = *previousTag
+		}
+		out, err := tp.execReleaseNoteCommand(prog, baseRef, fullNextTag)
+		if err != nil {
+			return fmt.Errorf("releaseNoteCommand failed: %w", err)
+		}
+		if out != "" {
+			releases.Body = strings.TrimRight(releases.Body, "\n") + "\n\n" + out
+		}
+	}
+
 	// Don't use GenerateReleaseNote flag and use pre generated one
 	_, resp, err = tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, &github.RepositoryRelease{

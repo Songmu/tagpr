@@ -150,6 +150,12 @@ Command to change files just before release and versioning.
 ### tagpr.postVersionCommand (Optional)
 Command to change files just after versioning.
 
+### tagpr.releaseNoteCommand (Optional)
+Command to generate additional release note content.
+It receives the previous tag and the new tag as positional arguments (`$1` and `$2`; `$1` is empty for the first release), and its standard output is appended to the bottom of the GitHub-generated release notes.
+It runs twice: once while drafting the release pull request, where the output is also appended to the new entry in `tagpr.changelogFile`, and once just before the GitHub Release is created.
+tagpr fails if the command exits with a non-zero status.
+
 ### tagpr.template (Optional)
 Pull request template file in go template format
 
@@ -223,6 +229,11 @@ When running `tagpr.command` or `tagpr.postVersionCommand`, tagpr exports the fo
 
 - `TAGPR_CURRENT_VERSION`: the current version tag (e.g., `v1.2.3`)
 - `TAGPR_NEXT_VERSION`: the next version tag (e.g., `v1.3.0`)
+
+When running `tagpr.releaseNoteCommand`, tagpr exports the following environment variables in addition to passing the same values as positional arguments:
+
+- `TAGPR_BASE_REF`: the previous version tag (empty for the first release)
+- `TAGPR_HEAD_REF`: the new version tag being released
 
 ## Outputs for GitHub Actions
 
