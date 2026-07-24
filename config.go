@@ -42,6 +42,19 @@ const (
 #   tagpr.postVersionCommand (Optional)
 #       Command to change files just after versioning.
 #
+#   tagpr.releaseNoteCommand (Optional)
+#       Command to fully generate the release note content, bypassing GitHub's
+#       release notes generation API. It receives the previous tag and the new
+#       tag as positional arguments ($1 and $2; $1 is empty for the first
+#       release), and its standard output becomes the release note as-is. The
+#       commit-ish tagpr would have used as TargetCommitish for the bypassed
+#       API call is exposed via the TAGPR_TARGET_COMMITISH environment
+#       variable. It runs twice: once while drafting the release pull
+#       request, where the output becomes the new entry in
+#       tagpr.changelogFile, and once just before the GitHub Release is
+#       created, where it becomes the release body.
+#       tagpr fails if the command exits with a non-zero status.
+#
 #   tagpr.template (Optional)
 #       Pull request template file in go template format
 #
@@ -106,6 +119,7 @@ const (
 	envChangelog                    = "TAGPR_CHANGELOG"
 	envCommand                      = "TAGPR_COMMAND"
 	envPostVersionCommand           = "TAGPR_POST_VERSION_COMMAND"
+	envReleaseNoteCommand           = "TAGPR_RELEASE_NOTE_COMMAND"
 	envTemplate                     = "TAGPR_TEMPLATE"
 	envTemplateText                 = "TAGPR_TEMPLATE_TEXT"
 	envRelease                      = "TAGPR_RELEASE"
@@ -123,6 +137,7 @@ const (
 	configChangelog                 = "tagpr.changelog"
 	configCommand                   = "tagpr.command"
 	configPostVersionCommand        = "tagpr.postVersionCommand"
+	configReleaseNoteCommand        = "tagpr.releaseNoteCommand"
 	configTemplate                  = "tagpr.template"
 	configTemplateText              = "tagpr.templateText"
 	configRelease                   = "tagpr.release"
@@ -141,6 +156,7 @@ type config struct {
 	versionFile        *string
 	command            *string
 	postVersionCommand *string
+	releaseNoteCommand *string
 	template           *string
 	templateText       *string
 	release            *string
@@ -188,6 +204,8 @@ func (cfg *config) Reload() error {
 	cfg.reloadField(&cfg.command, configCommand, envCommand, "")
 
 	cfg.reloadField(&cfg.postVersionCommand, configPostVersionCommand, envPostVersionCommand, "")
+
+	cfg.reloadField(&cfg.releaseNoteCommand, configReleaseNoteCommand, envReleaseNoteCommand, "")
 
 	cfg.reloadField(&cfg.template, configTemplate, envTemplate, "")
 
@@ -334,6 +352,10 @@ func (cfg *config) Command() string {
 
 func (cfg *config) PostVersionCommand() string {
 	return stringify(cfg.postVersionCommand)
+}
+
+func (cfg *config) ReleaseNoteCommand() string {
+	return stringify(cfg.releaseNoteCommand)
 }
 
 func (cfg *config) Template() string {

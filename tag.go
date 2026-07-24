@@ -2,6 +2,7 @@ package tagpr
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -86,31 +87,6 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	// Add prefix for monorepo support
 	fullNextTag := fullTag(tp.normalizedTagPrefix, nextTag)
 
-	previousTag := &latestSemverTag
-	if *previousTag == "" {
-		previousTag = nil
-	}
-
-	// To avoid putting pull requests created by tagpr itself in the release notes,
-	// we generate release notes in advance.
-	// Get the previous commitish to avoid picking up the merge of the pull
-	// request made by tagpr.
-	targetCommitish, _, err := tp.c.Git("rev-parse", "HEAD~")
-	if err != nil {
-		return nil
-	}
-	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
-		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
-			TagName:               fullNextTag,
-			PreviousTagName:       previousTag,
-			TargetCommitish:       &targetCommitish,
-			ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
-		})
-	if err != nil {
-		showGHError(err, resp)
-		return err
-	}
-
 	if _, _, err := tp.c.Git("tag", fullNextTag); err != nil {
 		return err
 	}
@@ -123,13 +99,50 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	if !tp.cfg.Release() {
 		return nil
 	}
+
+	// To avoid putting pull requests created by tagpr itself in the release notes,
+	// we generate release notes in advance.
+	// Get the previous commitish to avoid picking up the merge of the pull
+	// request made by tagpr.
+	targetCommitish, _, err := tp.c.Git("rev-parse", "HEAD~")
+	if err != nil {
+		return nil
+	}
+
+	var releaseName, releaseBody string
+	if prog := tp.cfg.ReleaseNoteCommand(); prog != "" {
+		out, err := tp.execReleaseNoteCommand(prog, latestSemverTag, fullNextTag, targetCommitish)
+		if err != nil {
+			return fmt.Errorf("releaseNoteCommand failed: %w", err)
+		}
+		releaseName, releaseBody = fullNextTag, out
+	} else {
+		previousTag := &latestSemverTag
+		if *previousTag == "" {
+			previousTag = nil
+		}
+
+		releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
+			ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
+				TagName:               fullNextTag,
+				PreviousTagName:       previousTag,
+				TargetCommitish:       &targetCommitish,
+				ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
+			})
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+		releaseName, releaseBody = releases.Name, releases.Body
+	}
+
 	// Don't use GenerateReleaseNote flag and use pre generated one
-	_, resp, err = tp.gh.Repositories.CreateRelease(
+	_, resp, err := tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
 			TagName:         &fullNextTag,
 			TargetCommitish: &releaseBranch,
-			Name:            &releases.Name,
-			Body:            &releases.Body,
+			Name:            &releaseName,
+			Body:            &releaseBody,
 			Draft:           github.Ptr(tp.cfg.ReleaseDraft()),
 		})
 	if err != nil {
