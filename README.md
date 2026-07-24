@@ -151,9 +151,9 @@ Command to change files just before release and versioning.
 Command to change files just after versioning.
 
 ### tagpr.releaseNoteCommand (Optional)
-Command to generate additional release note content.
-It receives the previous tag and the new tag as positional arguments (`$1` and `$2`; `$1` is empty for the first release), and its standard output is appended to the bottom of the GitHub-generated release notes.
-It runs twice: once while drafting the release pull request, where the output is also appended to the new entry in `tagpr.changelogFile`, and once just before the GitHub Release is created.
+Command to fully generate the release note content, bypassing GitHub's release notes generation API.
+It receives the previous tag and the new tag as positional arguments (`$1` and `$2`; `$1` is empty for the first release), and its standard output becomes the release note as-is (GitHub's release notes API is not called).
+It runs twice: once while drafting the release pull request, where the output becomes the new entry in `tagpr.changelogFile`, and once just before the GitHub Release is created, where it becomes the release body.
 tagpr fails if the command exits with a non-zero status.
 
 ### tagpr.template (Optional)

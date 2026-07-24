@@ -785,18 +785,17 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-	changelog, orig, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
-	if err != nil {
-		return err
-	}
-
+	var changelog, orig string
 	if prog := tp.cfg.ReleaseNoteCommand(); prog != "" {
 		out, err := tp.execReleaseNoteCommand(prog, latestSemverTag, draftNextTag)
 		if err != nil {
 			return fmt.Errorf("releaseNoteCommand failed: %w", err)
 		}
-		if out != "" {
-			changelog = strings.TrimRight(changelog, "\n") + "\n\n" + out + "\n"
+		changelog, orig = out, out
+	} else {
+		changelog, orig, err = gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
+		if err != nil {
+			return err
 		}
 	}
 
