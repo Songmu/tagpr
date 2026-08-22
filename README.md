@@ -53,6 +53,14 @@ When tagpr updates the pull request after `main` advances, it carries additional
 on the release branch forward as far as possible. See
 [Release flow and design](docs/concepts/release-flow.md) for the detailed update graph.
 
+### Merge when you are ready
+
+You do not need to merge the release pull request immediately. Leave it open until you
+want to release; tagpr will keep it current as `main` advances. Having one continuously
+open release pull request is the expected workflow. Alternatively, merge it frequently
+and ship smaller releases—small, incremental releases are often easier to review and
+adopt.
+
 ## Documentation
 
 - [Documentation index](docs/index.md)

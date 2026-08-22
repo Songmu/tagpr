@@ -96,6 +96,23 @@ the update diagram represents a manual commit preserved in this way.
 After reviewing the automatically generated and manually adjusted changes, merge the
 pull request to release them.
 
+### 4. Merge when you want to release
+
+The release pull request does not impose a release schedule. You do not need to merge it
+immediately, and leaving it open is expected. It remains a continuously updated view of
+the next release until a maintainer decides to merge it.
+
+This means the repository normally has one open release pull request whenever
+unreleased changes exist. Treat that pull request as a visible release queue rather
+than unfinished work that must be closed quickly.
+
+If a continuously open pull request does not suit the project, another good option is
+to merge it frequently and make smaller releases. Small, incremental releases reduce
+the amount of change reviewed and shipped at once and make the release queue short-lived.
+
+After the merge, tagpr tags the resulting commit and optionally creates a GitHub
+Release.
+
 Downstream publishing or deployment can use the action's `tag` output or a separate
 tag-triggered workflow. See
 [Publishing after a release](../guides/publish-after-release.md).
