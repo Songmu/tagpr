@@ -66,6 +66,7 @@ adopt.
 
 - [Documentation index](docs/index.md)
 - [Getting started](docs/getting-started.md)
+- [Adopting tagpr in an existing project](docs/guides/adopting-tagpr.md)
 - [Release flow and design](docs/concepts/release-flow.md)
 - [Versioning and label rules](docs/guides/versioning.md)
 - [Changelog and GitHub Releases](docs/guides/changelog-and-releases.md)

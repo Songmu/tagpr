@@ -8,6 +8,8 @@ and repeatable while keeping the release decision visible and reviewable.
 
 - [Getting started](getting-started.md) explains the complete path from adding the
   workflow to merging the first release pull request.
+- [Adopting tagpr in an existing project](guides/adopting-tagpr.md) explains how to
+  choose a release baseline and transition existing changelog and publishing automation.
 - [Release flow and design](concepts/release-flow.md) explains the lifecycle of the
   release pull request and the reasoning behind it.
 - [Versioning and label rules](guides/versioning.md) explains SemVer proposals, custom
@@ -28,6 +30,7 @@ and repeatable while keeping the release decision visible and reviewable.
 | Goal | Documentation |
 | --- | --- |
 | Install tagpr | [Getting started](getting-started.md) |
+| Adopt tagpr in an existing project | [Adoption guide](guides/adopting-tagpr.md) |
 | Release without a version file | [Tag-only releases](getting-started.md#tag-only-releases) |
 | Select a major or minor version | [Versioning and label rules](guides/versioning.md) |
 | Use Calendar Versioning | [Configuration index](reference/configuration.md#version-selection) |

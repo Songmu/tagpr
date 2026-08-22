@@ -4,6 +4,9 @@ This guide installs tagpr in a repository that releases from `main` and uses Sem
 Versioning. Calendar Versioning, monorepos, and maintenance branches use the same basic
 release flow with additional configuration.
 
+If the repository already has published versions, a changelog, or release automation,
+start with [Adopting tagpr in an existing project](guides/adopting-tagpr.md).
+
 ## Prerequisites
 
 - The repository uses GitHub Actions.
