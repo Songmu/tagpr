@@ -66,7 +66,9 @@ rules:
 ```
 
 The path is relative to the repository root, not to the `.tagpr` file. If the configured
-file does not exist, tagpr creates the same minimal configuration at that path.
+file does not exist on the release branch, create and commit it before setting
+`tagpr.releaseYAMLPath`. Unlike the default `.github/release.yml`, a missing custom
+configuration path cannot be bootstrapped by the release pull request.
 
 ## Control file and release creation
 

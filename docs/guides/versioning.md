@@ -75,8 +75,11 @@ SemVer proposal. You can add one manually when merged pull requests do not carry
 version labels.
 
 Labels inferred from merged pull requests are added again when tagpr updates the
-release pull request. If an inferred level is not appropriate, correct the source pull
-request labels or select the exact version in the version file.
+release pull request. If an inferred level is not appropriate, first correct the source
+pull request labels, then remove the corresponding `tagpr:major` or `tagpr:minor` label
+from the release pull request. Correcting the source first prevents tagpr from adding
+the inferred label again on its next update. Alternatively, select the exact version in
+the version file.
 
 ## Version-file precedence
 
