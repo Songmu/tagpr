@@ -24,13 +24,14 @@ tag-only releases, monorepos, and maintenance branches for older major versions.
 
 ### Create, review, and release
 
-1. A push advances the release branch, normally `main`.
-2. tagpr automatically creates or updates a release pull request. By default, it
-   updates the version file and `CHANGELOG.md`.
-3. You review the generated and project-specific release changes.
-4. You merge the release pull request when you are ready to release.
-5. On the next tagpr run, tagpr tags the resulting commit and creates a GitHub Release
-   unless configured otherwise.
+1. tagpr detects unreleased changes when a push advances the release branch, normally
+   `main`.
+2. tagpr creates or rebuilds a temporary branch, then creates or updates a release pull
+   request. By default, it updates the version file and `CHANGELOG.md`.
+3. You review the generated and project-specific release changes, then merge the pull
+   request when you are ready to release.
+4. On the next run, tagpr tags the merge commit at the head of `main` and creates a
+   GitHub Release unless configured otherwise.
 
 ![The release branch diverges from main and merges back at the tagged release commit](docs/images/release-flow.png)
 
