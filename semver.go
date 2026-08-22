@@ -100,9 +100,7 @@ func (sv *semv) nextCalver(now time.Time) *semv {
 		verStr = sv.sv.String()
 	}
 	// Strip v prefix for parsing
-	if strings.HasPrefix(verStr, "v") {
-		verStr = verStr[1:]
-	}
+	verStr = strings.TrimPrefix(verStr, "v")
 
 	// Parse current version with the format
 	currCv, err := calver.Parse(format, verStr)
