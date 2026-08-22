@@ -1,19 +1,74 @@
-tagpr
-=======
+# tagpr
 
 [![Test Status](https://github.com/Songmu/tagpr/actions/workflows/test.yaml/badge.svg?branch=main)][actions]
 [![MIT License](https://img.shields.io/github/license/Songmu/tagpr)][license]
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/Songmu/tagpr)][PkgGoDev]
 
-[actions]: https://github.com/Songmu/tagpr/actions?workflow=test
-[license]: https://github.com/Songmu/tagpr/blob/main/LICENSE
-[PkgGoDev]: https://pkg.go.dev/github.com/Songmu/tagpr
+tagpr continuously prepares a release pull request for unreleased changes. When you
+merge that pull request, tagpr tags the merged commit and optionally creates a GitHub
+Release.
 
-The `tagpr` clarify the release flow. It automatically creates and updates a pull request for unreleased items, tag them when they are merged, and create releases.
+Release preparation stays automated, visible, and reviewable:
 
-## Synopsis
+- The proposed version, changelog, and project-specific release changes live in a pull
+  request.
+- The release pull request follows new changes on your release branch until you are
+  ready to release.
+- Releasing is an explicit merge operation instead of a sequence of local commands.
+- Publishing or deployment can run after tagpr creates the tag.
 
-The `tagpr` is designed to run on github actions.
+tagpr supports Semantic Versioning (SemVer) by default, Calendar Versioning (CalVer),
+tag-only releases, monorepos, and maintenance branches for older major versions.
+
+## How it works
+
+### Create, review, and release
+
+1. A push advances the release branch, normally `main`.
+2. tagpr automatically creates or updates a release pull request. By default, it
+   updates the version file and `CHANGELOG.md`.
+3. You review the generated and project-specific release changes.
+4. You merge the release pull request when you are ready to release.
+5. On the next tagpr run, tagpr tags the resulting commit and creates a GitHub Release
+   unless configured otherwise.
+
+![The release branch diverges from main and merges back at the tagged release commit](docs/images/release-flow.png)
+
+### Keep the release pull request current
+
+If the release pull request remains open and `main` advances again, tagpr automatically
+updates it. tagpr rebuilds the temporary branch from the latest `main`, producing a
+rebase-like result without requiring a manual rebase.
+
+### Adjust the release pull request
+
+You can edit the release pull request directly. For example, you can adjust the proposed
+version, update dependencies, or add files that your project requires at release time.
+These repeatable changes can also be automated with `tagpr.command` or
+`tagpr.postVersionCommand`. See
+[Release preparation commands](docs/guides/release-commands.md) for execution order and
+examples.
+
+When tagpr updates the pull request after `main` advances, it carries additional commits
+on the release branch forward as far as possible. See
+[Release flow and design](docs/concepts/release-flow.md) for the detailed update graph.
+
+## Documentation
+
+- [Documentation index](docs/index.md)
+- [Getting started](docs/getting-started.md)
+- [Release flow and design](docs/concepts/release-flow.md)
+- [Versioning and label rules](docs/guides/versioning.md)
+- [Changelog and GitHub Releases](docs/guides/changelog-and-releases.md)
+- [Release preparation commands](docs/guides/release-commands.md)
+- [Publishing after a release](docs/guides/publish-after-release.md)
+- [Configuration index](docs/reference/configuration.md)
+- [Release pull request templates](docs/reference/templates.md)
+
+## Quickstart
+
+tagpr is designed to run in GitHub Actions. Add the following workflow to a repository
+that releases from `main`:
 
 ```yaml
 # .github/workflows/tagpr.yml
@@ -21,13 +76,15 @@ name: tagpr
 on:
   push:
     branches: ["main"]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
 jobs:
   tagpr:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: read
     steps:
     - uses: actions/checkout@v6
       with:
@@ -37,27 +94,151 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-To enable pull requests to be created through GitHub Actions, check the "Allow GitHub Actions to create and approve pull requests" box in the "Workflow permissions" section under "Settings > Actions > General" in the repository where you are installing `tagpr`.
+In the target repository, open **Settings > Actions > General > Workflow permissions**
+and enable **Allow GitHub Actions to create and approve pull requests**.
 
-If you do not want to use the token provided by GitHub Actions, do the following This is useful if you want to trigger another action with a tag.
+Commit the workflow and push it to `main`. On its first run, tagpr:
 
-ref. <https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow>
+1. Finds the latest SemVer tag, or starts from `v0.0.0` if the repository has no release
+   tag.
+2. Creates `.tagpr` if it does not exist and detects a likely version file.
+3. Creates `.github/release.yml` if neither `.github/release.yml` nor
+   `.github/release.yaml` exists.
+4. Creates a release pull request for the unreleased changes.
 
-For simplicity, we include an example of specifying a personal access token here. However, issuing the temporary token in conjunction with the GitHub App would be safer than a personal access token.
+Review the generated `.tagpr` file after the first run. In particular, verify that
+`tagpr.versionFile` points to the files that contain your project's version.
+
+### Tag-only releases
+
+If your project does not keep its version in a file, configure tagpr to use Git tags
+only:
+
+```ini
+[tagpr]
+    versionFile = -
+```
+
+### Using a different release branch
+
+Set the branch in both the workflow trigger and `.tagpr`:
+
+```ini
+[tagpr]
+    releaseBranch = production
+```
+
+## What the release pull request contains
+
+By default, tagpr updates:
+
+- the version file or files configured by `tagpr.versionFile`; and
+- `CHANGELOG.md`, using GitHub's generated release notes and
+  `.github/release.yml`.
+
+tagpr calls GitHub's
+[Generate release notes API][github-generate-release-notes-api] with the previous tag,
+release branch, and configured release-note file. Therefore, changelog entries and the
+GitHub Release body follow GitHub's generated release-note rules, including the
+categories and exclusions in `.github/release.yml` or `.github/release.yaml`. See
+[Changelog and GitHub Releases](docs/guides/changelog-and-releases.md) for the complete
+flow.
+
+You can customize these changes:
+
+- Set `tagpr.changelog = false` to leave the changelog unchanged.
+- Set `tagpr.command` to run a project-specific command before version files are
+  updated.
+- Set `tagpr.postVersionCommand` to run a command after version files are updated.
+- Set `tagpr.template` or `tagpr.templateText` to customize the release pull request.
+- Commit manual release changes directly to the generated release branch.
+
+See [Release pull request templates](docs/reference/templates.md) for the available
+template variables and examples.
+
+## Choosing the next version
+
+### Semantic Versioning
+
+tagpr proposes the next SemVer version as follows:
+
+1. It finds the latest SemVer tag that matches `tagpr.tagPrefix`. If no tag exists,
+   tagpr compares changes from the first commit and uses `v0.0.0` as the current
+   version.
+2. It inspects pull requests merged since the last release. If a pull request has a
+   label configured in `tagpr.majorLabels` or `tagpr.minorLabels`, tagpr adds
+   `tagpr:major` or `tagpr:minor` to the release pull request.
+3. A `tagpr:major` or `tagpr/major` label on the release pull request selects a major
+   bump. A `tagpr:minor` or `tagpr/minor` label selects a minor bump. Otherwise, tagpr
+   proposes a patch bump. Major takes precedence when both labels are present.
+4. If you edit the configured version file in the release pull request, that version
+   takes precedence over the labels when the pull request is merged.
+
+tagpr always adds the `tagpr` label to its own release pull request. Labels on pull
+requests created by `dependabot[bot]` are ignored when determining the next project
+version, because those labels describe the dependency's version change rather than the
+project's.
+
+See [Versioning and label rules](docs/guides/versioning.md) for custom label mappings,
+tag-only releases, CalVer behavior, and monorepo scoping.
+
+### Calendar Versioning
+
+Set `tagpr.calendarVersioning` to use a date-based version instead of SemVer:
+
+```ini
+[tagpr]
+    calendarVersioning = true
+```
+
+`true` uses `YYYY.MM0D.MICRO`. You can also specify a custom format such as
+`YYYY.0M.MICRO`. Major and minor labels are ignored in CalVer mode. See
+[tagpr.calendarVersioning](#tagprcalendarversioning-optional) for the complete token
+reference.
+
+## Publishing or deploying after a release
+
+tagpr exposes a `tag` output only when it creates a tag. Use it to conditionally run a
+publishing or deployment step in the same workflow:
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    persist-credentials: false
+- id: tagpr
+  uses: Songmu/tagpr@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+- name: Publish
+  if: steps.tagpr.outputs.tag != ''
+  run: ./scripts/publish "${{ steps.tagpr.outputs.tag }}"
+```
+
+### Triggering a separate workflow
+
+Events created with the repository's `GITHUB_TOKEN` do not start another GitHub Actions
+workflow. This prevents accidental recursive workflow runs. Therefore, a tag created by
+tagpr with `GITHUB_TOKEN` will not trigger a separate tag-based release workflow.
+
+If the tag must trigger another workflow, use a token from a GitHub App or another token
+that has the required repository permissions. A GitHub App installation token is
+recommended because it is short-lived. For simplicity, the following example uses a
+personal access token stored as `GH_PAT`:
 
 ```yaml
 name: tagpr
 on:
   push:
-    branches:
-    - main
+    branches: ["main"]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
 jobs:
   tagpr:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: read
     steps:
     - uses: actions/checkout@v6
       with:
@@ -68,143 +249,277 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 ```
 
-## Description
-By using `tagpr`, the release flow can be made easier and more apparent because it can be put into a flow where the release is completed by pressing the merge button on a pull request that is automatically created.
+See GitHub's documentation on
+[triggering a workflow from a workflow][github-token-trigger] for the underlying token
+behavior.
 
-If there are differences between the last release and the main branch, tagpr generates a pull request for the next release. The tagpr considers a semver tagged commit as a release. It would be standard practice.
+## Common configurations
 
-You can leave this pull request until you want to make the next release; each time the main branch is updated, this pull request will automatically follow it.
+### Multiple version files
 
-When this pull request is merged, the merge commit is automatically tagged, and GitHub Releases are created simultaneously.
+Separate multiple paths with commas:
 
-As mentioned at the beginning of this section, the release process becomes simply a matter of pressing the merge button.
+```ini
+[tagpr]
+    versionFile = version.go,action.yml
+```
 
-In addition, release items will be made into pull requests, allowing for visualization and review of necessary changes at the time of release. This is also important to prevent accidents.
+### Monorepos
 
-## Versioning Rules
-How tagpr proposes the next version number and how to adjust it.
+`tagpr.tagPrefix` scopes tags and release history for independently versioned projects
+in a monorepo. A project can keep its configuration in its own directory:
 
-### Semantic Versioning (Default)
+```yaml
+- uses: Songmu/tagpr@v1
+  with:
+    config: tools/.tagpr
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
-####  How to determine the next version number of candidate
-When creating or updating the release PR, tagpr computes the next version in the following steps.
+Paths inside `tools/.tagpr` are still relative to the repository root, not to the
+directory containing `.tagpr`. Include the project directory in each path:
 
-1. Find the latest semver tag (respecting `tagpr.tagPrefix`). If no tag exists yet, tagpr assumes the current version is `v0.0.0` and compares from the first commit.
-2. Inspect merged PRs since the last release. If any of those PRs have labels listed in `tagpr.majorLabels` or `tagpr.minorLabels` (defaults: `major`, `minor`), tagpr adds `tagpr:major` or `tagpr:minor` to the release PR automatically.
-3. Decide the next version from labels on the release PR: `tagpr:major` or `tagpr/major` => major bump, `tagpr:minor` or `tagpr/minor` => minor bump, otherwise patch bump. If both major and minor labels are present, major wins.
-4. When calendar versioning is enabled, labels are ignored and the version is date-based.
+```ini
+# tools/.tagpr
+[tagpr]
+    tagPrefix = tools
+    versionFile = tools/package.json
+    changelogFile = tools/CHANGELOG.md
+    releaseYAMLPath = tools/.github/release.yml
+```
 
-#### Label behavior and conventions
-tagpr uses labels in two layers: merged PRs since the last release, and the release PR itself.
+This configuration creates tags such as `tools/v1.2.3`.
 
-- tagpr always adds the label `tagpr` to its own release PR so it can recognize it later.
-- You can change which labels on merged PRs map to major/minor by configuring `tagpr.majorLabels` and `tagpr.minorLabels` (or their environment variable equivalents).
-- You can force a major or minor bump by adding `tagpr:major` or `tagpr:minor` to the release PR.
-- **Dependabot PRs are excluded**: Labels on pull requests created by Dependabot (`dependabot[bot]`) are always ignored when determining the next version. Dependabot automatically adds `major`/`minor` labels based on the dependency's own SemVer change, which is unrelated to the project's versioning. This prevents unintended version bumps caused by dependency updates.
+### Maintaining an older major version
 
-### Calendar Versioning (Optional)
-When `tagpr.calendarVersioning` is set to `true` or a format string, tagpr uses date-based versioning.
-Labels are ignored, and versions are determined by the release date.
-See [tagpr.calendarVersioning](#tagprcalendarversioning-optional) for details.
+Use `tagpr.fixedMajorVersion` on a maintenance branch so tagpr considers only tags for
+that major version:
 
-### How to adjust the next version by yourself
-You can adjust the next version number suggested by tagpr directly on the pull request created by tagpr.
+```ini
+[tagpr]
+    releaseBranch = v1
+    fixedMajorVersion = 1
+```
 
-There are two ways to do it.
+`fixedMajorVersion` cannot be combined with `calendarVersioning`.
 
-####  Version file
-Edit and commit the version file specified in the .tagpr configuration file to describe the next version
+## Configuration reference
 
-####  Conventional labels
-Add labels to the pull request like "tagpr:minor" or "tagpr:major." It is helpful to use a flow that does not use version files.
+tagpr reads `.tagpr` from the repository root in Git config format:
 
-If there is a discrepancy between the version file and the conventional labels at the time of merging, the specification in the version file takes precedence.
+```ini
+[tagpr]
+    releaseBranch = main
+    versionFile = version.go
+    changelog = true
+    release = draft
+```
 
-## Configuration
-Describe the settings in the .tagpr file directly under the repository in gitconfig format. This is automatically created the first time tagpr is run, but feel free to adjust it. The following configuration items are available
+Every setting can also be supplied through its corresponding `TAGPR_*` environment
+variable. Environment variables take precedence over values in `.tagpr`. The GitHub
+Action's `config` input or `TAGPR_CONFIG_FILE` can select a different configuration
+file.
 
-### tagpr.releaseBranch
-Generally, it is "main." It is the branch for releases. The tagpr tracks this branch,
-creates or updates a pull request as a release candidate, or tags when they are merged.
+### Path resolution
 
-### tagpr.versionFile
-File that holds the semantic version, kept in sync with the git tag: the next
-version is written into it when the release pull request is prepared, and read
-back from it to decide the tag at merge time (so editing the version in the pull
-request works). Often this is a meta-information file such as gemspec, setup.cfg,
-or package.json, but a source file such as version.go or Bar.pm is also common.
-If left empty, tagpr scans the repository and picks a likely file automatically.
-Specify "-" to rely on git tags only and skip file updates entirely.
-You can specify multiple version files by comma separated strings.
+Relative paths in the configuration are resolved from tagpr's working directory, not
+from the directory containing the configuration file. The GitHub Action runs tagpr from
+`GITHUB_WORKSPACE`, so these paths are relative to the repository root:
 
-### tagpr.vPrefix
-Flag whether or not v-prefix is added to semver when git tagging. (e.g. v1.2.3 if true)  
-This is only a tagging convention, not how it is described in the version file.
+- `tagpr.versionFile`
+- `tagpr.changelogFile`
+- `tagpr.releaseYAMLPath`
+- `tagpr.template`
 
-### tagpr.changelog (Optional)
-Flag whether or not changelog is added or changed during the release.
+`tagpr.command` and `tagpr.postVersionCommand` also run from the repository root. If
+`tagpr.versionFile` is omitted, automatic detection scans from the repository root.
 
-### tagpr.command (Optional)
-Command to change files just before release and versioning.
+For example, when `config: tools/.tagpr` is used, write
+`versionFile = tools/package.json`, not `versionFile = package.json`.
 
-### tagpr.postVersionCommand (Optional)
-Command to change files just after versioning.
+### Release target and version files
 
-### tagpr.template (Optional)
-Pull request template file in go template format
+#### tagpr.releaseBranch
 
-### tagpr.templateText (Optional)
-Pull request template text in go template format
+The branch from which releases are made. tagpr tracks this branch, creates or updates
+its release pull request, and tags the commit after that pull request is merged. The
+workflow's push trigger must include this branch.
 
-### tagpr.release (Optional)
-GitHub Release creation behavior after tagging `[true, draft, false]`  
-If this value is not set, the release is to be created.
+Environment variable: `TAGPR_RELEASE_BRANCH`.
 
-### tagpr.majorLabels (Optional)
-Label(s) of major update targets. Comma-separated. Default is `major`.
+#### tagpr.versionFile
 
-### tagpr.minorLabels (Optional)
-Label(s) of minor update targets. Comma-separated. Default is `minor`.
+One or more comma-separated files that hold the version. tagpr writes the proposed
+version when preparing the release pull request and reads it at merge time, so a manual
+edit in the pull request determines the final tag.
 
-### tagpr.commitPrefix (Optional)
-Prefix of commit message. Default is "[tagpr]"
+If the setting is absent or empty, tagpr scans the repository for a likely version file.
+Set it to `-` to rely on Git tags only.
 
-### tagpr.tagPrefix (Optional)
-Tag prefix for monorepo support (e.g., `tools` produces tags like `tools/v1.2.3`).
-This allows managing multiple modules with independent versioning in a single repository.
+Environment variable: `TAGPR_VERSION_FILE`.
 
-### tagpr.changelogFile (Optional)
-Path to the changelog file. Default is `CHANGELOG.md`.
+#### tagpr.vPrefix
 
-### tagpr.releaseYAMLPath (Optional)
-Path to the GitHub release notes config file used by `gh2changelog`.
-If not set, tagpr creates `.github/release.yml` on first run if neither `.github/release.yml` nor `.github/release.yaml` exists.
+Whether to add `v` before a SemVer tag, for example `v1.2.3`. This setting controls only
+the Git tag format, not the value written to the version file.
 
-### tagpr.calendarVersioning (Optional)
-Use Calendar Versioning (CalVer) instead of Semantic Versioning.
-Set to `true` to use the default format (`YYYY.MM0D.MICRO`), or specify a custom format string directly.
-Labels for major/minor are ignored when this option is enabled.
+Environment variable: `TAGPR_VPREFIX`.
 
-Available format tokens (see https://calver.org):
-- Year: `YYYY` (4-digit), `YY` (2-digit), `0Y` (zero-padded 2-digit)
-- Month: `MM` (no padding), `0M` (zero-padded)
-- Week: `WW` (no padding), `0W` (zero-padded)
-- Day: `DD` (no padding), `0D` (zero-padded)
-- Micro: `MICRO` (auto-incrementing patch number for same date)
+#### tagpr.tagPrefix (Optional)
+
+A path-like prefix for independently versioned projects in a monorepo. For example,
+`tools` produces tags such as `tools/v1.2.3`, and `backend/api` produces tags such as
+`backend/api/v1.0.0`.
+
+Environment variable: `TAGPR_TAG_PREFIX`.
+
+#### tagpr.fixedMajorVersion (Optional)
+
+Restricts releases to one major version. This is useful for maintaining branches such
+as `v1` while `main` releases v2. Both `1` and `v1` are accepted. This option cannot be
+used with `tagpr.calendarVersioning`.
+
+Environment variable: `TAGPR_FIXED_MAJOR_VERSION`.
+
+### Version selection
+
+#### tagpr.majorLabels (Optional)
+
+Comma-separated labels on merged pull requests that indicate a major update. The
+default is `major`.
+
+Environment variable: `TAGPR_MAJOR_LABELS`.
+
+#### tagpr.minorLabels (Optional)
+
+Comma-separated labels on merged pull requests that indicate a minor update. The
+default is `minor`.
+
+Environment variable: `TAGPR_MINOR_LABELS`.
+
+#### tagpr.calendarVersioning (Optional)
+
+Enables Calendar Versioning. Set it to `true` for the default format
+`YYYY.MM0D.MICRO`, or specify a custom format.
+
+Available format tokens follow [CalVer](https://calver.org/):
+
+- Year: `YYYY` (four digits), `YY` (two digits), `0Y` (zero-padded two digits)
+- Month: `MM` (not padded), `0M` (zero-padded)
+- Week: `WW` (not padded), `0W` (zero-padded)
+- Day: `DD` (not padded), `0D` (zero-padded)
+- Micro: `MICRO` (auto-incremented for the same date)
 
 Examples:
-- `true` or `"YYYY.MM0D.MICRO"` → `v2026.1203.0` (Dec 3rd, 2026)
-- `"YYYY.0M.MICRO"` → `v2026.01.0`
-- `"YY.0M0D.MICRO"` → `v26.0123.0`
 
-### tagpr.fixedMajorVersion (Optional)
-Fix the major version for releases. When set, tagpr only considers tags with this major version.
-This is useful for maintaining multiple major versions on different branches, such as a `v1` branch for `v1.x.x` releases and `main` for `v2.x.x` releases.
-Accepts both numeric (`1`) and v-prefixed (`v1`) formats.
-This option cannot be used with `tagpr.calendarVersioning`.
+- `true` or `YYYY.MM0D.MICRO` produces a version such as `2026.1203.0`.
+- `YYYY.0M.MICRO` produces a version such as `2026.01.0`.
+- `YY.0M0D.MICRO` produces a version such as `26.0123.0`.
+
+Environment variable: `TAGPR_CALENDAR_VERSIONING`.
+
+### Generated files and commands
+
+#### tagpr.changelog (Optional)
+
+Whether to create or update the changelog. Changelog generation is enabled by default.
+
+Environment variable: `TAGPR_CHANGELOG`.
+
+#### tagpr.changelogFile (Optional)
+
+The changelog path. The default is `CHANGELOG.md`.
+
+Environment variable: `TAGPR_CHANGELOG_FILE`.
+
+#### tagpr.releaseYAMLPath (Optional)
+
+The GitHub generated release-notes configuration used to build the changelog and GitHub
+Release. If this setting is absent, tagpr uses `.github/release.yml` or
+`.github/release.yaml` and creates `.github/release.yml` on the first run if neither
+file exists.
+
+Environment variable: `TAGPR_RELEASE_YAML_PATH`.
+
+#### tagpr.command (Optional)
+
+A command to run before tagpr updates the version file.
+
+Environment variable: `TAGPR_COMMAND`.
+
+#### tagpr.postVersionCommand (Optional)
+
+A command to run after tagpr updates the version file.
+
+Environment variable: `TAGPR_POST_VERSION_COMMAND`.
+
+Both commands receive:
+
+- `TAGPR_CURRENT_VERSION`: the current version tag, for example `v1.2.3`
+- `TAGPR_NEXT_VERSION`: the proposed version tag, for example `v1.3.0`
+
+See [Release preparation commands](docs/guides/release-commands.md) for execution order,
+working-directory behavior, repeated runs, and generated-file handling.
+
+### Release pull request
+
+#### tagpr.template (Optional)
+
+The path to a Go text template used for the release pull request title and body. The
+first rendered line becomes the title and the remaining content becomes the body. See
+[Release pull request templates](docs/reference/templates.md).
+
+Environment variable: `TAGPR_TEMPLATE`.
+
+#### tagpr.templateText (Optional)
+
+An inline Go text template used for the release pull request title and body. It is used
+only when `tagpr.template` is not set.
+
+Environment variable: `TAGPR_TEMPLATE_TEXT`.
+
+#### tagpr.commitPrefix (Optional)
+
+The prefix for commits created by tagpr. The default is `[tagpr]`.
+
+Environment variable: `TAGPR_COMMIT_PREFIX`.
+
+### GitHub Release
+
+#### tagpr.release (Optional)
+
+Controls GitHub Release creation after tagging:
+
+- `true` creates and publishes the release. This is the default.
+- `draft` creates a draft release.
+- `false` does not create a GitHub Release.
+
+Environment variable: `TAGPR_RELEASE`.
+
+## GitHub Action reference
+
+### Inputs
+
+#### config (Optional)
+
+The path to the tagpr configuration file. The default is `.tagpr`.
+
+#### version (Optional)
+
+The version of the tagpr executable installed by the action. The action supplies a
+tested default, so most workflows should leave this unset.
+
+### Outputs
+
+- `tag`: the created tag. It is empty when tagpr did not create a tag.
+- `pull_request`: JSON describing the release pull request created or updated by tagpr.
+- `base_tag`: the base version tag used for comparison. It is empty when no previous
+  tag exists.
 
 ## GitHub Enterprise
-If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`.
+
+For GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`:
 
 ```yaml
 - uses: Songmu/tagpr@v1
@@ -212,42 +527,55 @@ If you are using GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB
     GH_ENTERPRISE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## Inputs for GitHub Actions
+## Troubleshooting
 
-### config (Optional)
-A path to the tagpr configuration file.
-If not specified, it will be ".tagpr" in the repository root.
+### tagpr cannot create a pull request
 
-## Environment variables
-When running `tagpr.command` or `tagpr.postVersionCommand`, tagpr exports the following environment variables:
+Check both the workflow `permissions` block and the repository's **Allow GitHub Actions
+to create and approve pull requests** setting. tagpr needs `contents: write`,
+`pull-requests: write`, and `issues: read`.
 
-- `TAGPR_CURRENT_VERSION`: the current version tag (e.g., `v1.2.3`)
-- `TAGPR_NEXT_VERSION`: the next version tag (e.g., `v1.3.0`)
+### A tag does not start another workflow
 
-## Outputs for GitHub Actions
+Tags created with `GITHUB_TOKEN` do not trigger another workflow. Run the publishing
+step in the same workflow by checking the `tag` output, or use a GitHub App installation
+token when a separate workflow is required.
 
-The tagpr produces output to be used in conjunction with subsequent GitHub Actions jobs.
+### tagpr selected the wrong version file
 
-- `pull_request`: Information of the pull request created by tagpr in JSON format
-- `tag`: Tag strings are output only if the tagpr has tagged
-- `base_tag`: The base semver tag for comparison, empty if no previous tag exists
+Edit `tagpr.versionFile` in `.tagpr`. Use comma-separated paths for multiple files, or
+`-` for tag-only releases. Commit the corrected configuration to the release pull
+request.
 
-It is useful to see if tag is available and to run tasks after release. The following is an example of running action-update-semver after release.
+### Files are not found when `.tagpr` is in a subdirectory
 
-```yaml
-- uses: actions/checkout@v6
-  with:
-    persist-credentials: false
-- id: tagpr
-  uses: Songmu/tagpr@v1
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-- uses: haya14busa/action-update-semver@v1
-  if: "steps.tagpr.outputs.tag != ''"
-  with:
-    tag: ${{ steps.tagpr.outputs.tag }}
-```
+Configuration paths are relative to the repository root when using the GitHub Action;
+they are not relative to the `.tagpr` file. For `config: tools/.tagpr`, use paths such
+as `tools/package.json`, `tools/CHANGELOG.md`, and
+`tools/.github/release.yml`.
+
+If the problem persists, [open an issue][issues] with the workflow, `.tagpr`
+configuration, relevant tags, and the tagpr log.
+
+## Project links
+
+- [GitHub Marketplace][marketplace]
+- [Releases][releases]
+- [Changelog](CHANGELOG.md)
+- [Issues][issues]
+- [Sponsor Songmu][sponsor]
+- [MIT License][license]
 
 ## Author
 
 [Songmu](https://github.com/Songmu)
+
+[actions]: https://github.com/Songmu/tagpr/actions?workflow=test
+[github-generate-release-notes-api]: https://docs.github.com/en/rest/releases/releases#generate-release-notes-content-for-a-release
+[github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
+[issues]: https://github.com/Songmu/tagpr/issues
+[license]: https://github.com/Songmu/tagpr/blob/main/LICENSE
+[marketplace]: https://github.com/marketplace/actions/automate-pull-request-generation-and-tagging-for-releases-using-tagpr
+[PkgGoDev]: https://pkg.go.dev/github.com/Songmu/tagpr
+[releases]: https://github.com/Songmu/tagpr/releases
+[sponsor]: https://github.com/sponsors/Songmu
