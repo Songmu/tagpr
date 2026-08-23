@@ -4,6 +4,8 @@ tagpr prepares a release pull request for unreleased changes, then tags the merg
 commit and optionally creates a GitHub Release. It makes release preparation automated
 and repeatable while keeping the release decision visible and reviewable.
 
+![The release PR branch diverges from the release branch and merges back at the tagged release commit](images/release-flow.png)
+
 ## Start here
 
 - [Getting started](getting-started.md) explains the complete path from adding the

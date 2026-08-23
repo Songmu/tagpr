@@ -6,7 +6,7 @@
   {{- with .Page.File -}}
     {{- $pageDir = .Dir -}}
   {{- end -}}
-  {{- $asset := path.Clean (path.Join $pageDir $parsed.Path) -}}
+  {{- $asset := strings.TrimPrefix "/" (path.Clean (path.Join $pageDir $parsed.Path)) -}}
   {{- if not (fileExists (path.Join "static" $asset)) -}}
     {{- errorf "unresolved documentation image %q in %s" $destination .Page.Path -}}
   {{- end -}}
