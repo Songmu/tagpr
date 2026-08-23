@@ -61,7 +61,13 @@ draft, and publish it:
 The upload must succeed before the command publishes the draft. Keep publishing in the
 same workflow when using `GITHUB_TOKEN`; tags created with that token do not normally
 trigger another workflow. To use a separate tag-triggered workflow, provide tagpr with
-a token that can trigger workflows. See
+a token that can trigger workflows.
+
+The separate workflow can start before the draft exists because tagpr pushes the tag
+before it creates the GitHub Release. Retry the draft lookup until it becomes available,
+or dispatch the publishing workflow only after the tagpr job completes. Changing the
+token makes the workflow trigger possible, but does not by itself prevent this race.
+See
 [Publishing after a release](publish-after-release.md#github_token-constraints) for the
 authentication and workflow-layout tradeoffs.
 
