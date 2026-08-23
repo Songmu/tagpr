@@ -1,0 +1,8 @@
+[tagpr]
+    vPrefix = false
+    releaseBranch = main
+    versionFile = -
+    changelog = false
+    release = false
+    tagPrefix = docs
+    calendarVersioning = YYYY.0M0D.MICRO

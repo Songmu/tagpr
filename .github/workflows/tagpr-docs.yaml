@@ -1,0 +1,37 @@
+name: tagpr-docs
+on:
+  push:
+    branches:
+    - "main"
+    paths:
+    - "docs/**"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+jobs:
+  tagpr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Generate token
+      id: generate_token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: read
+    - name: checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        token: ${{ steps.generate_token.outputs.token }}
+    - name: tagpr
+      uses: Songmu/tagpr@d1b8138b7a31075141b6cd64103de9485ced7ac9 # v1.20.1
+      with:
+        config: docs/.tagpr
+      env:
+        GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
