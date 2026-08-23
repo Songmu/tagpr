@@ -11,7 +11,7 @@ For a new project without an established release process, follow
 
 Record the current release state:
 
-- the branch from which releases are made;
+- the release branch from which releases are made;
 - the latest released version and the commit tagged with that version;
 - the tag format, including a `v` prefix or a monorepo prefix;
 - every file that stores the project version;
@@ -61,7 +61,7 @@ files reviewable independently of the first release pull request.
 
 Check these settings in particular:
 
-- `releaseBranch` matches both the workflow trigger and the branch used for releases.
+- `releaseBranch` identifies the release branch and matches the workflow trigger.
 - `versionFile` lists every file tagpr should update. Use `-` for tag-only releases.
 - `vPrefix` matches existing tags.
 - `tagPrefix` scopes an independently released project in a monorepo.
@@ -129,10 +129,10 @@ release process:
 - publishing or deployment will run exactly once after tagging.
 
 If the history range or generated changes are wrong, leave the pull request open.
-Correct `.tagpr`, the baseline, or the release-note configuration on the release branch.
-tagpr will regenerate the release proposal. A change to the baseline tag or
-`tagPrefix` can produce a different temporary branch; close any superseded release pull
-request after confirming the replacement.
+Correct `.tagpr`, the baseline, or the release-note configuration on the release target
+branch. tagpr will regenerate the release proposal. A change to the baseline tag or
+`tagPrefix` can produce a different release PR branch; close any superseded release
+pull request after confirming the replacement.
 
 You can edit the version file or add `tagpr:minor` or `tagpr:major` on the release pull
 request when the proposed SemVer increment needs adjustment. See

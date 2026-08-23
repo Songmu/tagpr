@@ -22,24 +22,27 @@ tag-only releases, monorepos, and maintenance branches for older major versions.
 
 ## How it works
 
+The **release branch** is the long-lived branch configured by `tagpr.releaseBranch`,
+normally `main`. The **release PR branch** is the temporary `tagpr-from-*` branch that
+tagpr manages as the head of the release pull request.
+
 ### Create, review, and release
 
-1. tagpr detects unreleased changes when a push advances the release branch, normally
-   `main`.
-2. tagpr creates or rebuilds a temporary branch, then creates or updates a release pull
-   request. By default, it updates the version file and `CHANGELOG.md`.
+1. tagpr detects unreleased changes when a push advances the release branch.
+2. tagpr creates or rebuilds the release PR branch, then creates or updates a release
+   pull request. By default, it updates the version file and `CHANGELOG.md`.
 3. You review the generated and project-specific release changes, then merge the pull
    request when you are ready to release.
-4. On the next run, tagpr tags the merge commit at the head of `main` and creates a
-   GitHub Release unless configured otherwise.
+4. On the next run, tagpr tags the merge commit at the head of the release branch and
+   creates a GitHub Release unless configured otherwise.
 
-![The release branch diverges from main and merges back at the tagged release commit](docs/images/release-flow.png)
+![The release PR branch diverges from the release branch and merges back at the tagged release commit](docs/images/release-flow.png)
 
 ### Keep the release pull request current
 
-If the release pull request remains open and `main` advances again, tagpr automatically
-updates it. tagpr rebuilds the temporary branch from the latest `main`, producing a
-rebase-like result without requiring a manual rebase.
+If the release pull request remains open and the release branch advances again, tagpr
+automatically updates it. tagpr rebuilds the release PR branch from the latest release
+branch commit, producing a rebase-like result without requiring a manual rebase.
 
 ### Adjust the release pull request
 
@@ -50,8 +53,8 @@ These repeatable changes can also be automated with `tagpr.command` or
 [Release preparation commands](docs/guides/release-commands.md) for execution order and
 examples.
 
-When tagpr updates the pull request after `main` advances, it carries additional commits
-on the release branch forward as far as possible. See
+When tagpr updates the pull request after the release branch advances, it carries
+additional commits on the release PR branch forward as far as possible. See
 [Release flow and design](docs/concepts/release-flow.md) for the detailed update graph.
 
 ### Merge when you are ready
@@ -161,7 +164,7 @@ You can customize these changes:
   updated.
 - Set `tagpr.postVersionCommand` to run a command after version files are updated.
 - Set `tagpr.template` or `tagpr.templateText` to customize the release pull request.
-- Commit manual release changes directly to the generated release branch.
+- Commit manual release changes directly to the release PR branch.
 
 See [Release pull request templates](docs/reference/templates.md) for the available
 template variables and examples.
@@ -352,9 +355,9 @@ For example, when `config: tools/.tagpr` is used, write
 
 #### tagpr.releaseBranch
 
-The branch from which releases are made. tagpr tracks this branch, creates or updates
-its release pull request, and tags the commit after that pull request is merged. The
-workflow's push trigger must include this branch.
+The release branch from which releases are made and into which the release pull request
+is merged. tagpr tracks this branch and tags its head after the release pull request is
+merged. The workflow's push trigger must include this branch.
 
 Environment variable: `TAGPR_RELEASE_BRANCH`.
 

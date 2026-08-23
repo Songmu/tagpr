@@ -41,7 +41,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-The explicit permissions let tagpr push its release branch, create and update the
+The explicit permissions let tagpr push its release PR branch, create and update the
 release pull request, inspect merged pull requests, and create tags and GitHub Releases.
 `persist-credentials: false` ensures that tagpr uses the token supplied through its
 environment for Git operations instead of credentials retained by checkout.
@@ -96,7 +96,8 @@ you are ready to release.
 Before merging, you can:
 
 - review the proposed version and changelog;
-- commit project-specific release changes directly to the release branch;
+- commit project-specific release changes directly to the release PR branch
+  (`tagpr-from-*`);
 - edit the configured version file to select an exact version;
 - add `tagpr:minor` or `tagpr:major` to change the proposed SemVer bump.
 

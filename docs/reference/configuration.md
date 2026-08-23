@@ -30,7 +30,7 @@ detection scans from there.
 
 | Setting | Purpose |
 | --- | --- |
-| `tagpr.releaseBranch` | Branch from which releases are made |
+| `tagpr.releaseBranch` | Release branch into which the release pull request is merged |
 | `tagpr.fixedMajorVersion` | Restrict a maintenance branch to one major version |
 
 ## Version selection

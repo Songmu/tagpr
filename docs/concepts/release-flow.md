@@ -20,7 +20,7 @@ the proposed release is visible to maintainers and contributors before it happen
 
 The pull request is both automation output and an escape hatch. tagpr prepares the
 routine changes, while maintainers can commit any exceptional release work to the same
-branch.
+release PR branch.
 
 ## Design principles
 
@@ -41,36 +41,40 @@ users can see both the proposed contents and version in the open release pull re
 
 ## Lifecycle
 
-The following examples use `main`, the default release branch. Another branch can be
-selected with `tagpr.releaseBranch`.
+The **release branch** is the long-lived branch configured by `tagpr.releaseBranch`. It
+is the base of the release pull request and receives the release commit. The **release
+PR branch** is the temporary `tagpr-from-*` branch that tagpr manages as the pull
+request head.
+
+The following examples use `main` as the release branch.
 
 ### 1. Advancing main creates a release pull request
 
 When `main` advances beyond the latest release tag, tagpr automatically creates a
-temporary branch and a release pull request. By default, the pull request:
+release PR branch and a release pull request. By default, the pull request:
 
 - proposes the next version;
 - updates configured version files;
 - updates the changelog from GitHub's generated release notes; and
 - creates a release-note configuration when the repository has none.
 
-![Four numbered steps show tagpr detecting changes, building the release branch and pull request, the maintainer merging it, and tagpr tagging the merge commit](../images/release-flow.png)
+![Four numbered steps show tagpr detecting changes, building the release PR branch and pull request, the maintainer merging it into the release branch, and tagpr tagging the merge commit](../images/release-flow.png)
 
-The green line is `main`, and the coral line is the branch behind the release pull
-request. The numbered callouts distinguish tagpr's automated work from the maintainer's
-review and merge decision. Because tagpr refreshes the release pull request from the
-latest `main`, the branch point and merge commit are adjacent on `main` in the graph.
-The merge commit is the new head; tagpr runs again, attaches the version tag to that
-commit, and can also create a GitHub Release.
+The green line is the release branch, `main`, and the coral line is the release PR
+branch. The numbered callouts distinguish tagpr's automated work from the maintainer's
+review and merge decision. Because tagpr refreshes the release PR branch from the latest
+`main`, the branch point and merge commit are adjacent on `main` in the graph. The merge
+commit is the new head; tagpr runs again, attaches the version tag to that commit, and
+can also create a GitHub Release.
 
 The graph is conceptual; tagpr supports merge commits and squash merges.
 
 ### 2. An open release pull request follows main
 
-![The release branch is recreated from the latest main commit while a manual commit is carried forward](../images/release-branch-update.png)
+![The release PR branch is recreated from the latest commit on the release branch while a manual commit is carried forward](../images/release-branch-update.png)
 
 If the release pull request remains open and `main` advances again, tagpr automatically
-updates the pull request. It recreates the temporary branch from the latest `main` and
+updates the pull request. It recreates the release PR branch from the latest `main` and
 reapplies the release changes, producing a rebase-like result without requiring the
 maintainer to rebase it manually.
 
@@ -80,7 +84,7 @@ the updated state.
 ### 3. Maintainers can adjust the release pull request
 
 The release pull request is not read-only automation output. Maintainers can commit
-directly to its branch to perform work required before release, such as:
+directly to its release PR branch to perform work required before release, such as:
 
 - selecting an exact version;
 - editing release notes;
@@ -92,8 +96,8 @@ files are updated, or `tagpr.postVersionCommand`, which runs afterward.
 See [Release preparation commands](../guides/release-commands.md) for execution details.
 
 When tagpr updates the pull request after `main` advances, it tries to preserve these
-additional commits by carrying them forward onto the recreated branch. The diamond in
-the update diagram represents a manual commit preserved in this way.
+additional commits by carrying them forward onto the recreated release PR branch. The
+diamond in the update diagram represents a manual commit preserved in this way.
 
 After reviewing the automatically generated and manually adjusted changes, merge the
 pull request to release them.
