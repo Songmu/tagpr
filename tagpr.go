@@ -511,6 +511,8 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 	if releaseYaml == "" {
+		// GitHub supports both default filenames when configuration_file_path is omitted.
+		// https://docs.github.com/en/rest/releases/releases#generate-release-notes-content-for-a-release
 		const defaultReleaseYml = ".github/release.yml"
 		const defaultReleaseYaml = ".github/release.yaml"
 		if !exists(defaultReleaseYml) && !exists(defaultReleaseYaml) {
