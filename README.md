@@ -67,6 +67,7 @@ adopt.
 
 ## Documentation
 
+- [Published documentation](https://junkyard.song.mu/tagpr/)
 - [Documentation index](docs/index.md)
 - [Getting started](docs/getting-started.md)
 - [Adopting tagpr in an existing project](docs/guides/adopting-tagpr.md)
@@ -78,6 +79,16 @@ adopt.
 - [Immutable GitHub Releases](docs/guides/immutable-releases.md)
 - [Configuration index](docs/reference/configuration.md)
 - [Release pull request templates](docs/reference/templates.md)
+
+Build the documentation site locally with Hugo Extended 0.165.0:
+
+```console
+./docs/site/build.sh
+```
+
+The generated site is written to `site/`.
+Before the first deployment, set the repository's **Settings > Pages > Source** to
+**GitHub Actions**.
 
 ## Quickstart
 
