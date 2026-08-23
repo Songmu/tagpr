@@ -80,16 +80,6 @@ adopt.
 - [Configuration index](docs/reference/configuration.md)
 - [Release pull request templates](docs/reference/templates.md)
 
-Build the documentation site locally with Hugo Extended 0.165.0:
-
-```console
-./docs/site/build.sh
-```
-
-The generated site is written to `site/`.
-Before the first deployment, set the repository's **Settings > Pages > Source** to
-**GitHub Actions**.
-
 ## Quickstart
 
 tagpr is designed to run in GitHub Actions. Add the following workflow to a repository
