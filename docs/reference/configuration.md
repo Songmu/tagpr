@@ -77,6 +77,9 @@ variables, and examples.
 | --- | --- |
 | `tagpr.release` | Create a published release, a draft, or no GitHub Release |
 
+See [Immutable GitHub Releases](../guides/immutable-releases.md) when a later workflow
+must attach assets before publishing.
+
 ## Monorepos
 
 Use `tagpr.tagPrefix` to give each independently released project its own tag namespace.

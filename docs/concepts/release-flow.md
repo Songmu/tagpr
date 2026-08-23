@@ -154,3 +154,7 @@ tagpr marks the release commit and can create the GitHub Release, but package bu
 registry uploads, and deployment remain project-specific. Keeping those steps outside
 tagpr lets each project use its own release tooling while relying on a consistent
 release decision and tag.
+
+Repositories that make GitHub Releases immutable must attach assets before publishing.
+See [Immutable GitHub Releases](../guides/immutable-releases.md) for the supported
+division of responsibility between tagpr and downstream release tooling.

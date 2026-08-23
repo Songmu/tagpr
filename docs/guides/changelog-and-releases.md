@@ -85,6 +85,11 @@ artifacts tagpr writes:
 The release pull request body still uses GitHub's generated notes when changelog-file or
 GitHub Release creation is disabled.
 
+If release assets must be built after tagging, see
+[Immutable GitHub Releases](immutable-releases.md) before enabling immutable releases.
+It explains when to let tagpr prepare a draft and when to delegate release creation to
+another workflow.
+
 [github-generated-release-notes]: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
 [github-generate-release-notes-api]: https://docs.github.com/en/rest/releases/releases#generate-release-notes-content-for-a-release
 [keep-a-changelog]: https://keepachangelog.com/

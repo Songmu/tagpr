@@ -3,6 +3,11 @@
 tagpr creates the version tag and exposes outputs that downstream steps can use. Choose
 between publishing in the tagpr workflow and triggering a separate workflow.
 
+When the downstream operation adds GitHub Release assets and the repository uses
+immutable releases, publication must happen only after every asset is attached. See
+[Immutable GitHub Releases](immutable-releases.md) for the `tagpr.release = draft` and
+`tagpr.release = false` coordination patterns.
+
 ## `GITHUB_TOKEN` constraints
 
 The repository's `GITHUB_TOKEN` is the simplest credential to use with tagpr because
