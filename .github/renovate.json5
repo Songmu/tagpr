@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  // Dependabot continues to manage Go modules and GitHub Actions.
+  "enabledManagers": [
+    "custom.regex"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update the Hugo version used to build the documentation site",
+      "managerFilePatterns": [
+        "/^docs\\/site\\/\\.hugo-version$/"
+      ],
+      "matchStrings": [
+        "^(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s*$"
+      ],
+      "depNameTemplate": "gohugoio/hugo",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDepNames": [
+        "gohugoio/hugo"
+      ],
+      "schedule": [
+        "before 6am on monday"
+      ]
+    }
+  ]
+}

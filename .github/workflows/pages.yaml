@@ -17,9 +17,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  HUGO_VERSION: 0.165.0
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,22 +31,14 @@ jobs:
       with:
         go-version-file: docs/site/go.mod
         cache: false
-    - name: install hugo
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        set -euo pipefail
-        archive="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
-        gh release download "v${HUGO_VERSION}" \
-          --repo gohugoio/hugo \
-          --pattern "$archive" \
-          --pattern "hugo_${HUGO_VERSION}_checksums.txt" \
-          --dir "$RUNNER_TEMP"
-        grep "  $archive$" "$RUNNER_TEMP/hugo_${HUGO_VERSION}_checksums.txt" \
-          | (cd "$RUNNER_TEMP" && sha256sum --check)
-        mkdir -p "$RUNNER_TEMP/hugo"
-        tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/hugo" hugo
-        echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
+    - name: read hugo version
+      id: hugo-version
+      run: echo "version=$(cat docs/site/.hugo-version)" >> "$GITHUB_OUTPUT"
+    - name: setup hugo
+      uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1
+      with:
+        hugo-version: ${{ steps.hugo-version.outputs.version }}
+        extended: true
     - name: build
       run: ./docs/site/build.sh "$RUNNER_TEMP/site"
     - name: upload pages artifact
