@@ -1,7 +1,7 @@
 [tagpr]
     vPrefix = false
     releaseBranch = main
-    versionFile = -
+    versionFile = docs/VERSION
     changelog = false
     release = false
     tagPrefix = docs
