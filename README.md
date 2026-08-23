@@ -229,42 +229,16 @@ publishing or deployment step in the same workflow:
 
 ### Triggering a separate workflow
 
-Events created with the repository's `GITHUB_TOKEN` do not start another GitHub Actions
-workflow. This prevents accidental recursive workflow runs. Therefore, a tag created by
-tagpr with `GITHUB_TOKEN` will not trigger a separate tag-based release workflow.
+Events created with the repository's `GITHUB_TOKEN` do not normally start another
+GitHub Actions workflow. Therefore, a tag created by tagpr with `GITHUB_TOKEN` will not
+trigger a separate tag-based release workflow. Eligible workflows for release pull
+requests are an exception: GitHub queues them, but they require approval from a user
+with write access before they run.
 
-If the tag must trigger another workflow, use a token from a GitHub App or another token
-that has the required repository permissions. A GitHub App installation token is
-recommended because it is short-lived. For simplicity, the following example uses a
-personal access token stored as `GH_PAT`:
-
-```yaml
-name: tagpr
-on:
-  push:
-    branches: ["main"]
-
-permissions:
-  contents: write
-  pull-requests: write
-  issues: read
-
-jobs:
-  tagpr:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        token: ${{ secrets.GH_PAT }}
-        persist-credentials: false
-    - uses: Songmu/tagpr@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-```
-
-See GitHub's documentation on
-[triggering a workflow from a workflow][github-token-trigger] for the underlying token
-behavior.
+Either run publishing in this workflow using `steps.tagpr.outputs.tag`, or supply tagpr
+with a GitHub App installation token when a separate tag-triggered workflow must run.
+See [Publishing after a release](docs/guides/publish-after-release.md) for the tradeoffs,
+examples, required permissions, and token setup.
 
 ## Common configurations
 
@@ -592,7 +566,6 @@ configuration, relevant tags, and the tagpr log.
 
 [actions]: https://github.com/Songmu/tagpr/actions?workflow=test
 [github-generate-release-notes-api]: https://docs.github.com/en/rest/releases/releases#generate-release-notes-content-for-a-release
-[github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
 [issues]: https://github.com/Songmu/tagpr/issues
 [license]: https://github.com/Songmu/tagpr/blob/main/LICENSE
 [marketplace]: https://github.com/marketplace/actions/automate-pull-request-generation-and-tagging-for-releases-using-tagpr
