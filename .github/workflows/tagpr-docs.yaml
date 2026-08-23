@@ -5,7 +5,6 @@ on:
     - "main"
     paths:
     - "docs/**"
-    - "!docs/site/**"
   workflow_dispatch:
 permissions:
   contents: write
