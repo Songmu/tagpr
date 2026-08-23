@@ -229,11 +229,11 @@ publishing or deployment step in the same workflow:
 
 ### Triggering a separate workflow
 
-Events created with the repository's `GITHUB_TOKEN` do not start another GitHub Actions
-workflow. This prevents accidental recursive workflow runs. Therefore, a tag created by
-tagpr with `GITHUB_TOKEN` will not trigger a separate tag-based release workflow.
-Workflows on release pull requests created with `GITHUB_TOKEN` also require approval
-from a user with write access.
+Events created with the repository's `GITHUB_TOKEN` do not normally start another
+GitHub Actions workflow. Therefore, a tag created by tagpr with `GITHUB_TOKEN` will not
+trigger a separate tag-based release workflow. Eligible workflows for release pull
+requests are an exception: GitHub queues them, but they require approval from a user
+with write access before they run.
 
 Either run publishing in this workflow using `steps.tagpr.outputs.tag`, or supply tagpr
 with a GitHub App installation token when a separate tag-triggered workflow must run.

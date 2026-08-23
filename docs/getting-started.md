@@ -46,17 +46,20 @@ release pull request, inspect merged pull requests, and create tags and GitHub R
 `persist-credentials: false` ensures that tagpr uses the token supplied through its
 environment for Git operations instead of credentials retained by checkout.
 
-The default `GITHUB_TOKEN` setup does not automatically trigger another workflow from a
-tag or release PR branch created by tagpr. See
-[Publishing after a release](guides/publish-after-release.md) for the constraints and
-the available workflow layouts.
+With the default `GITHUB_TOKEN`, a tag created by tagpr does not trigger another
+workflow. Eligible `pull_request` workflows for the release PR are queued, but require
+approval from a user with write access before they run. See
+[Publishing after a release](guides/publish-after-release.md) for details and alternative
+workflow layouts.
 
 ## Enable pull request creation
 
 In the repository, open **Settings > Actions > General > Workflow permissions** and
 enable **Allow GitHub Actions to create and approve pull requests**.
 
-This repository setting is required in addition to the workflow's `permissions` block.
+This repository setting is required in addition to the workflow's `permissions` block
+when tagpr uses `GITHUB_TOKEN`. A GitHub App token is governed by the App's permissions
+instead.
 
 ## Run tagpr for the first time
 

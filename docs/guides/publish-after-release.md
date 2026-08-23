@@ -7,23 +7,20 @@ between publishing in the tagpr workflow and triggering a separate workflow.
 
 The repository's `GITHUB_TOKEN` is the simplest credential to use with tagpr because
 GitHub creates it automatically for each workflow run. However, events created with
-`GITHUB_TOKEN` do not normally start another workflow run. This affects tagpr in two
-places:
+`GITHUB_TOKEN` [do not normally start another workflow run][github-token-trigger]. This
+affects tagpr in two places:
 
 - a tag created by tagpr does not trigger a workflow configured with `on.push.tags`;
-- workflows on the release PR created by tagpr do not run automatically.
-
-GitHub allows workflows on pull requests created by `github-actions[bot]` to run after
-[a user with write access approves them][bot-pr-approval]. This makes the release PR
-workflows available with `GITHUB_TOKEN`, but adds a manual approval step.
+- eligible `pull_request` workflows for the release PR are queued, but do not run until
+  [a user with write access approves them][bot-pr-approval].
 
 There are two ways to run publishing or deployment automatically after tagpr creates a
 tag:
 
 | Layout | Advantage | Tradeoff |
 | --- | --- | --- |
-| Publish in the tagpr workflow | Uses `GITHUB_TOKEN` without additional credentials | Keeps tagpr and publishing in the same workflow |
-| Trigger a separate tag workflow | Keeps release responsibilities in separate workflows | Requires a token that can trigger workflows |
+| Publish in the tagpr workflow | Uses `GITHUB_TOKEN` without additional credentials | Release PR workflows require approval, and publishing shares tagpr's workflow permissions and environment |
+| Trigger a separate tag workflow | Separates release responsibilities and lets tag and release PR workflows run automatically | Requires a token that can trigger workflows |
 
 ## Publish in the same workflow
 
@@ -59,9 +56,7 @@ Other available outputs are:
 
 ## Trigger a separate workflow
 
-GitHub does not start another workflow for events created with the repository's
-`GITHUB_TOKEN`. As a result, a tag created by tagpr with `GITHUB_TOKEN` does not trigger
-a workflow configured with:
+To keep publishing or deployment in a workflow configured with `on.push.tags`:
 
 ```yaml
 on:
@@ -70,9 +65,9 @@ on:
     - "v*"
 ```
 
-Supply tagpr with a token other than `GITHUB_TOKEN` when the tag must trigger a separate
-workflow. A personal access token works, but a short-lived GitHub App installation
-token created by [`actions/create-github-app-token`][create-app-token] is recommended.
+Supply tagpr with a token other than `GITHUB_TOKEN` so the tag can trigger that
+workflow. A personal access token works, but a short-lived GitHub App installation token
+created by [`actions/create-github-app-token`][create-app-token] is recommended.
 
 The GitHub App must be installed on the repository with these permissions:
 
@@ -108,6 +103,10 @@ and use it for both checkout and tagpr:
 Tags and release PR updates created with this installation token can trigger their
 respective workflows without the `GITHUB_TOKEN` restrictions.
 
+The repository setting **Allow GitHub Actions to create and approve pull requests**
+controls `GITHUB_TOKEN`; GitHub App tokens are instead governed by the App's
+permissions.
+
 ## Keep publishing recoverable
 
 Regardless of which workflow layout you choose, make the publishing operation accept an
@@ -138,3 +137,4 @@ For the action's complete output reference, see the
 [bot-pr-approval]: https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/
 [create-app-token]: https://github.com/actions/create-github-app-token
 [ecschedule-tagpr]: https://github.com/Songmu/ecschedule/blob/main/.github/workflows/tagpr.yaml
+[github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
