@@ -75,6 +75,7 @@ adopt.
 - [Changelog and GitHub Releases](docs/guides/changelog-and-releases.md)
 - [Release preparation commands](docs/guides/release-commands.md)
 - [Publishing after a release](docs/guides/publish-after-release.md)
+- [Immutable GitHub Releases](docs/guides/immutable-releases.md)
 - [Configuration index](docs/reference/configuration.md)
 - [Release pull request templates](docs/reference/templates.md)
 

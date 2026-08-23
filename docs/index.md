@@ -20,6 +20,8 @@ and repeatable while keeping the release decision visible and reviewable.
   project-specific file changes before release.
 - [Publishing after a release](guides/publish-after-release.md) explains how to publish
   artifacts or deploy after tagpr creates a tag.
+- [Immutable GitHub Releases](guides/immutable-releases.md) explains how to attach
+  assets before publication by coordinating tagpr with a later release workflow.
 - [Configuration index](reference/configuration.md) groups the available settings by
   purpose and links to the complete reference.
 - [Release pull request templates](reference/templates.md) documents title and body
@@ -40,6 +42,8 @@ and repeatable while keeping the release decision visible and reviewable.
 | Run project-specific release changes | [Release preparation commands](guides/release-commands.md) |
 | Publish from the same workflow | [Publishing after a release](guides/publish-after-release.md#publish-in-the-same-workflow) |
 | Trigger a separate workflow | [Publishing after a release](guides/publish-after-release.md#trigger-a-separate-workflow) |
+| Publish assets with immutable releases | [Immutable GitHub Releases](guides/immutable-releases.md) |
+| Reuse a tagpr draft with GoReleaser | [Immutable GitHub Releases](guides/immutable-releases.md#reuse-the-draft-with-goreleaser) |
 | Diagnose a setup problem | [README troubleshooting](../README.md#troubleshooting) |
 
 ## Reference
