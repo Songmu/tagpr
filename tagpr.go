@@ -785,9 +785,18 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-	changelog, orig, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
-	if err != nil {
-		return err
+	var changelog, orig string
+	if prog := tp.cfg.ReleaseNoteCommand(); prog != "" {
+		out, err := tp.execReleaseNoteCommand(prog, latestSemverTag, draftNextTag, releaseBranch)
+		if err != nil {
+			return fmt.Errorf("releaseNoteCommand failed: %w", err)
+		}
+		changelog, orig = out, out
+	} else {
+		changelog, orig, err = gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
+		if err != nil {
+			return err
+		}
 	}
 
 	if tp.cfg.changelog == nil || *tp.cfg.changelog {
@@ -1002,6 +1011,26 @@ func (tp *tagpr) Exec(prog string, currVer, nextVer *semv) {
 		"TAGPR_CURRENT_VERSION": currVer.Tag(),
 		"TAGPR_NEXT_VERSION":    nextVer.Tag(),
 	})
+}
+
+// execReleaseNoteCommand runs prog with baseRef and headRef as positional
+// arguments ($1 and $2), returning its trimmed standard output. targetCommitish
+// is the commit-ish tagpr would have passed as TargetCommitish to GitHub's
+// GenerateReleaseNotes API, exposed for parity since that API is bypassed.
+func (tp *tagpr) execReleaseNoteCommand(prog, baseRef, headRef, targetCommitish string) (string, error) {
+	var progArgs []string
+	if strings.ContainsAny(prog, " \n") {
+		progArgs = []string{"-c", prog, "sh", baseRef, headRef}
+		prog = "sh"
+	} else {
+		progArgs = []string{baseRef, headRef}
+	}
+	out, _, err := tp.c.Cmd(prog, progArgs, map[string]string{
+		"TAGPR_BASE_REF":         baseRef,
+		"TAGPR_HEAD_REF":         headRef,
+		"TAGPR_TARGET_COMMITISH": targetCommitish,
+	})
+	return out, err
 }
 
 func (tp *tagpr) defaultBranch() (string, error) {

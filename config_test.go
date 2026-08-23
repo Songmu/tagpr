@@ -275,6 +275,51 @@ func TestFixedMajorVersion(t *testing.T) {
 	}
 }
 
+func TestConfigReleaseNoteCommand(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+	if e, g := "", cfg.ReleaseNoteCommand(); e != g {
+		t.Errorf("got: %q, expect: %q", g, e)
+	}
+
+	if err := cfg.set(configReleaseNoteCommand, "./scripts/release-note.sh"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+	if e, g := "./scripts/release-note.sh", cfg.ReleaseNoteCommand(); e != g {
+		t.Errorf("got: %q, expect: %q", g, e)
+	}
+}
+
+func TestConfigReleaseNoteCommandFromEnv(t *testing.T) {
+	tmpdir := t.TempDir()
+	confPath := filepath.Join(tmpdir, defaultConfigFile)
+
+	t.Setenv("TAGPR_RELEASE_NOTE_COMMAND", "./scripts/release-note.sh")
+
+	cfg := &config{
+		conf:      confPath,
+		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	}
+
+	if err := cfg.Reload(); err != nil {
+		t.Error(err)
+	}
+	if e, g := "./scripts/release-note.sh", cfg.ReleaseNoteCommand(); e != g {
+		t.Errorf("got: %q, expect: %q", g, e)
+	}
+}
+
 func ptr[T any](v T) *T {
 	return &v
 }
