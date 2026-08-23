@@ -51,7 +51,7 @@ token must be used by both checkout and tagpr:
   id: app-token
   uses: actions/create-github-app-token@v3
   with:
-    app-id: ${{ secrets.APP_ID }}
+    client-id: ${{ secrets.CLIENT_ID }}
     private-key: ${{ secrets.PRIVATE_KEY }}
     permission-contents: write
     permission-pull-requests: write
