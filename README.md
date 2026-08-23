@@ -389,9 +389,11 @@ Environment variable: `TAGPR_TAG_PREFIX`.
 
 #### tagpr.fixedMajorVersion (Optional)
 
-Restricts releases to one major version. This is useful for maintaining branches such
-as `v1` while `main` releases v2. Both `1` and `v1` are accepted. This option cannot be
-used with `tagpr.calendarVersioning`.
+Targets releases at one major version for maintenance branches such as `v1` while
+`main` releases v2. tagpr limits current-version and changelog-baseline selection to
+existing tags in that major release line. This is not a hard release guard: a
+`tagpr:major` label can still propose the next major version. Both `1` and `v1` are
+accepted. This option cannot be used with `tagpr.calendarVersioning`.
 
 Environment variable: `TAGPR_FIXED_MAJOR_VERSION`.
 
@@ -429,6 +431,11 @@ Examples:
 - `true` or `YYYY.MM0D.MICRO` produces a version such as `2026.1203.0`.
 - `YYYY.0M.MICRO` produces a version such as `2026.01.0`.
 - `YY.0M0D.MICRO` produces a version such as `26.0123.0`.
+
+With a version file, tagpr calculates the CalVer value when it prepares or refreshes
+the release pull request and writes that value to the file. The merged value becomes
+the tag. With `versionFile = -`, tagpr calculates the value after merge when it creates
+the tag.
 
 Environment variable: `TAGPR_CALENDAR_VERSIONING`.
 

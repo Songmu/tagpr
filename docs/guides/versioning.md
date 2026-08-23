@@ -120,9 +120,16 @@ configured calendar format. Major and minor labels are ignored.
     calendarVersioning = YYYY.0M0D.MICRO
 ```
 
-The release date and existing matching CalVer tags determine the next version. See the
-[configuration reference](../reference/configuration.md#version-selection) for format
-tokens.
+With a configured version file, tagpr calculates the next CalVer value when it prepares
+or refreshes the release pull request and writes the value to that file. Merging the
+pull request tags the stored value, even if it is merged on a later date.
+
+With `tagpr.versionFile = -`, there is no stored proposal. tagpr calculates the CalVer
+value after merge when it creates the tag. Existing matching CalVer tags determine the
+next `MICRO` value in both modes.
+
+See [the `tagpr.calendarVersioning` reference](../../README.md#tagprcalendarversioning-optional)
+for the available format tokens.
 
 ## Monorepos
 
