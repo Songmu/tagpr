@@ -1,0 +1,21 @@
+{{- $destination := .Destination -}}
+{{- $parsed := urls.Parse $destination -}}
+{{- $href := $destination -}}
+{{- if and (not $parsed.IsAbs) (not (strings.HasPrefix $destination "#")) -}}
+  {{- if strings.HasSuffix $parsed.Path "README.md" -}}
+    {{- $href = "https://github.com/Songmu/tagpr/blob/main/README.md" -}}
+    {{- with $parsed.Fragment -}}
+      {{- $href = printf "%s#%s" $href . -}}
+    {{- end -}}
+  {{- else if strings.HasSuffix $parsed.Path ".md" -}}
+    {{- with .Page.GetPage $parsed.Path -}}
+      {{- $href = .RelPermalink -}}
+      {{- with $parsed.Fragment -}}
+        {{- $href = printf "%s#%s" $href . -}}
+      {{- end -}}
+    {{- else -}}
+      {{- errorf "unresolved documentation link %q in %s" $destination .Page.Path -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+<a href="{{ $href | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}>{{ .Text | safeHTML }}</a>

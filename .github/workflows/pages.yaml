@@ -1,0 +1,79 @@
+name: pages
+on:
+  pull_request:
+    paths:
+    - "docs/**"
+    - "README.md"
+    - ".github/workflows/pages.yaml"
+  push:
+    branches:
+    - "main"
+    paths:
+    - "docs/**"
+    - "README.md"
+    - ".github/workflows/pages.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  HUGO_VERSION: 0.165.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: setup go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: docs/site/go.mod
+        cache: false
+    - name: install hugo
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        archive="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
+        gh release download "v${HUGO_VERSION}" \
+          --repo gohugoio/hugo \
+          --pattern "$archive" \
+          --pattern "hugo_${HUGO_VERSION}_checksums.txt" \
+          --dir "$RUNNER_TEMP"
+        grep "  $archive$" "$RUNNER_TEMP/hugo_${HUGO_VERSION}_checksums.txt" \
+          | (cd "$RUNNER_TEMP" && sha256sum --check)
+        mkdir -p "$RUNNER_TEMP/hugo"
+        tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/hugo" hugo
+        echo "$RUNNER_TEMP/hugo" >> "$GITHUB_PATH"
+    - name: build
+      run: ./docs/site/build.sh "$RUNNER_TEMP/site"
+    - name: upload pages artifact
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      with:
+        path: ${{ runner.temp }}/site
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: deploy pages
+      id: deployment
+      uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

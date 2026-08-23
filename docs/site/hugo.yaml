@@ -1,0 +1,42 @@
+baseURL: https://junkyard.song.mu/tagpr/
+title: tagpr
+locale: en-US
+enableRobotsTXT: true
+disableKinds:
+- taxonomy
+- term
+
+module:
+  hugoVersion:
+    extended: true
+    min: 0.165.0
+  imports:
+  - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: false
+  highlight:
+    noClasses: false
+
+menu:
+  main:
+  - name: Search
+    weight: 1
+    params:
+      type: search
+  - name: GitHub
+    weight: 2
+    url: https://github.com/Songmu/tagpr
+    params:
+      icon: github
+
+params:
+  description: A GitHub Action for automated release pull requests and tagging
+  navbar:
+    displayTitle: true
+    displayLogo: false
+  theme:
+    default: system
+    displayToggle: true

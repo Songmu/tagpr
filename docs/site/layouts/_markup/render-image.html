@@ -1,0 +1,15 @@
+{{- $destination := .Destination -}}
+{{- $parsed := urls.Parse $destination -}}
+{{- $src := $destination -}}
+{{- if not $parsed.IsAbs -}}
+  {{- $pageDir := "" -}}
+  {{- with .Page.File -}}
+    {{- $pageDir = .Dir -}}
+  {{- end -}}
+  {{- $asset := path.Clean (path.Join $pageDir $parsed.Path) -}}
+  {{- if not (fileExists (path.Join "static" $asset)) -}}
+    {{- errorf "unresolved documentation image %q in %s" $destination .Page.Path -}}
+  {{- end -}}
+  {{- $src = relURL $asset -}}
+{{- end -}}
+<img src="{{ $src | safeURL }}" alt="{{ .Text }}"{{ with .Title }} title="{{ . }}"{{ end }}>
