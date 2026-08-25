@@ -2,6 +2,8 @@ package tagpr
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -43,6 +45,28 @@ func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, er
 	return nil, nil
 }
 
+// mergedBaseSHA returns the SHA of the release branch tip just before the release
+// pull request was merged. Since it is reported by the GitHub API as the base of the
+// pull request, it is independent of the merge method, and it is correct for
+// "Create a merge commit", "Squash and merge" and "Rebase and merge" alike.
+// Note that "HEAD~" cannot be used for this purpose because it may point to a commit
+// of the release pull request itself when "Rebase and merge" was used.
+func mergedBaseSHA(pr *github.PullRequest) (string, error) {
+	if pr == nil {
+		return "", errors.New("failed to detect the base commit of the release pull request: no pull request")
+	}
+	if pr.Base == nil {
+		return "", fmt.Errorf(
+			"failed to detect the base commit of the release pull request #%d: no base", pr.GetNumber())
+	}
+	sha := pr.Base.GetSHA()
+	if sha == "" {
+		return "", fmt.Errorf(
+			"failed to detect the base commit of the release pull request #%d: empty base SHA", pr.GetNumber())
+	}
+	return sha, nil
+}
+
 func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
 	var (
 		vfile string
@@ -50,11 +74,15 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	)
 	releaseBranch := tp.cfg.ReleaseBranch()
 
-	// Using "HEAD~" to retrieve the one previous commit before merging does not work well in cases
-	// "Rebase and merge" was used. However, we don't care about "Rebase and merge" and only support
-	// "Create a merge commit" and "Squash and merge."
+	// The base SHA of the merged release pull request points to the release branch tip
+	// just before the merge, regardless of which merge method was used.
+	baseSHA, err := mergedBaseSHA(pr)
+	if err != nil {
+		return err
+	}
+
 	if tp.cfg.VersionFile() == "" {
-		if _, _, err := tp.c.Git("checkout", "HEAD~"); err != nil {
+		if _, _, err := tp.c.Git("checkout", baseSHA); err != nil {
 			return err
 		}
 		vfile, err = detectVersionFile(".", currVer)
@@ -93,12 +121,9 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 
 	// To avoid putting pull requests created by tagpr itself in the release notes,
 	// we generate release notes in advance.
-	// Get the previous commitish to avoid picking up the merge of the pull
-	// request made by tagpr.
-	targetCommitish, _, err := tp.c.Git("rev-parse", "HEAD~")
-	if err != nil {
-		return nil
-	}
+	// Use the base commit of the release pull request to avoid picking up the merge
+	// of the pull request made by tagpr.
+	targetCommitish := baseSHA
 	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
 		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
 			TagName:               fullNextTag,

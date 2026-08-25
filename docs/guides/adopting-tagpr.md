@@ -112,9 +112,9 @@ Add the workflow from [Getting started](../getting-started.md#add-the-workflow),
 GitHub Actions to create pull requests, and push the configuration and workflow to the
 release branch.
 
-tagpr supports **Create a merge commit** and **Squash and merge** for the release pull
-request. It does not support **Rebase and merge**. Confirm that repository merge
-settings allow one of the supported methods before the first release.
+tagpr supports all the GitHub merge methods for the release pull request: **Create a
+merge commit**, **Squash and merge**, and **Rebase and merge**. You can keep the merge
+settings your repository already uses.
 
 ## Review the first release pull request
 
