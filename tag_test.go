@@ -415,6 +415,8 @@ func TestReleaseBoundarySHA(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			if tt.unsetEnv {
+				// t.Setenv registers the restoration of the original state,
+				// then the variable is removed to emulate a non-Actions run
 				t.Setenv(envGitHubEventPath, "")
 				os.Unsetenv(envGitHubEventPath)
 			} else {
