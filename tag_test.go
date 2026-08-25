@@ -81,6 +81,8 @@ func (r *testRepo) git(args ...string) string {
 		"GIT_AUTHOR_EMAIL=test@example.com",
 		"GIT_COMMITTER_NAME=Test",
 		"GIT_COMMITTER_EMAIL=test@example.com",
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL="+os.DevNull,
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -180,11 +182,11 @@ func writeEventFile(t *testing.T, payload string) string {
 	return path
 }
 
-func TestLatestMergedReleasePullRequestSelectsTagPR(t *testing.T) {
+func TestLatestMergedReleasePullRequestPaginatesAndMatchesBase(t *testing.T) {
 	r := newTestRepo(t, "")
 	headSHA := r.git("rev-parse", "HEAD")
 	mergedAt := &github.Timestamp{Time: time.Now()}
-	pulls := []*github.PullRequest{
+	firstPage := []*github.PullRequest{
 		{
 			Number:   github.Ptr(1),
 			MergedAt: mergedAt,
@@ -193,25 +195,52 @@ func TestLatestMergedReleasePullRequestSelectsTagPR(t *testing.T) {
 		{
 			Number: github.Ptr(2),
 			Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
+			Base:   &github.PullRequestBranch{Ref: github.Ptr("main")},
 			Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
 		},
 		{
 			Number:   github.Ptr(3),
 			MergedAt: mergedAt,
 			Head:     &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
+			Base:     &github.PullRequestBranch{Ref: github.Ptr("release/v1")},
+			Labels:   []*github.Label{{Name: github.Ptr("tagpr")}},
+		},
+	}
+	secondPage := []*github.PullRequest{
+		{
+			Number:   github.Ptr(4),
+			MergedAt: mergedAt,
+			Head:     &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
+			Base:     &github.PullRequestBranch{Ref: github.Ptr("main")},
 			Labels:   []*github.Label{{Name: github.Ptr("tagpr")}},
 		},
 	}
 
 	mux := http.NewServeMux()
+	var srv *httptest.Server
+	var requestedPages []string
 	mux.HandleFunc("/repos/Songmu/tagpr/commits/"+headSHA+"/pulls",
-		func(w http.ResponseWriter, _ *http.Request) {
+		func(w http.ResponseWriter, req *http.Request) {
+			page := req.URL.Query().Get("page")
+			if page == "" {
+				page = "1"
+			}
+			requestedPages = append(requestedPages, page)
+			if req.URL.Query().Get("per_page") != "100" {
+				t.Errorf("per_page = %q, want 100", req.URL.Query().Get("per_page"))
+			}
 			w.Header().Set("Content-Type", "application/json")
+			pulls := secondPage
+			if page == "1" {
+				pulls = firstPage
+				w.Header().Set("Link",
+					"<"+srv.URL+req.URL.Path+"?page=2&per_page=100>; rel=\"next\"")
+			}
 			if err := json.NewEncoder(w).Encode(pulls); err != nil {
 				t.Errorf("failed to encode pull requests: %v", err)
 			}
 		})
-	srv := httptest.NewServer(mux)
+	srv = httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
 	u, err := url.Parse(srv.URL + "/")
@@ -228,6 +257,7 @@ func TestLatestMergedReleasePullRequestSelectsTagPR(t *testing.T) {
 			errStream: io.Discard,
 		},
 		gh:    cli,
+		cfg:   &config{releaseBranch: github.Ptr("main")},
 		owner: "Songmu",
 		repo:  "tagpr",
 	}
@@ -236,8 +266,11 @@ func TestLatestMergedReleasePullRequestSelectsTagPR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("latestMergedReleasePullRequest() failed: %v", err)
 	}
-	if pr.GetNumber() != 3 {
-		t.Errorf("latestMergedReleasePullRequest() returned #%d, want #3", pr.GetNumber())
+	if pr.GetNumber() != 4 {
+		t.Errorf("latestMergedReleasePullRequest() returned #%d, want #4", pr.GetNumber())
+	}
+	if got := strings.Join(requestedPages, ","); got != "1,2" {
+		t.Errorf("requested pages = %s, want 1,2", got)
 	}
 }
 
@@ -399,16 +432,28 @@ func TestTagReleaseInvalidBaseSHA(t *testing.T) {
 }
 
 func TestPushEventBeforeSHA(t *testing.T) {
+	const (
+		releaseRef = "refs/heads/main"
+		headSHA    = "deadbeef"
+	)
 	tests := map[string]struct {
 		payload string
 		want    string
 		wantErr bool
 	}{
-		"before":            {payload: `{"before":"cafebabe","after":"deadbeef"}`, want: "cafebabe"},
-		"missing before":    {payload: `{"after":"deadbeef"}`},
-		"empty before":      {payload: `{"before":"","after":"deadbeef"}`},
-		"all-zero before":   {payload: `{"before":"` + strings.Repeat("0", 40) + `"}`},
-		"null before":       {payload: `{"before":null}`},
+		"before": {payload: `{"before":"cafebabe","after":"deadbeef",` +
+			`"ref":"refs/heads/main"}`, want: "cafebabe"},
+		"wrong ref": {payload: `{"before":"cafebabe","after":"deadbeef",` +
+			`"ref":"refs/heads/feature"}`},
+		"wrong after": {payload: `{"before":"cafebabe","after":"other",` +
+			`"ref":"refs/heads/main"}`},
+		"missing before": {payload: `{"after":"deadbeef","ref":"refs/heads/main"}`},
+		"empty before": {payload: `{"before":"","after":"deadbeef",` +
+			`"ref":"refs/heads/main"}`},
+		"all-zero before": {payload: `{"before":"` + strings.Repeat("0", 40) +
+			`","after":"deadbeef","ref":"refs/heads/main"}`},
+		"null before": {payload: `{"before":null,"after":"deadbeef",` +
+			`"ref":"refs/heads/main"}`},
 		"malformed JSON":    {payload: `{"before":`, wantErr: true},
 		"trailing garbage":  {payload: `{"before":"cafebabe"} garbage`, wantErr: true},
 		"multiple values":   {payload: `{"before":"cafebabe"} {}`, wantErr: true},
@@ -416,7 +461,8 @@ func TestPushEventBeforeSHA(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := pushEventBeforeSHA(writeEventFile(t, tt.payload))
+			got, err := pushEventBeforeSHA(
+				writeEventFile(t, tt.payload), releaseRef, headSHA)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("pushEventBeforeSHA() expected an error, but got nil")
@@ -433,21 +479,22 @@ func TestPushEventBeforeSHA(t *testing.T) {
 	}
 
 	t.Run("no path", func(t *testing.T) {
-		got, err := pushEventBeforeSHA("")
+		got, err := pushEventBeforeSHA("", releaseRef, headSHA)
 		if err != nil || got != "" {
 			t.Errorf("pushEventBeforeSHA(\"\") = %q, %v; want empty string and no error", got, err)
 		}
 	})
 
 	t.Run("nonexistent file", func(t *testing.T) {
-		got, err := pushEventBeforeSHA(filepath.Join(t.TempDir(), "no-such-file.json"))
+		got, err := pushEventBeforeSHA(
+			filepath.Join(t.TempDir(), "no-such-file.json"), releaseRef, headSHA)
 		if err != nil || got != "" {
 			t.Errorf("pushEventBeforeSHA() = %q, %v; want empty string and no error", got, err)
 		}
 	})
 
 	t.Run("unreadable path", func(t *testing.T) {
-		if _, err := pushEventBeforeSHA(t.TempDir()); err == nil {
+		if _, err := pushEventBeforeSHA(t.TempDir(), releaseRef, headSHA); err == nil {
 			t.Error("pushEventBeforeSHA() expected an error, but got nil")
 		}
 	})
@@ -457,6 +504,17 @@ func TestPushEventBeforeSHA(t *testing.T) {
 // the base SHA of the release pull request, and that the base SHA is used as a
 // fallback only when the payload provides no usable "before".
 func TestReleaseBoundarySHA(t *testing.T) {
+	r := newTestRepo(t, "")
+	headSHA := r.git("rev-parse", "HEAD")
+	tp := &tagpr{
+		c: &commander{
+			gitPath:   "git",
+			dir:       r.dir,
+			outStream: io.Discard,
+			errStream: io.Discard,
+		},
+		cfg: &config{releaseBranch: github.Ptr("main")},
+	}
 	basePR := &github.PullRequest{
 		Number: github.Ptr(1),
 		Base:   &github.PullRequestBranch{SHA: github.Ptr("basesha")},
@@ -471,14 +529,30 @@ func TestReleaseBoundarySHA(t *testing.T) {
 	}{
 		"event takes precedence": {
 			eventName: "push",
-			payload:   github.Ptr(`{"before":"eventsha"}`),
-			pr:        basePR,
-			want:      "eventsha",
+			payload: github.Ptr(`{"before":"eventsha","after":"` + headSHA +
+				`","ref":"refs/heads/main"}`),
+			pr:   basePR,
+			want: "eventsha",
 		},
 		"event takes precedence without a pull request": {
 			eventName: "push",
-			payload:   github.Ptr(`{"before":"eventsha"}`),
-			want:      "eventsha",
+			payload: github.Ptr(`{"before":"eventsha","after":"` + headSHA +
+				`","ref":"refs/heads/main"}`),
+			want: "eventsha",
+		},
+		"wrong ref falls back": {
+			eventName: "push",
+			payload: github.Ptr(`{"before":"eventsha","after":"` + headSHA +
+				`","ref":"refs/heads/feature"}`),
+			pr:   basePR,
+			want: "basesha",
+		},
+		"wrong after falls back": {
+			eventName: "push",
+			payload: github.Ptr(`{"before":"eventsha","after":"other",` +
+				`"ref":"refs/heads/main"}`),
+			pr:   basePR,
+			want: "basesha",
 		},
 		"non-push event ignores before": {
 			eventName: "pull_request",
@@ -490,21 +564,24 @@ func TestReleaseBoundarySHA(t *testing.T) {
 			unsetEnv: true, pr: basePR, want: "basesha"},
 		"fallback when before is missing": {
 			eventName: "push",
-			payload:   github.Ptr(`{"after":"deadbeef"}`),
-			pr:        basePR,
-			want:      "basesha",
+			payload: github.Ptr(`{"after":"` + headSHA +
+				`","ref":"refs/heads/main"}`),
+			pr:   basePR,
+			want: "basesha",
 		},
 		"fallback when before is empty": {
 			eventName: "push",
-			payload:   github.Ptr(`{"before":""}`),
-			pr:        basePR,
-			want:      "basesha",
+			payload: github.Ptr(`{"before":"","after":"` + headSHA +
+				`","ref":"refs/heads/main"}`),
+			pr:   basePR,
+			want: "basesha",
 		},
 		"fallback when before is all-zero": {
 			eventName: "push",
-			payload:   github.Ptr(`{"before":"` + strings.Repeat("0", 40) + `"}`),
-			pr:        basePR,
-			want:      "basesha",
+			payload: github.Ptr(`{"before":"` + strings.Repeat("0", 40) +
+				`","after":"` + headSHA + `","ref":"refs/heads/main"}`),
+			pr:   basePR,
+			want: "basesha",
 		},
 		"malformed payload": {
 			eventName: "push",
@@ -530,7 +607,7 @@ func TestReleaseBoundarySHA(t *testing.T) {
 				t.Setenv(envGitHubEventName, tt.eventName)
 				t.Setenv(envGitHubEventPath, writeEventFile(t, *tt.payload))
 			}
-			got, err := releaseBoundarySHA(tt.pr)
+			got, err := tp.releaseBoundarySHA(tt.pr)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("releaseBoundarySHA() expected an error, but got nil")
@@ -593,7 +670,8 @@ func TestTagReleaseStaleBase(t *testing.T) {
 			tp, targetCommitish := newTestTagpr(t, r, newTestConfig("-"))
 			t.Setenv(envGitHubEventName, "push")
 			t.Setenv(envGitHubEventPath,
-				writeEventFile(t, `{"before":"`+beforeSHA+`","after":"`+headSHA+`"}`))
+				writeEventFile(t, `{"before":"`+beforeSHA+`","after":"`+headSHA+
+					`","ref":"refs/heads/main"}`))
 			currVer, err := newSemver("v0.1.0")
 			if err != nil {
 				t.Fatal(err)

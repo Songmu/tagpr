@@ -29,18 +29,30 @@ func (tp *tagpr) latestMergedReleasePullRequest(ctx context.Context) (*github.Pu
 	const retryInterval = 2 * time.Second
 
 	for i := range maxRetries {
-		pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
-			ctx, tp.owner, tp.repo, commitish, nil)
-		if err != nil {
-			showGHError(err, resp)
-			return nil, err
-		}
-		for _, pr := range pulls {
-			if !pr.GetMergedAt().IsZero() && tp.isTagPR(pr) {
-				return pr, nil
+		opts := &github.ListOptions{PerPage: 100}
+		foundAssociations := false
+		for {
+			pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
+				ctx, tp.owner, tp.repo, commitish, opts)
+			if err != nil {
+				showGHError(err, resp)
+				return nil, err
 			}
+			foundAssociations = foundAssociations || len(pulls) > 0
+			for _, pr := range pulls {
+				if !pr.GetMergedAt().IsZero() &&
+					pr.Base != nil &&
+					pr.Base.GetRef() == tp.cfg.ReleaseBranch() &&
+					tp.isTagPR(pr) {
+					return pr, nil
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
 		}
-		if len(pulls) > 0 {
+		if foundAssociations {
 			return nil, nil
 		}
 		if i < maxRetries-1 {
@@ -61,11 +73,19 @@ const (
 // file and generate release notes without including the release pull request itself.
 // Note that "HEAD~" cannot be used for this purpose because it may point to a commit
 // of the release pull request itself when "Rebase and merge" was used.
-func releaseBoundarySHA(pr *github.PullRequest) (string, error) {
+func (tp *tagpr) releaseBoundarySHA(pr *github.PullRequest) (string, error) {
 	if os.Getenv(envGitHubEventName) != "push" {
 		return mergedBaseSHA(pr)
 	}
-	sha, err := pushEventBeforeSHA(os.Getenv(envGitHubEventPath))
+	headSHA, _, err := tp.c.Git("rev-parse", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	sha, err := pushEventBeforeSHA(
+		os.Getenv(envGitHubEventPath),
+		"refs/heads/"+tp.cfg.ReleaseBranch(),
+		headSHA,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -78,7 +98,7 @@ func releaseBoundarySHA(pr *github.PullRequest) (string, error) {
 // pushEventBeforeSHA returns the top-level "before" SHA of the push event payload.
 // It returns an empty string when the payload is unavailable or has no usable
 // "before", so that the caller can fall back to another source.
-func pushEventBeforeSHA(path string) (string, error) {
+func pushEventBeforeSHA(path, releaseRef, headSHA string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
@@ -92,9 +112,14 @@ func pushEventBeforeSHA(path string) (string, error) {
 
 	var payload struct {
 		Before string `json:"before"`
+		After  string `json:"after"`
+		Ref    string `json:"ref"`
 	}
 	if err := json.Unmarshal(b, &payload); err != nil {
 		return "", fmt.Errorf("failed to parse the event payload %q: %w", path, err)
+	}
+	if payload.Ref != releaseRef || payload.After != headSHA {
+		return "", nil
 	}
 	if isNullSHA(payload.Before) {
 		return "", nil
@@ -149,7 +174,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	)
 	releaseBranch := tp.cfg.ReleaseBranch()
 
-	boundarySHA, err := releaseBoundarySHA(pr)
+	boundarySHA, err := tp.releaseBoundarySHA(pr)
 	if err != nil {
 		return err
 	}
