@@ -64,6 +64,7 @@
       ],
       "automerge": false
     },
+    // Keep this after the major-update rule so docs/site/go.mod stays excluded.
     {
       "matchManagers": [
         "gomod"
