@@ -107,6 +107,10 @@ func newTestRepo(t *testing.T, versionFileContent string) *testRepo {
 	r.git("init", "--initial-branch=main")
 	r.git("config", "user.name", "Test")
 	r.git("config", "user.email", "test@example.com")
+	// keep the fixture independent of the global git configuration
+	r.git("config", "merge.ff", "true")
+	r.git("config", "commit.gpgsign", "false")
+	r.git("config", "tag.gpgsign", "false")
 	r.commit("README.md", "# test\n", "initial commit")
 	if versionFileContent != "" {
 		r.commit("version.go", versionFileContent, "add version file")
@@ -149,11 +153,37 @@ func (r *testRepo) merge(method string) string {
 	return baseSHA
 }
 
+// advanceMain adds a commit to main after the release pull request branch was
+// created, which makes the base SHA of the pull request stale.
+func (r *testRepo) advanceMain(fname, content, message string) string {
+	r.t.Helper()
+	current := r.git("symbolic-ref", "--short", "HEAD")
+	r.git("checkout", "main")
+	r.commit(fname, content, message)
+	sha := r.git("rev-parse", "HEAD")
+	if current != "main" {
+		r.git("checkout", current)
+	}
+	return sha
+}
+
+// writeEventFile writes a push event payload and returns its path.
+func writeEventFile(t *testing.T, payload string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "event.json")
+	if err := os.WriteFile(path, []byte(payload), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 // newTestTagpr builds a tagpr which talks to a stub GitHub API server. The
 // target_commitish passed to the release notes generation API is stored into
 // the returned pointer.
 func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *string) {
 	t.Helper()
+	// the push event payload is opt-in for each test case
+	t.Setenv(envGitHubEventPath, "")
 	var targetCommitish string
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/Songmu/tagpr/releases/generate-notes",
@@ -298,6 +328,153 @@ func TestTagReleaseInvalidBaseSHA(t *testing.T) {
 			}
 			if err := tp.tagRelease(context.Background(), pr, currVer, "v0.1.0"); err == nil {
 				t.Error("tagRelease() expected an error, but got nil")
+			}
+		})
+	}
+}
+
+func TestPushEventBeforeSHA(t *testing.T) {
+	tests := map[string]struct {
+		payload string
+		want    string
+		wantErr bool
+	}{
+		"before":            {payload: `{"before":"cafebabe","after":"deadbeef"}`, want: "cafebabe"},
+		"missing before":    {payload: `{"after":"deadbeef"}`},
+		"empty before":      {payload: `{"before":"","after":"deadbeef"}`},
+		"all-zero before":   {payload: `{"before":"` + strings.Repeat("0", 40) + `"}`},
+		"malformed JSON":    {payload: `{"before":`, wantErr: true},
+		"not a JSON object": {payload: `["before"]`, wantErr: true},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := pushEventBeforeSHA(writeEventFile(t, tt.payload))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("pushEventBeforeSHA() expected an error, but got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("pushEventBeforeSHA() failed: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("pushEventBeforeSHA() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+
+	t.Run("no path", func(t *testing.T) {
+		got, err := pushEventBeforeSHA("")
+		if err != nil || got != "" {
+			t.Errorf("pushEventBeforeSHA(\"\") = %q, %v; want empty string and no error", got, err)
+		}
+	})
+
+	t.Run("nonexistent file", func(t *testing.T) {
+		got, err := pushEventBeforeSHA(filepath.Join(t.TempDir(), "no-such-file.json"))
+		if err != nil || got != "" {
+			t.Errorf("pushEventBeforeSHA() = %q, %v; want empty string and no error", got, err)
+		}
+	})
+}
+
+// TestReleaseBoundarySHA ensures that the push event payload takes precedence over
+// the base SHA of the release pull request, and that the base SHA is used as a
+// fallback only when the payload provides no usable "before".
+func TestReleaseBoundarySHA(t *testing.T) {
+	basePR := &github.PullRequest{
+		Number: github.Ptr(1),
+		Base:   &github.PullRequestBranch{SHA: github.Ptr("basesha")},
+	}
+	tests := map[string]struct {
+		payload  *string
+		unsetEnv bool
+		pr       *github.PullRequest
+		want     string
+		wantErr  bool
+	}{
+		"event takes precedence": {
+			payload: github.Ptr(`{"before":"eventsha"}`), pr: basePR, want: "eventsha"},
+		"fallback when the env is unset": {
+			unsetEnv: true, pr: basePR, want: "basesha"},
+		"fallback when before is missing": {
+			payload: github.Ptr(`{"after":"deadbeef"}`), pr: basePR, want: "basesha"},
+		"fallback when before is empty": {
+			payload: github.Ptr(`{"before":""}`), pr: basePR, want: "basesha"},
+		"fallback when before is all-zero": {
+			payload: github.Ptr(`{"before":"` + strings.Repeat("0", 40) + `"}`),
+			pr:      basePR, want: "basesha"},
+		"malformed payload": {
+			payload: github.Ptr(`{"before":`), pr: basePR, wantErr: true},
+		"fallback without a base": {
+			unsetEnv: true, pr: &github.PullRequest{Number: github.Ptr(1)}, wantErr: true},
+		"fallback without a pull request": {
+			unsetEnv: true, pr: nil, wantErr: true},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if tt.unsetEnv {
+				t.Setenv(envGitHubEventPath, "")
+				os.Unsetenv(envGitHubEventPath)
+			} else {
+				t.Setenv(envGitHubEventPath, writeEventFile(t, *tt.payload))
+			}
+			got, err := releaseBoundarySHA(tt.pr)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("releaseBoundarySHA() expected an error, but got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("releaseBoundarySHA() failed: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("releaseBoundarySHA() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestTagReleaseStaleBase ensures that the "before" SHA of the push event is used
+// even when the base SHA of the release pull request is stale because the release
+// branch advanced after the release pull request was last updated.
+func TestTagReleaseStaleBase(t *testing.T) {
+	for _, method := range []string{"merge", "squash", "rebase"} {
+		t.Run(method, func(t *testing.T) {
+			r := newTestRepo(t, "")
+			staleBaseSHA := r.git("rev-parse", "HEAD")
+			beforeSHA := r.advanceMain("other.md", "other\n", "another pull request")
+			if staleBaseSHA == beforeSHA {
+				t.Fatal("the release branch was not advanced")
+			}
+			r.merge(method)
+			headSHA := r.git("rev-parse", "HEAD")
+
+			tp, targetCommitish := newTestTagpr(t, r, newTestConfig("-"))
+			t.Setenv(envGitHubEventPath,
+				writeEventFile(t, `{"before":"`+beforeSHA+`","after":"`+headSHA+`"}`))
+			currVer, err := newSemver("v0.1.0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			pr := &github.PullRequest{
+				Number: github.Ptr(1),
+				Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
+				Base:   &github.PullRequestBranch{SHA: github.Ptr(staleBaseSHA)},
+				Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+			}
+			if err := tp.tagRelease(context.Background(), pr, currVer, "v0.1.0"); err != nil {
+				t.Fatalf("tagRelease() failed: %v", err)
+			}
+
+			if got := r.git("rev-parse", "v0.1.1"); got != headSHA {
+				t.Errorf("the tag v0.1.1 points to %s, want the merged HEAD %s", got, headSHA)
+			}
+			if *targetCommitish != beforeSHA {
+				t.Errorf("target_commitish = %s, want the event before SHA %s",
+					*targetCommitish, beforeSHA)
 			}
 		})
 	}
