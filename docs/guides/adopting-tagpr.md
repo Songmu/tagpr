@@ -114,7 +114,9 @@ release branch.
 
 tagpr supports all the GitHub merge methods for the release pull request: **Create a
 merge commit**, **Squash and merge**, and **Rebase and merge**. You can keep the merge
-settings your repository already uses.
+settings your repository already uses. Merge the release pull request in its own ref
+update; a merge-queue batch containing unrelated pull requests does not provide tagpr
+with a per-pull-request release boundary.
 
 ## Review the first release pull request
 

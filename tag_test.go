@@ -3,6 +3,8 @@ package tagpr
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-github/v83/github"
 )
@@ -175,6 +178,67 @@ func writeEventFile(t *testing.T, payload string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func TestLatestPullRequestSelectsMergedTagPR(t *testing.T) {
+	r := newTestRepo(t, "")
+	headSHA := r.git("rev-parse", "HEAD")
+	mergedAt := &github.Timestamp{Time: time.Now()}
+	pulls := []*github.PullRequest{
+		{
+			Number:   github.Ptr(1),
+			MergedAt: mergedAt,
+			Head:     &github.PullRequestBranch{Ref: github.Ptr("feature")},
+		},
+		{
+			Number: github.Ptr(2),
+			Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
+			Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+		},
+		{
+			Number:   github.Ptr(3),
+			MergedAt: mergedAt,
+			Head:     &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
+			Labels:   []*github.Label{{Name: github.Ptr("tagpr")}},
+		},
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/Songmu/tagpr/commits/"+headSHA+"/pulls",
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(pulls); err != nil {
+				t.Errorf("failed to encode pull requests: %v", err)
+			}
+		})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	u, err := url.Parse(srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli := github.NewClient(nil)
+	cli.BaseURL = u
+	tp := &tagpr{
+		c: &commander{
+			gitPath:   "git",
+			dir:       r.dir,
+			outStream: io.Discard,
+			errStream: io.Discard,
+		},
+		gh:    cli,
+		owner: "Songmu",
+		repo:  "tagpr",
+	}
+
+	pr, err := tp.latestPullRequest(context.Background())
+	if err != nil {
+		t.Fatalf("latestPullRequest() failed: %v", err)
+	}
+	if pr.GetNumber() != 3 {
+		t.Errorf("latestPullRequest() returned #%d, want #3", pr.GetNumber())
+	}
 }
 
 // newTestTagpr builds a tagpr which talks to a stub GitHub API server. The
@@ -344,7 +408,10 @@ func TestPushEventBeforeSHA(t *testing.T) {
 		"missing before":    {payload: `{"after":"deadbeef"}`},
 		"empty before":      {payload: `{"before":"","after":"deadbeef"}`},
 		"all-zero before":   {payload: `{"before":"` + strings.Repeat("0", 40) + `"}`},
+		"null before":       {payload: `{"before":null}`},
 		"malformed JSON":    {payload: `{"before":`, wantErr: true},
+		"trailing garbage":  {payload: `{"before":"cafebabe"} garbage`, wantErr: true},
+		"multiple values":   {payload: `{"before":"cafebabe"} {}`, wantErr: true},
 		"not a JSON object": {payload: `["before"]`, wantErr: true},
 	}
 	for name, tt := range tests {
@@ -378,6 +445,12 @@ func TestPushEventBeforeSHA(t *testing.T) {
 			t.Errorf("pushEventBeforeSHA() = %q, %v; want empty string and no error", got, err)
 		}
 	})
+
+	t.Run("unreadable path", func(t *testing.T) {
+		if _, err := pushEventBeforeSHA(t.TempDir()); err == nil {
+			t.Error("pushEventBeforeSHA() expected an error, but got nil")
+		}
+	})
 }
 
 // TestReleaseBoundarySHA ensures that the push event payload takes precedence over
@@ -400,6 +473,11 @@ func TestReleaseBoundarySHA(t *testing.T) {
 			eventName: "push",
 			payload:   github.Ptr(`{"before":"eventsha"}`),
 			pr:        basePR,
+			want:      "eventsha",
+		},
+		"event takes precedence without a pull request": {
+			eventName: "push",
+			payload:   github.Ptr(`{"before":"eventsha"}`),
 			want:      "eventsha",
 		},
 		"non-push event ignores before": {
@@ -466,6 +544,34 @@ func TestReleaseBoundarySHA(t *testing.T) {
 				t.Errorf("releaseBoundarySHA() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestWithCheckoutRestoresBranchOnError(t *testing.T) {
+	r := newTestRepo(t, "")
+	boundarySHA := r.git("rev-parse", "HEAD")
+	r.commit("later.txt", "later\n", "advance main")
+	sentinel := errors.New("detection failed")
+	tp := &tagpr{
+		c: &commander{
+			gitPath:   "git",
+			dir:       r.dir,
+			outStream: io.Discard,
+			errStream: io.Discard,
+		},
+	}
+
+	err := tp.withCheckout(boundarySHA, "main", func() error {
+		if got := r.git("rev-parse", "HEAD"); got != boundarySHA {
+			t.Errorf("HEAD = %s, want boundary %s", got, boundarySHA)
+		}
+		return sentinel
+	})
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("withCheckout() error = %v, want %v", err, sentinel)
+	}
+	if got := r.git("symbolic-ref", "--short", "HEAD"); got != "main" {
+		t.Errorf("current branch = %s, want main", got)
 	}
 }
 

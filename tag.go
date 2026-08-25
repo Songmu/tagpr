@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"strings"
@@ -36,8 +35,13 @@ func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, er
 			showGHError(err, resp)
 			return nil, err
 		}
+		for _, pr := range pulls {
+			if !pr.GetMergedAt().IsZero() && tp.isTagPR(pr) {
+				return pr, nil
+			}
+		}
 		if len(pulls) > 0 {
-			return pulls[0], nil
+			return nil, nil
 		}
 		if i < maxRetries-1 {
 			log.Printf("ListPullRequestsWithCommit returned empty for %s, retrying in %s (%d/%d)",
@@ -53,10 +57,8 @@ const (
 	envGitHubEventPath = "GITHUB_EVENT_PATH"
 )
 
-// releaseBoundarySHA returns the commit which represents the state of the release
-// branch just before the release pull request was merged. It is used to detect the
-// version file and to generate the release notes, so that the release pull request
-// made by tagpr itself is not taken into account.
+// releaseBoundarySHA selects the pre-release boundary used to detect the version
+// file and generate release notes without including the release pull request itself.
 // Note that "HEAD~" cannot be used for this purpose because it may point to a commit
 // of the release pull request itself when "Rebase and merge" was used.
 func releaseBoundarySHA(pr *github.PullRequest) (string, error) {
@@ -73,27 +75,25 @@ func releaseBoundarySHA(pr *github.PullRequest) (string, error) {
 	return mergedBaseSHA(pr)
 }
 
-// pushEventBeforeSHA returns the top-level "before" SHA of the push event payload,
-// which is the release branch tip just before the merge regardless of the merge
-// method. It returns an empty string when the payload is unavailable or has no
-// usable "before", so that the caller can fall back to another source.
+// pushEventBeforeSHA returns the top-level "before" SHA of the push event payload.
+// It returns an empty string when the payload is unavailable or has no usable
+// "before", so that the caller can fall back to another source.
 func pushEventBeforeSHA(path string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	f, err := os.Open(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
 		}
-		return "", fmt.Errorf("failed to open the event payload %q: %w", path, err)
+		return "", fmt.Errorf("failed to read the event payload %q: %w", path, err)
 	}
-	defer f.Close()
 
 	var payload struct {
 		Before string `json:"before"`
 	}
-	if err := json.NewDecoder(f).Decode(&payload); err != nil {
+	if err := json.Unmarshal(b, &payload); err != nil {
 		return "", fmt.Errorf("failed to parse the event payload %q: %w", path, err)
 	}
 	if isNullSHA(payload.Before) {
@@ -130,6 +130,18 @@ func mergedBaseSHA(pr *github.PullRequest) (string, error) {
 	return sha, nil
 }
 
+func (tp *tagpr) withCheckout(commitish, restoreBranch string, fn func() error) (err error) {
+	if _, _, err := tp.c.Git("checkout", commitish); err != nil {
+		return err
+	}
+	defer func() {
+		if _, _, restoreErr := tp.c.Git("checkout", restoreBranch); restoreErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to checkout %s: %w", restoreBranch, restoreErr))
+		}
+	}()
+	return fn()
+}
+
 func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
 	var (
 		vfile string
@@ -137,25 +149,17 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	)
 	releaseBranch := tp.cfg.ReleaseBranch()
 
-	// The commit which represents the release branch just before the release pull
-	// request was merged, regardless of which merge method was used.
 	boundarySHA, err := releaseBoundarySHA(pr)
 	if err != nil {
 		return err
 	}
 
 	if tp.cfg.VersionFile() == "" {
-		if _, _, err := tp.c.Git("checkout", boundarySHA); err != nil {
-			return err
-		}
-		vfile, err = detectVersionFile(".", currVer)
-		if _, _, cerr := tp.c.Git("checkout", releaseBranch); cerr != nil {
-			if err == nil {
-				return cerr
-			}
-			log.Printf("failed to checkout %s: %s", releaseBranch, cerr)
-		}
-		if err != nil {
+		if err := tp.withCheckout(boundarySHA, releaseBranch, func() error {
+			var detectErr error
+			vfile, detectErr = detectVersionFile(".", currVer)
+			return detectErr
+		}); err != nil {
 			return err
 		}
 	} else if tp.cfg.VersionFile() != "-" {
@@ -187,8 +191,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 
 	// To avoid putting pull requests created by tagpr itself in the release notes,
 	// we generate release notes in advance.
-	// Use the commit just before the release pull request was merged to avoid picking
-	// up the merge of the pull request made by tagpr.
+	// Stop at the selected boundary to exclude the release pull request itself.
 	targetCommitish := boundarySHA
 	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
 		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
