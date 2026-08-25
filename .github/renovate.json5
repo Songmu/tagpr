@@ -1,68 +1,66 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
   ],
-  // Dependabot continues to manage Go minor/patch updates and GitHub Actions.
-  "enabledManagers": [
-    "custom.regex",
-    "gomod"
+  enabledManagers: [
+    'custom.regex',
+    'gomod',
   ],
-  "customManagers": [
+  customManagers: [
     {
-      "customType": "regex",
-      "description": "Update the Hugo version used to build the documentation site",
-      "fileMatch": [
-        "^docs\\/site\\/\\.hugo-version$"
+      customType: 'regex',
+      description: 'Update the Hugo version used to build the documentation site',
+      managerFilePatterns: [
+        '/^docs\\/site\\/\\.hugo-version$/',
       ],
-      "matchStrings": [
-        "^(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s*$"
+      matchStrings: [
+        '^(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s*$',
       ],
-      "depNameTemplate": "gohugoio/hugo",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver"
-    }
+      depNameTemplate: 'gohugoio/hugo',
+      datasourceTemplate: 'github-releases',
+      versioningTemplate: 'semver',
+    },
   ],
-  "packageRules": [
+  packageRules: [
     {
-      "matchManagers": [
-        "gomod"
+      matchManagers: [
+        'gomod',
       ],
-      "enabled": false
+      enabled: false,
     },
     {
-      "matchManagers": [
-        "gomod"
+      matchManagers: [
+        'gomod',
       ],
-      "matchDepTypes": [
-        "require"
+      matchDepTypes: [
+        'require',
       ],
-      "matchUpdateTypes": [
-        "major"
+      matchUpdateTypes: [
+        'major',
       ],
-      "enabled": true,
-      "postUpdateOptions": [
-        "gomodUpdateImportPaths"
+      enabled: true,
+      postUpdateOptions: [
+        'gomodUpdateImportPaths',
       ],
-      "automerge": false
-    },
-    // Package rules are evaluated in order; the last matching rule wins, so this rule disables all gomod updates for docs/site/go.mod.
-    {
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchFileNames": [
-        "docs/site/go.mod"
-      ],
-      "enabled": false
+      automerge: false,
     },
     {
-      "matchDepNames": [
-        "gohugoio/hugo"
+      matchManagers: [
+        'gomod',
       ],
-      "schedule": [
-        "before 6am on monday"
-      ]
-    }
-  ]
+      matchFileNames: [
+        'docs/site/go.mod',
+      ],
+      enabled: false,
+    },
+    {
+      matchDepNames: [
+        'gohugoio/hugo',
+      ],
+      schedule: [
+        'before 6am on monday',
+      ],
+    },
+  ],
 }
