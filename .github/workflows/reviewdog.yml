@@ -12,7 +12,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    - uses: reviewdog/action-staticcheck@d56bb1c67a1d68a29d5d4227a0b8ff4faceba310 # v1.30.0
+    - uses: reviewdog/action-staticcheck@53efac7da6eead83fb445fc490fef0b7ea57eeb1 # v1.31.0
       with:
         github_token: ${{ secrets.github_token }}
         reporter: github-pr-review
