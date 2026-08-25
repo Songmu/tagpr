@@ -3,16 +3,17 @@
   "extends": [
     "config:recommended"
   ],
-  // Dependabot continues to manage Go modules and GitHub Actions.
+  // Dependabot continues to manage Go minor/patch updates and GitHub Actions.
   "enabledManagers": [
-    "custom.regex"
+    "custom.regex",
+    "gomod"
   ],
   "customManagers": [
     {
       "customType": "regex",
       "description": "Update the Hugo version used to build the documentation site",
-      "managerFilePatterns": [
-        "/^docs\\/site\\/\\.hugo-version$/"
+      "fileMatch": [
+        "^docs\\/site\\/\\.hugo-version$"
       ],
       "matchStrings": [
         "^(?<currentValue>\\d+\\.\\d+\\.\\d+)\\s*$"
@@ -23,6 +24,38 @@
     }
   ],
   "packageRules": [
+    {
+      "matchManagers": [
+        "gomod"
+      ],
+      "enabled": false
+    },
+    {
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "require"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": true,
+      "postUpdateOptions": [
+        "gomodUpdateImportPaths"
+      ],
+      "automerge": false
+    },
+    // Package rules are evaluated in order; the last matching rule wins, so this rule disables all gomod updates for docs/site/go.mod.
+    {
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchFileNames": [
+        "docs/site/go.mod"
+      ],
+      "enabled": false
+    },
     {
       "matchDepNames": [
         "gohugoio/hugo"
