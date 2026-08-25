@@ -8,6 +8,10 @@ deps:
 	go get ${u}
 	go mod tidy
 
+.PHONY: docs-deps
+docs-deps:
+	cd docs/site && hugo mod tidy
+
 .PHONY: devel-deps
 devel-deps:
 	go install github.com/Songmu/godzil/cmd/godzil@latest

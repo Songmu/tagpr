@@ -58,16 +58,17 @@ release PR branch and a release pull request. By default, the pull request:
 - updates the changelog from GitHub's generated release notes; and
 - creates a release-note configuration when the repository has none.
 
-![Four numbered steps show tagpr detecting changes, building the release PR branch and pull request, the maintainer merging it into the release branch, and tagpr tagging the merge commit](../images/release-flow.png)
+![Four numbered steps show tagpr detecting changes, building the release PR branch and pull request, the maintainer merging it into the release branch, and tagpr tagging the resulting release branch head](../images/release-flow.png)
 
 The green line is the release branch, `main`, and the coral line is the release PR
 branch. The numbered callouts distinguish tagpr's automated work from the maintainer's
 review and merge decision. Because tagpr refreshes the release PR branch from the latest
-`main`, the branch point and merge commit are adjacent on `main` in the graph. The merge
-commit is the new head; tagpr runs again, attaches the version tag to that commit, and
-can also create a GitHub Release.
+`main`, the branch point and the merge result are adjacent on `main` in the graph. The
+merge result is the new head; tagpr runs again, attaches the version tag to that commit,
+and can also create a GitHub Release.
 
-The graph is conceptual; tagpr supports merge commits and squash merges.
+The graph is conceptual; tagpr supports all the GitHub merge methods, that is, **Create
+a merge commit**, **Squash and merge**, and **Rebase and merge**.
 
 ### 2. An open release pull request follows main
 

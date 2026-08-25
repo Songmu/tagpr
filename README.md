@@ -33,8 +33,8 @@ tagpr manages as the head of the release pull request.
    pull request. By default, it updates the version file and `CHANGELOG.md`.
 3. You review the generated and project-specific release changes, then merge the pull
    request when you are ready to release.
-4. On the next run, tagpr tags the merge commit at the head of the release branch and
-   creates a GitHub Release unless configured otherwise.
+4. On the next run, tagpr tags the new head of the release branch and creates a GitHub
+   Release unless configured otherwise. Any of the GitHub merge methods can be used.
 
 ![The release PR branch diverges from the release branch and merges back at the tagged release commit](docs/images/release-flow.png)
 

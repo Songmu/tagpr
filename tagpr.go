@@ -392,9 +392,9 @@ func (tp *tagpr) Run(ctx context.Context) error {
 			releaseBranch, branch)
 	}
 
-	// If the latest commit is a merge commit of the pull request by tagpr,
+	// If the latest commit was introduced by a merged tagpr pull request,
 	// tag the semver to the commit and create a release and exit.
-	if pr, err := tp.latestPullRequest(ctx); err != nil || tp.isTagPR(pr) {
+	if pr, err := tp.latestMergedReleasePullRequest(ctx); err != nil || pr != nil {
 		if err != nil {
 			return err
 		}
