@@ -13,7 +13,7 @@ import (
 	"github.com/google/go-github/v83/github"
 )
 
-func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, error) {
+func (tp *tagpr) latestMergedReleasePullRequest(ctx context.Context) (*github.PullRequest, error) {
 	// tag and exit if the HEAD is the merged tagpr
 	commitish, _, err := tp.c.Git("rev-parse", "HEAD")
 	if err != nil {

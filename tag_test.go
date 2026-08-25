@@ -180,7 +180,7 @@ func writeEventFile(t *testing.T, payload string) string {
 	return path
 }
 
-func TestLatestPullRequestSelectsMergedTagPR(t *testing.T) {
+func TestLatestMergedReleasePullRequestSelectsTagPR(t *testing.T) {
 	r := newTestRepo(t, "")
 	headSHA := r.git("rev-parse", "HEAD")
 	mergedAt := &github.Timestamp{Time: time.Now()}
@@ -232,12 +232,12 @@ func TestLatestPullRequestSelectsMergedTagPR(t *testing.T) {
 		repo:  "tagpr",
 	}
 
-	pr, err := tp.latestPullRequest(context.Background())
+	pr, err := tp.latestMergedReleasePullRequest(context.Background())
 	if err != nil {
-		t.Fatalf("latestPullRequest() failed: %v", err)
+		t.Fatalf("latestMergedReleasePullRequest() failed: %v", err)
 	}
 	if pr.GetNumber() != 3 {
-		t.Errorf("latestPullRequest() returned #%d, want #3", pr.GetNumber())
+		t.Errorf("latestMergedReleasePullRequest() returned #%d, want #3", pr.GetNumber())
 	}
 }
 
