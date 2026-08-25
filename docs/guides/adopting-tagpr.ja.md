@@ -78,7 +78,7 @@ GitHub は、プルリクエスト、changelog、GitHub Release で使うリリ�
 
 [はじめに](../getting-started.md#add-the-workflow) のワークフローを追加し、GitHub Actions にプルリクエストの作成を許可して、設定とワークフローをリリースブランチへ push します。
 
-tagpr はリリースプルリクエストで **Create a merge commit** と **Squash and merge** をサポートします。**Rebase and merge** には対応していません。最初のリリース前に、リポジトリのマージ設定でサポートされる方法のいずれかが許可されていることを確認してください。
+tagpr はリリースプルリクエストで GitHub のすべてのマージ方法、つまり **Create a merge commit**、**Squash and merge**、**Rebase and merge** に対応しています。リポジトリで現在使っているマージ設定をそのまま利用できます。リリースプルリクエストは、単独の ref 更新としてマージしてください。無関係なプルリクエストを含むマージキューのバッチでは、プルリクエストごとのリリース境界を tagpr に提供できません。
 
 ## 最初のリリースプルリクエストを確認する
 
