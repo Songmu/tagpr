@@ -28,24 +28,6 @@
       "matchManagers": [
         "gomod"
       ],
-      "matchDepTypes": [
-        "golang",
-        "toolchain",
-        "indirect"
-      ],
-      "enabled": false
-    },
-    {
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchDepTypes": [
-        "require"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
       "enabled": false
     },
     {
