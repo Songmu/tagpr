@@ -183,6 +183,7 @@ func writeEventFile(t *testing.T, payload string) string {
 func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *string) {
 	t.Helper()
 	// the push event payload is opt-in for each test case
+	t.Setenv(envGitHubEventName, "")
 	t.Setenv(envGitHubEventPath, "")
 	var targetCommitish string
 	mux := http.NewServeMux()
@@ -388,25 +389,51 @@ func TestReleaseBoundarySHA(t *testing.T) {
 		Base:   &github.PullRequestBranch{SHA: github.Ptr("basesha")},
 	}
 	tests := map[string]struct {
-		payload  *string
-		unsetEnv bool
-		pr       *github.PullRequest
-		want     string
-		wantErr  bool
+		eventName string
+		payload   *string
+		unsetEnv  bool
+		pr        *github.PullRequest
+		want      string
+		wantErr   bool
 	}{
 		"event takes precedence": {
-			payload: github.Ptr(`{"before":"eventsha"}`), pr: basePR, want: "eventsha"},
+			eventName: "push",
+			payload:   github.Ptr(`{"before":"eventsha"}`),
+			pr:        basePR,
+			want:      "eventsha",
+		},
+		"non-push event ignores before": {
+			eventName: "pull_request",
+			payload:   github.Ptr(`{"before":"unrelatedsha"}`),
+			pr:        basePR,
+			want:      "basesha",
+		},
 		"fallback when the env is unset": {
 			unsetEnv: true, pr: basePR, want: "basesha"},
 		"fallback when before is missing": {
-			payload: github.Ptr(`{"after":"deadbeef"}`), pr: basePR, want: "basesha"},
+			eventName: "push",
+			payload:   github.Ptr(`{"after":"deadbeef"}`),
+			pr:        basePR,
+			want:      "basesha",
+		},
 		"fallback when before is empty": {
-			payload: github.Ptr(`{"before":""}`), pr: basePR, want: "basesha"},
+			eventName: "push",
+			payload:   github.Ptr(`{"before":""}`),
+			pr:        basePR,
+			want:      "basesha",
+		},
 		"fallback when before is all-zero": {
-			payload: github.Ptr(`{"before":"` + strings.Repeat("0", 40) + `"}`),
-			pr:      basePR, want: "basesha"},
+			eventName: "push",
+			payload:   github.Ptr(`{"before":"` + strings.Repeat("0", 40) + `"}`),
+			pr:        basePR,
+			want:      "basesha",
+		},
 		"malformed payload": {
-			payload: github.Ptr(`{"before":`), pr: basePR, wantErr: true},
+			eventName: "push",
+			payload:   github.Ptr(`{"before":`),
+			pr:        basePR,
+			wantErr:   true,
+		},
 		"fallback without a base": {
 			unsetEnv: true, pr: &github.PullRequest{Number: github.Ptr(1)}, wantErr: true},
 		"fallback without a pull request": {
@@ -417,9 +444,12 @@ func TestReleaseBoundarySHA(t *testing.T) {
 			if tt.unsetEnv {
 				// t.Setenv registers the restoration of the original state,
 				// then the variable is removed to emulate a non-Actions run
+				t.Setenv(envGitHubEventName, "")
 				t.Setenv(envGitHubEventPath, "")
+				os.Unsetenv(envGitHubEventName)
 				os.Unsetenv(envGitHubEventPath)
 			} else {
+				t.Setenv(envGitHubEventName, tt.eventName)
 				t.Setenv(envGitHubEventPath, writeEventFile(t, *tt.payload))
 			}
 			got, err := releaseBoundarySHA(tt.pr)
@@ -455,6 +485,7 @@ func TestTagReleaseStaleBase(t *testing.T) {
 			headSHA := r.git("rev-parse", "HEAD")
 
 			tp, targetCommitish := newTestTagpr(t, r, newTestConfig("-"))
+			t.Setenv(envGitHubEventName, "push")
 			t.Setenv(envGitHubEventPath,
 				writeEventFile(t, `{"before":"`+beforeSHA+`","after":"`+headSHA+`"}`))
 			currVer, err := newSemver("v0.1.0")

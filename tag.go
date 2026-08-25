@@ -48,7 +48,10 @@ func (tp *tagpr) latestPullRequest(ctx context.Context) (*github.PullRequest, er
 	return nil, nil
 }
 
-const envGitHubEventPath = "GITHUB_EVENT_PATH"
+const (
+	envGitHubEventName = "GITHUB_EVENT_NAME"
+	envGitHubEventPath = "GITHUB_EVENT_PATH"
+)
 
 // releaseBoundarySHA returns the commit which represents the state of the release
 // branch just before the release pull request was merged. It is used to detect the
@@ -57,6 +60,9 @@ const envGitHubEventPath = "GITHUB_EVENT_PATH"
 // Note that "HEAD~" cannot be used for this purpose because it may point to a commit
 // of the release pull request itself when "Rebase and merge" was used.
 func releaseBoundarySHA(pr *github.PullRequest) (string, error) {
+	if os.Getenv(envGitHubEventName) != "push" {
+		return mergedBaseSHA(pr)
+	}
 	sha, err := pushEventBeforeSHA(os.Getenv(envGitHubEventPath))
 	if err != nil {
 		return "", err
