@@ -1,5 +1,5 @@
 package tagpr
 
-const version = "1.20.1"
+const version = "1.20.2"
 
 var revision = "HEAD"

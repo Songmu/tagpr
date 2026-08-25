@@ -1,5 +1,28 @@
 # Changelog
 
+## [v1.20.2](https://github.com/Songmu/tagpr/compare/v1.20.1...v1.20.2) - 2026-08-25
+
+- docs: clarify tagpr.versionFile behavior by @tokuhirom in https://github.com/Songmu/tagpr/pull/370
+- build(deps): bump actions/setup-go from 6.5.0 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/369
+- build(deps): bump actions/checkout from 7.0.0 to 7.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/373
+- build(deps): bump Songmu/tagpr from 1.20.0 to 1.20.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/368
+- Improve README and add documentation guides by @Songmu in https://github.com/Songmu/tagpr/pull/375
+- docs: add CalVer release workflow by @Songmu in https://github.com/Songmu/tagpr/pull/376
+- configure version file docs/VERSION to invoke tagpr on merged commit by @Songmu in https://github.com/Songmu/tagpr/pull/378
+- use client-id instead of using app-id on create-github-app-token by @Songmu in https://github.com/Songmu/tagpr/pull/380
+- docs: explain token workflow options by @Songmu in https://github.com/Songmu/tagpr/pull/381
+- docs: explain immutable release workflows by @Songmu in https://github.com/Songmu/tagpr/pull/382
+- docs: deploy site with Hugo by @Songmu in https://github.com/Songmu/tagpr/pull/383
+- docs: deploy Pages from docs tags by @Songmu in https://github.com/Songmu/tagpr/pull/384
+- docs: show release flow on site home by @Songmu in https://github.com/Songmu/tagpr/pull/385
+- ci: set up Hugo with actions-hugo by @Songmu in https://github.com/Songmu/tagpr/pull/386
+- build(deps): bump reviewdog/action-staticcheck from 1.29.0 to 1.30.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/391
+- Formally support Rebase and merge for release pull requests by @Songmu with @Copilot in https://github.com/Songmu/tagpr/pull/392
+- Configure Renovate for Go major module updates by @Songmu with @Copilot in https://github.com/Songmu/tagpr/pull/394
+- tagpr: Refactor version file detection logic by @12ya in https://github.com/Songmu/tagpr/pull/254
+- build(deps): bump reviewdog/action-staticcheck from 1.30.0 to 1.31.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/398
+- Migrate Renovate config by @renovate[bot] in https://github.com/Songmu/tagpr/pull/399
+
 ## [v1.20.1](https://github.com/Songmu/tagpr/compare/v1.20.0...v1.20.1) - 2026-07-14
 
 - fix: preserve CalVer zero-padding when tagging from a version file by @usadamasa in https://github.com/Songmu/tagpr/pull/363
