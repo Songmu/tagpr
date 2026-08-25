@@ -64,7 +64,7 @@
       ],
       "automerge": false
     },
-    // Package rules merge in order; this later enabled: false overrides the major rule for docs/site/go.mod.
+    // Package rules are evaluated in order; the last matching rule wins, so this rule disables all gomod updates for docs/site/go.mod.
     {
       "matchManagers": [
         "gomod"
