@@ -1,12 +1,17 @@
 # Publishing after a release
 
-tagpr creates the version tag and exposes outputs that downstream steps can use. Choose
-between publishing in the tagpr workflow and triggering a separate workflow.
+This guide explains how to automate release work such as builds and deployments after
+tagging.
 
-When the downstream operation adds GitHub Release assets and the repository uses
-immutable releases, publication must happen only after every asset is attached. See
-[Immutable GitHub Releases](immutable-releases.md) for the `tagpr.release = draft` and
-`tagpr.release = false` coordination patterns.
+After creating a version tag, tagpr exposes outputs that downstream steps can use. You
+can continue the release process in the tagpr workflow or use tag creation to trigger a
+separate workflow.
+
+> [!NOTE]
+> When a repository enables immutable releases and a downstream operation adds GitHub
+> Release assets, publish the release only after every asset is attached. See
+> [Coordinating Immutable Releases](immutable-releases.md) for the
+> `tagpr.release = draft` and `tagpr.release = false` coordination patterns.
 
 ## `GITHUB_TOKEN` constraints
 
@@ -16,7 +21,8 @@ GitHub creates it automatically for each workflow run. However, events created w
 affects tagpr in two places:
 
 - a tag created by tagpr does not trigger a workflow configured with `on.push.tags`;
-- eligible `pull_request` workflows for the release PR are queued, but do not run until
+- `pull_request` workflows for a release pull request created or updated by tagpr are
+  created in an approval-pending state, but do not run until
   [a user with write access approves them][bot-pr-approval].
 
 There are two ways to run publishing or deployment automatically after tagpr creates a
@@ -105,14 +111,14 @@ and use it for both checkout and tagpr:
     GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 ```
 
-Tags and release PR updates created with this installation token can trigger their
-respective workflows without the `GITHUB_TOKEN` restrictions.
+Tag creation and release pull request updates performed with this token can trigger
+downstream workflows without the `GITHUB_TOKEN` restrictions.
 
 The repository setting **Allow GitHub Actions to create and approve pull requests**
 controls `GITHUB_TOKEN`; GitHub App tokens are instead governed by the App's
 permissions.
 
-## Keep publishing recoverable
+### Keep publishing recoverable
 
 Regardless of which workflow layout you choose, make the publishing operation accept an
 explicit tag. This allows a failed release job to be rerun or invoked manually without

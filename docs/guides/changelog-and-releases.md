@@ -86,7 +86,7 @@ The release pull request body still uses GitHub's generated notes when changelog
 GitHub Release creation is disabled.
 
 If release assets must be built after tagging, see
-[Immutable GitHub Releases](immutable-releases.md) before enabling immutable releases.
+[Coordinating Immutable Releases](immutable-releases.md) before enabling immutable releases.
 It explains when to let tagpr prepare a draft and when to delegate release creation to
 another workflow.
 

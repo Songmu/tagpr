@@ -107,4 +107,4 @@ API の流れと設定の詳細は [Changelog と GitHub Releases](../guides/cha
 
 tagpr はリリースコミットに印を付け、GitHub Release を作成できますが、パッケージのビルド、レジストリへのアップロード、デプロイはプロジェクト固有のままです。これらを tagpr の外に置くことで、各プロジェクトが独自のリリースツールを使いつつ、一貫したリリース判断とタグに依存できます。
 
-GitHub Releases を immutable にするリポジトリでは、公開前にアセットを添付する必要があります。tagpr と下流のリリースツールの責任分担については、[不変な GitHub Releases](../guides/immutable-releases.md) を参照してください。
+GitHub Releases を immutable にするリポジトリでは、公開前にアセットを添付する必要があります。tagpr と下流のリリースツールの責任分担については、[Immutable Releases の活用と連携](../guides/immutable-releases.md) を参照してください。

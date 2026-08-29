@@ -77,7 +77,7 @@ variables, and examples.
 | --- | --- |
 | `tagpr.release` | Create a published release, a draft, or no GitHub Release |
 
-See [Immutable GitHub Releases](../guides/immutable-releases.md) when a later workflow
+See [Coordinating Immutable Releases](../guides/immutable-releases.md) when a later workflow
 must attach assets before publishing.
 
 ## Monorepos

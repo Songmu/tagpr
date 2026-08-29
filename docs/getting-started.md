@@ -1,8 +1,8 @@
 # Getting started
 
-This guide installs tagpr in a repository that releases from `main` and uses Semantic
-Versioning. Calendar Versioning, monorepos, and maintenance branches use the same basic
-release flow with additional configuration.
+This guide installs tagpr in a repository that uses `main` as its release branch and
+follows Semantic Versioning. Calendar Versioning, monorepos, and maintenance branches
+use the same basic release flow with additional configuration.
 
 If the repository already has published versions, a changelog, or release automation,
 start with [Adopting tagpr in an existing project](guides/adopting-tagpr.md).
@@ -23,6 +23,7 @@ name: tagpr
 on:
   push:
     branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -46,11 +47,13 @@ release pull request, inspect merged pull requests, and create tags and GitHub R
 `persist-credentials: false` ensures that tagpr uses the token supplied through its
 environment for Git operations instead of credentials retained by checkout.
 
-With the default `GITHUB_TOKEN`, a tag created by tagpr does not trigger another
-workflow. Eligible `pull_request` workflows for the release PR are queued, but require
-approval from a user with write access before they run. See
-[Publishing after a release](guides/publish-after-release.md) for details and alternative
-workflow layouts.
+> [!CAUTION]
+> With the default `GITHUB_TOKEN`, a tag created by tagpr does not trigger another
+> workflow. `pull_request` workflows for a release pull request created or updated by
+> tagpr are created in an approval-pending state and require approval from a user with
+> write access before they run. See
+> [Publishing after a release](guides/publish-after-release.md) for details and
+> alternative workflow layouts.
 
 ## Enable pull request creation
 
@@ -67,7 +70,8 @@ Commit the workflow and push it to `main`. The first run:
 
 1. Finds the latest SemVer tag. If none exists, tagpr starts from `v0.0.0` and includes
    changes from the first commit.
-2. Creates `.tagpr` and detects a likely version file when no configuration exists.
+2. Creates `.tagpr` if it does not exist and detects a likely version file when
+   `versionFile` is not configured.
 3. Creates `.github/release.yml` when neither `.github/release.yml` nor
    `.github/release.yaml` exists.
 4. Creates a release pull request containing the proposed version and changelog.
@@ -84,7 +88,19 @@ For example:
     vPrefix = true
 ```
 
-## Tag-only releases
+Set `versionFile` to files that contain the project's version, such as `package.json`
+or `Cargo.toml`. tagpr updates the version in these files and includes the changes in
+the release pull request. Multiple files can be specified as a comma-separated list;
+include every file that should be updated together at release time.
+
+> [!CAUTION]
+> Automatic version updates replace only the first occurrence of the current version
+> in each file. Confirm in the first release pull request that tagpr updates the
+> intended locations.
+
+tagpr also treats each pull request merged into `releaseBranch` as a changelog entry.
+
+### Tag-only releases
 
 If the project does not keep its version in a file, use:
 
@@ -106,14 +122,23 @@ Before merging, you can:
 - review the proposed version and changelog;
 - commit project-specific release changes directly to the release PR branch
   (`tagpr-from-*`);
-- edit the configured version file to select an exact version;
-- add `tagpr:minor` or `tagpr:major` to change the proposed SemVer bump.
+- edit the titles of included pull requests to adjust how they appear in the changelog;
+- label included pull requests to adjust their changelog categories;
+- add `tagpr:minor` or `tagpr:major` to change tagpr's proposed next version;
+- edit the configured version file to select an exact next version.
+
+To update the release pull request without adding another commit to `main`, manually
+run tagpr through the `workflow_dispatch` trigger.
 
 ## Choosing the next version
 
-The default proposal is a patch release. Labels configured by `tagpr.majorLabels` and
-`tagpr.minorLabels` on merged pull requests can cause tagpr to add a major or minor
-label to the release pull request.
+The default proposal is a patch release. When a regular pull request merged after the
+previous release has a `major` or `minor` label, tagpr adds `tagpr:major` or
+`tagpr:minor` to the release pull request. Configure the source label names with
+`tagpr.majorLabels` and `tagpr.minorLabels`.
+
+Dependabot pull request labels are ignored because they describe the dependency's
+version change, not the project's release.
 
 On the release pull request:
 
@@ -121,9 +146,6 @@ On the release pull request:
 - `tagpr:minor` or `tagpr/minor` selects a minor bump;
 - no version label selects a patch bump;
 - an edited version file takes precedence over labels.
-
-Dependabot pull request labels are ignored because they describe the dependency's
-version change, not the project's release.
 
 See [Versioning and label rules](guides/versioning.md) for custom label mappings and
 the complete precedence rules.

@@ -64,7 +64,7 @@ monorepo の各プロジェクトに独自のリリースノートルールが�
 
 changelog ファイルの更新または GitHub Release の作成を無効にしても、リリースプルリクエストの本文では GitHub の生成ノートが使われます。
 
-タグ付け後にリリースアセットをビルドする必要がある場合は、immutable release を有効にする前に [不変な GitHub Releases](immutable-releases.md) を参照してください。tagpr に draft の準備を任せるタイミングと、別のワークフローにリリース作成を委任するタイミングを説明しています。
+タグ付け後にリリースアセットをビルドする必要がある場合は、immutable release を有効にする前に [Immutable Releases の活用と連携](immutable-releases.md) を参照してください。tagpr に draft の準備を任せるタイミングと、別のワークフローにリリース作成を委任するタイミングを説明しています。
 
 [github-generated-release-notes]: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
 [github-generate-release-notes-api]: https://docs.github.com/en/rest/releases/releases#generate-release-notes-content-for-a-release

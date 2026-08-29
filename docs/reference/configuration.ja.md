@@ -65,7 +65,7 @@ SemVer、バージョンファイル、CalVer の完全な優先順位ルール�
 | --- | --- |
 | `tagpr.release` | 公開済みリリース、draft、または GitHub Release なしを選ぶ |
 
-後続ワークフローが公開前にアセットを添付する必要がある場合は、[不変な GitHub Releases](../guides/immutable-releases.md) を参照してください。
+後続ワークフローが公開前にアセットを添付する必要がある場合は、[Immutable Releases の活用と連携](../guides/immutable-releases.md) を参照してください。
 
 ## Monorepo {#monorepos}
 

@@ -1,4 +1,4 @@
-# Immutable GitHub Releases
+# Coordinating Immutable Releases
 
 tagpr creates a tag and a published GitHub Release by default. Repositories that enable
 [immutable releases][github-immutable-releases] must finish building and attaching
