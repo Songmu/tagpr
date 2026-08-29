@@ -1,7 +1,7 @@
 # Release flow and design
 
-tagpr treats release preparation as a pull request and merging that pull request as the
-release decision.
+tagpr treats release preparation as a pull request. Merging that pull request approves
+the release contents, and the resulting tag starts the release flow.
 
 ## Why a release pull request?
 
@@ -29,9 +29,10 @@ release PR branch.
 - **Use the normal pull request workflow.** Release knowledge should not live only in a
   maintainer's local commands. The same review and approval flow used for development
   also applies to release preparation.
-- **Make the tag the release boundary.** Merging approves the release commit; tagging
-  identifies it. Packaging and deployment can then consume that tag without becoming
-  part of tagpr itself.
+- **Make the tag the start of the release flow.** Merging approves the release commit;
+  tagging identifies the exact source and version to release. Build, packaging,
+  publishing, and deployment can then consume that tag without becoming part of tagpr
+  itself.
 - **Reuse GitHub as the source of release information.** tagpr builds on merged pull
   requests, labels, generated release notes, GitHub Actions, and GitHub Releases instead
   of introducing a separate release database or workflow.
@@ -101,13 +102,13 @@ additional commits by carrying them forward onto the recreated release PR branch
 diamond in the update diagram represents a manual commit preserved in this way.
 
 After reviewing the automatically generated and manually adjusted changes, merge the
-pull request to release them.
+pull request to approve them and start the release.
 
-### 4. Merge when you want to release
+### 4. Merge when you want to start the release
 
 The release pull request does not impose a release schedule. You do not need to merge it
 immediately, and leaving it open is expected. It remains a continuously updated view of
-the next release until a maintainer decides to merge it.
+the next release until a maintainer decides to start the release flow.
 
 This means the repository normally has one open release pull request whenever
 unreleased changes exist. Treat that pull request as a visible release queue rather
@@ -117,12 +118,12 @@ If a continuously open pull request does not suit the project, another good opti
 to merge it frequently and make smaller releases. Small, incremental releases reduce
 the amount of change reviewed and shipped at once and make the release queue short-lived.
 
-After the merge, tagpr tags the resulting commit and optionally creates a GitHub
-Release.
+After the merge, tagpr tags the resulting commit. That tag starts the project-specific
+release flow. tagpr can also create a GitHub Release.
 
-Downstream publishing or deployment can use the action's `tag` output or a separate
-tag-triggered workflow. See
-[Publishing after a release](../guides/publish-after-release.md).
+Downstream build, packaging, publishing, and deployment steps can use the action's
+`tag` output or a separate tag-triggered workflow. See
+[Tagging and release](../guides/tag-and-release.md).
 
 ## Version files and tags
 
@@ -151,11 +152,11 @@ flow and configuration details.
 
 ## What tagpr does not do
 
-tagpr marks the release commit and can create the GitHub Release, but package building,
-registry uploads, and deployment remain project-specific. Keeping those steps outside
-tagpr lets each project use its own release tooling while relying on a consistent
-release decision and tag.
+tagpr prepares the release and creates the tag that starts it. tagpr can also create the
+GitHub Release, but package building, registry uploads, and deployment remain
+project-specific. Keeping those steps outside tagpr lets each project use its own
+release tooling while relying on approved release contents and a consistent tag.
 
 Repositories that make GitHub Releases immutable must attach assets before publishing.
-See [Immutable GitHub Releases](../guides/immutable-releases.md) for the supported
+See [Coordinating Immutable Releases](../guides/immutable-releases.md) for the supported
 division of responsibility between tagpr and downstream release tooling.

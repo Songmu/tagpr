@@ -4,18 +4,20 @@
 [![MIT License](https://img.shields.io/github/license/Songmu/tagpr)][license]
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/Songmu/tagpr)][PkgGoDev]
 
-tagpr continuously prepares a release pull request for unreleased changes. When you
-merge that pull request, tagpr tags the merged commit and optionally creates a GitHub
-Release.
+tagpr continuously prepares a release pull request for unreleased changes. Merging that
+pull request approves the release contents, and tagpr tags the merged commit. The tag
+then becomes the starting point for the project's release flow. tagpr can also create a
+GitHub Release.
 
 Release preparation stays automated, visible, and reviewable:
 
 - The proposed version, changelog, and project-specific release changes live in a pull
   request.
 - The release pull request follows new changes on your release branch until you are
-  ready to release.
-- Releasing is an explicit merge operation instead of a sequence of local commands.
-- Publishing or deployment can run after tagpr creates the tag.
+  ready to start the release.
+- Merging explicitly approves the release contents instead of relying on a sequence of
+  local commands.
+- The tag starts project-specific build, packaging, publishing, and deployment steps.
 
 tagpr supports Semantic Versioning (SemVer) by default, Calendar Versioning (CalVer),
 tag-only releases, monorepos, and maintenance branches for older major versions.
@@ -26,15 +28,16 @@ The **release branch** is the long-lived branch configured by `tagpr.releaseBran
 normally `main`. The **release PR branch** is the temporary `tagpr-from-*` branch that
 tagpr manages as the head of the release pull request.
 
-### Create, review, and release
+### Create, review, and tag
 
 1. tagpr detects unreleased changes when a push advances the release branch.
 2. tagpr creates or rebuilds the release PR branch, then creates or updates a release
    pull request. By default, it updates the version file and `CHANGELOG.md`.
 3. You review the generated and project-specific release changes, then merge the pull
-   request when you are ready to release.
+   request when you are ready to start the release.
 4. On the next run, tagpr tags the new head of the release branch and creates a GitHub
-   Release unless configured otherwise. Any of the GitHub merge methods can be used.
+   Release unless configured otherwise. The tag starts the project's release flow. Any
+   of the GitHub merge methods can be used.
 
 ![The release PR branch diverges from the release branch and merges back at the tagged release commit](docs/images/release-flow.png)
 
@@ -60,10 +63,10 @@ additional commits on the release PR branch forward as far as possible. See
 ### Merge when you are ready
 
 You do not need to merge the release pull request immediately. Leave it open until you
-want to release; tagpr will keep it current as `main` advances. Having one continuously
-open release pull request is the expected workflow. Alternatively, merge it frequently
-and ship smaller releases—small, incremental releases are often easier to review and
-adopt.
+want to start the release; tagpr will keep it current as `main` advances. Having one
+continuously open release pull request is the expected workflow. Alternatively, merge
+it frequently and ship smaller releases—small, incremental releases are often easier
+to review and adopt.
 
 ## Documentation
 
@@ -75,8 +78,8 @@ adopt.
 - [Versioning and label rules](docs/guides/versioning.md)
 - [Changelog and GitHub Releases](docs/guides/changelog-and-releases.md)
 - [Release preparation commands](docs/guides/release-commands.md)
-- [Publishing after a release](docs/guides/publish-after-release.md)
-- [Immutable GitHub Releases](docs/guides/immutable-releases.md)
+- [Tagging and release](docs/guides/tag-and-release.md)
+- [Coordinating Immutable Releases](docs/guides/immutable-releases.md)
 - [Configuration index](docs/reference/configuration.md)
 - [Release pull request templates](docs/reference/templates.md)
 
@@ -211,10 +214,11 @@ Set `tagpr.calendarVersioning` to use a date-based version instead of SemVer:
 [tagpr.calendarVersioning](#tagprcalendarversioning-optional) for the complete token
 reference.
 
-## Publishing or deploying after a release
+## Tagging and release
 
-tagpr exposes a `tag` output only when it creates a tag. Use it to conditionally run a
-publishing or deployment step in the same workflow:
+tagpr exposes a `tag` output only when it creates a tag. The tag is the starting point
+for project-specific release steps such as building, packaging, publishing, and
+deployment. Use the output to conditionally run those steps in the same workflow:
 
 ```yaml
 - uses: actions/checkout@v6
@@ -237,10 +241,11 @@ trigger a separate tag-based release workflow. Eligible workflows for release pu
 requests are an exception: GitHub queues them, but they require approval from a user
 with write access before they run.
 
-Either run publishing in this workflow using `steps.tagpr.outputs.tag`, or supply tagpr
-with a GitHub App installation token when a separate tag-triggered workflow must run.
-See [Publishing after a release](docs/guides/publish-after-release.md) for the tradeoffs,
-examples, required permissions, and token setup.
+Either run the release flow in this workflow using `steps.tagpr.outputs.tag`, or supply
+tagpr with a GitHub App installation token when a separate tag-triggered workflow must
+run.
+See [Tagging and release](docs/guides/tag-and-release.md) for the tradeoffs, examples,
+required permissions, and token setup.
 
 ## Common configurations
 
@@ -533,8 +538,8 @@ to create and approve pull requests** setting. tagpr needs `contents: write`,
 
 ### A tag does not start another workflow
 
-Tags created with `GITHUB_TOKEN` do not trigger another workflow. Run the publishing
-step in the same workflow by checking the `tag` output, or use a GitHub App installation
+Tags created with `GITHUB_TOKEN` do not trigger another workflow. Run the release steps
+in the same workflow by checking the `tag` output, or use a GitHub App installation
 token when a separate workflow is required.
 
 ### tagpr selected the wrong version file

@@ -1,6 +1,19 @@
 baseURL: https://junkyard.song.mu/tagpr/
 title: tagpr
-locale: en-US
+defaultContentLanguage: en
+languages:
+  en:
+    label: English
+    locale: en-US
+    weight: 1
+    params:
+      description: A GitHub Action for automated release pull requests and tagging
+  ja:
+    label: 日本語
+    locale: ja-JP
+    weight: 2
+    params:
+      description: リリースプルリクエストとタグ付けを自動化する GitHub Action
 enableRobotsTXT: true
 disableKinds:
 - taxonomy
@@ -15,6 +28,9 @@ module:
 
 markup:
   goldmark:
+    parser:
+      attribute:
+        block: true
     renderer:
       unsafe: false
   highlight:
@@ -26,14 +42,17 @@ menu:
     weight: 1
     params:
       type: search
-  - name: GitHub
+  - name: Language
     weight: 2
+    params:
+      type: language-switch
+  - name: GitHub
+    weight: 3
     url: https://github.com/Songmu/tagpr
     params:
       icon: github
 
 params:
-  description: A GitHub Action for automated release pull requests and tagging
   navbar:
     displayTitle: true
     displayLogo: false

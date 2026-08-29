@@ -77,7 +77,7 @@ variables, and examples.
 | --- | --- |
 | `tagpr.release` | Create a published release, a draft, or no GitHub Release |
 
-See [Immutable GitHub Releases](../guides/immutable-releases.md) when a later workflow
+See [Coordinating Immutable Releases](../guides/immutable-releases.md) when a later workflow
 must attach assets before publishing.
 
 ## Monorepos
@@ -115,4 +115,4 @@ The GitHub Action has two inputs:
 - `version` selects the tagpr executable version installed by the action.
 
 It exposes `tag`, `pull_request`, and `base_tag` outputs. See
-[Publishing after a release](../guides/publish-after-release.md) for usage.
+[Tagging and release](../guides/tag-and-release.md) for usage.
