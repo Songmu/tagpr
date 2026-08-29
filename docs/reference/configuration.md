@@ -115,4 +115,4 @@ The GitHub Action has two inputs:
 - `version` selects the tagpr executable version installed by the action.
 
 It exposes `tag`, `pull_request`, and `base_tag` outputs. See
-[Publishing after a release](../guides/publish-after-release.md) for usage.
+[Tagging and release](../guides/tag-and-release.md) for usage.

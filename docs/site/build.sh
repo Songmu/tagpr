@@ -78,7 +78,7 @@ while IFS= read -r -d '' source; do
     guides/versioning.md) weight=20 ;;
     guides/changelog-and-releases.md) weight=30 ;;
     guides/release-commands.md) weight=40 ;;
-    guides/publish-after-release.md) weight=50 ;;
+    guides/tag-and-release.md) weight=50 ;;
     guides/immutable-releases.md) weight=60 ;;
     concepts/release-flow.md) weight=10 ;;
     reference/configuration.md) weight=10 ;;
@@ -91,6 +91,9 @@ while IFS= read -r -d '' source; do
     printf 'title: "%s"\n' "$title"
     if [[ -n "$weight" ]]; then
       printf 'weight: %s\n' "$weight"
+    fi
+    if [[ "$logical" == "guides/tag-and-release.md" ]]; then
+      printf '%s\n' 'aliases:' '  - publish-after-release'
     fi
     if [[ "$logical" == "index.md" ]]; then
       printf '%s\n' 'type: docs' 'cascade:' '  type: docs'

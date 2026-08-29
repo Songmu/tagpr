@@ -1,6 +1,6 @@
 # tagpr ドキュメント
 
-tagpr は、Git のタグ付けをリリースの起点とする自動化ワークフローを提供するカスタム GitHub Action です。
+tagpr は、リリース内容をプルリクエストで準備し、作成されたバージョンタグをプロジェクト固有のリリースフローの起点とするカスタム GitHub Action です。
 
 リリース前の変更をまとめたリリースプルリクエストを自動作成し、それがマージされると、マージコミットに自動でタグを付けます。デフォルトでは、GitHub Release の作成と changelog の生成も行います。
 
@@ -16,7 +16,7 @@ tagpr は、Git のタグ付けをリリースの起点とする自動化ワー�
 - [バージョンとラベルのルール](guides/versioning.md) では、SemVer の提案、カスタムラベル、バージョンファイルの優先順位、CalVer の動作を説明します。
 - [Changelog と GitHub Releases](guides/changelog-and-releases.md) では、tagpr が GitHub の生成リリースノートと `.github/release.yml` を使う方法を説明します。
 - [リリース準備コマンド](guides/release-commands.md) では、リリース前にプロジェクト固有のファイル変更を自動化する方法を説明します。
-- [リリース後の公開](guides/publish-after-release.md) では、tagpr がタグを作成した後に成果物を公開またはデプロイする方法を説明します。
+- [タグ付けとリリース](guides/tag-and-release.md) では、タグを起点としてビルド、パッケージ化、公開、デプロイなどのプロジェクト固有のリリース処理を実行する方法を説明します。
 - [Immutable Releases の活用と連携](guides/immutable-releases.md) では、tagpr と後続のリリースワークフローを連携し、公開前にアセットを添付する方法を説明します。
 - [設定インデックス](reference/configuration.md) では、利用可能な設定を目的別にまとめ、完全なリファレンスへのリンクを示します。
 - [リリースプルリクエストテンプレート](reference/templates.md) では、タイトルと本文のカスタマイズ方法を説明します。
@@ -34,8 +34,8 @@ tagpr は、Git のタグ付けをリリースの起点とする自動化ワー�
 | changelog のカテゴリをカスタマイズする          | [Changelog と GitHub Releases](guides/changelog-and-releases.md#customize-generated-notes) |
 | リリースプルリクエストをカスタマイズする              | [リリースプルリクエストテンプレート](reference/templates.md)                                               |
 | プロジェクト固有のリリース変更を実行する              | [リリース準備コマンド](guides/release-commands.md)                                                  |
-| 同じワークフローから公開する                    | [リリース後の公開](guides/publish-after-release.md#publish-in-the-same-workflow)                  |
-| 別のワークフローを起動する                     | [リリース後の公開](guides/publish-after-release.md#trigger-a-separate-workflow)                   |
+| 同じワークフローでリリースする                   | [タグ付けとリリース](guides/tag-and-release.md#publish-in-the-same-workflow)                     |
+| 別のリリースワークフローを起動する                | [タグ付けとリリース](guides/tag-and-release.md#trigger-a-separate-workflow)                      |
 | immutable release でアセットを公開する      | [Immutable Releases の活用と連携](guides/immutable-releases.md)                              |
 | GoReleaser で tagpr の draft を再利用する | [Immutable Releases の活用と連携](guides/immutable-releases.md#reuse-the-draft-with-goreleaser) |
 | セットアップの問題を診断する                    | [README のトラブルシューティング](../README.md#troubleshooting)                                       |

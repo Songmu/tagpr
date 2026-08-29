@@ -52,7 +52,7 @@ environment for Git operations instead of credentials retained by checkout.
 > workflow. `pull_request` workflows for a release pull request created or updated by
 > tagpr are created in an approval-pending state and require approval from a user with
 > write access before they run. See
-> [Publishing after a release](guides/publish-after-release.md) for details and
+> [Tagging and release](guides/tag-and-release.md) for details and
 > alternative workflow layouts.
 
 ## Enable pull request creation
@@ -115,7 +115,7 @@ merged commit.
 ## Prepare the first release
 
 The generated release pull request follows later pushes to `main`. Leave it open until
-you are ready to release.
+you are ready to start the release.
 
 Before merging, you can:
 
@@ -150,14 +150,15 @@ On the release pull request:
 See [Versioning and label rules](guides/versioning.md) for custom label mappings and
 the complete precedence rules.
 
-## Release
+## Tag and start the release
 
 Merge the release pull request. The merge advances `main`, which runs tagpr again.
-tagpr recognizes the merged release pull request, tags the merged commit, and creates a
-GitHub Release unless `tagpr.release` disables it.
+tagpr recognizes the merged release pull request and tags the merged commit. That tag
+starts the project-specific release flow. tagpr also creates a GitHub Release unless
+`tagpr.release` disables it.
 
-To publish artifacts or deploy at this point, continue with
-[Publishing after a release](guides/publish-after-release.md).
+To run build, packaging, publishing, or deployment steps from the tag, continue with
+[Tagging and release](guides/tag-and-release.md).
 
 ## Next steps
 

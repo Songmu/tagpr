@@ -68,7 +68,7 @@ before it creates the GitHub Release. Retry the draft lookup until it becomes av
 or dispatch the publishing workflow only after the tagpr job completes. Changing the
 token makes the workflow trigger possible, but does not by itself prevent this race.
 See
-[Publishing after a release](publish-after-release.md#github_token-constraints) for the
+[Tagging and release](tag-and-release.md#github_token-constraints) for the
 authentication and workflow-layout tradeoffs.
 
 Use `--clobber` only for assets that the build can reproduce from the same tag. It lets
@@ -129,7 +129,7 @@ normal tag-triggered run:
 This separation is useful when an existing release tool or workflow already controls
 release-note generation. Ensure that the workflow is triggered reliably: a tag created
 by tagpr with `GITHUB_TOKEN` does not normally start a tag-triggered workflow. The
-[separate workflow guidance](publish-after-release.md#trigger-a-separate-workflow)
+[separate release workflow guidance](tag-and-release.md#trigger-a-separate-workflow)
 explains how to use a GitHub App installation token instead.
 
 The example detects and reuses an existing draft instead of blindly running

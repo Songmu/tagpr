@@ -100,8 +100,8 @@ tagpr error. The workflow can therefore continue after a command failure. Comman
 should validate their output, and maintainers should inspect the resulting release pull
 request and action log before merging.
 
-## Publishing after tagging
+## Release after tagging
 
 Do not use these hooks to upload packages based on a tag that does not exist yet. To run
-publishing or deployment only after tagpr creates the tag, use the action's `tag` output
-as described in [Publishing after a release](publish-after-release.md).
+the release flow only after tagpr creates the tag, use the action's `tag` output as
+described in [Tagging and release](tag-and-release.md).

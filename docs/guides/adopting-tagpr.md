@@ -18,8 +18,8 @@ Record the current release state:
 - the existing changelog and GitHub release-note configuration; and
 - workflows or scripts that create tags, GitHub Releases, packages, or deployments.
 
-Do not enable tagpr while another workflow can create the same version tag or publish
-the same artifact. Decide which existing jobs tagpr replaces and which publishing jobs
+Do not enable tagpr while another workflow can create the same version tag or release
+the same artifact. Decide which existing jobs tagpr replaces and which release jobs
 will continue after tagpr creates a tag.
 
 ## 1. Establish the release baseline
@@ -91,20 +91,21 @@ to the release branch before enabling the setting.
 See [Changelog and GitHub Releases](changelog-and-releases.md) for generation and
 configuration details.
 
-## 4. Transition publishing and deployment
+## 4. Transition the release flow
 
-Choose one publishing model before the first tagpr release:
+Choose one release workflow layout before the first tagpr release:
 
 - Continue in the tagpr workflow when `steps.tagpr.outputs.tag` is non-empty.
-- Keep a separate tag-triggered workflow and supply tagpr with a GitHub App token.
+- Keep a separate tag-triggered workflow and supply tagpr with a token that can trigger
+  workflows, preferably a GitHub App installation token.
 
 A tag created with the repository's `GITHUB_TOKEN` does not trigger another workflow.
-If an existing publishing workflow listens for tag pushes, it will stop running unless
+If an existing release workflow listens for tag pushes, it will stop running unless
 tagpr uses a token that can trigger workflows.
 
-Keep the publishing operation callable with an explicit tag so a failed publication
-can be retried without creating another release. See
-[Publishing after a release](publish-after-release.md) for both workflow layouts.
+Keep the release operation callable with an explicit tag so a failed build,
+publication, or deployment can be retried without creating another tag. See
+[Tagging and release](tag-and-release.md) for both workflow layouts.
 
 ## 5. Enable tagpr
 
@@ -128,7 +129,7 @@ release process:
 - only intended version files and generated files changed;
 - existing changelog content remains intact;
 - generated release notes use the expected categories and exclusions; and
-- publishing or deployment will run exactly once after tagging.
+- the release flow will run exactly once after tagging.
 
 If the history range or generated changes are wrong, leave the pull request open.
 Correct `.tagpr`, the baseline, or the release-note configuration on the release target
@@ -147,9 +148,9 @@ After tagpr runs again, confirm that:
 
 1. the new tag points to the merged release commit;
 2. the GitHub Release and changelog contain the intended changes;
-3. package publishing or deployment completed once; and
+3. the project-specific release flow completed once; and
 4. the next unreleased change creates or updates the next release pull request.
 
 After this release succeeds, remove obsolete tagging and release-creation steps from
-the previous process. Keep recovery-oriented publishing commands that can accept an
+the previous process. Keep recovery-oriented release commands that can accept an
 explicit tag.

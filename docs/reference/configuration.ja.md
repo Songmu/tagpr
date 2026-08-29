@@ -99,4 +99,4 @@ GitHub Action には 2 つの入力があります。
 - `config` は `.tagpr` 以外の設定ファイルを選ぶ。
 - `version` は Action がインストールする tagpr 実行可能ファイルのバージョンを選ぶ。
 
-`tag`、`pull_request`、`base_tag` の出力を提供します。使用方法は [リリース後の公開](../guides/publish-after-release.md) を参照してください。
+`tag`、`pull_request`、`base_tag` の出力を提供します。使用方法は [タグ付けとリリース](../guides/tag-and-release.md) を参照してください。
