@@ -688,3 +688,68 @@ func TestZeroPaddedCalver(t *testing.T) {
 		t.Errorf("nextCalver(next date) = %q, want %q", nextVer2.Tag(), "v2026.0124.0")
 	}
 }
+
+func TestNewCalverVersionWithNonSemverPrefix(t *testing.T) {
+	tests := []struct {
+		name        string
+		v           string
+		format      string
+		wantTag     string
+		wantVPrefix bool
+		wantParsed  bool
+	}{
+		{
+			name:        "literal prefix, not valid semver",
+			v:           "release_20260513.0",
+			format:      "release_YYYY0M0D.MICRO",
+			wantTag:     "release_20260513.0",
+			wantVPrefix: false,
+			wantParsed:  true,
+		},
+		{
+			name:        "v-prefixed literal prefix",
+			v:           "vrelease_20260513.0",
+			format:      "release_YYYY0M0D.MICRO",
+			wantTag:     "vrelease_20260513.0",
+			wantVPrefix: true,
+			wantParsed:  true,
+		},
+		{
+			name:        "unparseable current version falls back gracefully",
+			v:           "v0.0.0",
+			format:      "release_YYYY0M0D.MICRO",
+			wantTag:     "v0.0.0",
+			wantVPrefix: true,
+			wantParsed:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sv := newCalverVersion(tt.v, tt.format)
+			if !sv.asCalendarVersion {
+				t.Fatalf("newCalverVersion(%q).asCalendarVersion should be true", tt.v)
+			}
+			if sv.vPrefix != tt.wantVPrefix {
+				t.Errorf("newCalverVersion(%q).vPrefix = %v, want %v", tt.v, sv.vPrefix, tt.wantVPrefix)
+			}
+			if got := sv.Tag(); got != tt.wantTag {
+				t.Errorf("newCalverVersion(%q).Tag() = %s, want %s", tt.v, got, tt.wantTag)
+			}
+			if (sv.cv != nil) != tt.wantParsed {
+				t.Errorf("newCalverVersion(%q) parsed cv = %v, want parsed = %v", tt.v, sv.cv != nil, tt.wantParsed)
+			}
+		})
+	}
+}
+
+func TestNewCalverVersionGuessNext(t *testing.T) {
+	sv := newCalverVersion("release_20260513.0", "release_YYYY0M0D.MICRO")
+	next := sv.GuessNext(nil)
+	if !next.asCalendarVersion {
+		t.Fatalf("GuessNext() result should remain in CalVer mode")
+	}
+	if next.Tag() == "" {
+		t.Errorf("GuessNext().Tag() should not be empty")
+	}
+}

@@ -358,7 +358,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 	var currVer *semv
 	if tp.cfg.CalendarVersioning() {
-		currVer = newCalendarVersion(currVerStr, tp.cfg.CalendarVersioningFormat())
+		currVer = newCalverVersion(currVerStr, tp.cfg.CalendarVersioningFormat())
 	} else {
 		var err error
 		currVer, err = newSemver(currVerStr)

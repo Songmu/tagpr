@@ -78,12 +78,7 @@ func (sv *semv) GuessNext(labels []string) *semv {
 	}
 }
 
-// newCalendarVersion builds a semv from a version string for CalVer mode
-// without routing it through SemVer parsing. CalVer version strings are not
-// required to be valid SemVer (e.g. they may include a literal prefix), so
-// parsing them with the SemVer parser can fail even though the value is a
-// perfectly valid CalVer string.
-func newCalendarVersion(v, format string) *semv {
+func newCalverVersion(v, format string) *semv {
 	if format == "" {
 		format = defaultCalendarVersioningFormat
 	}
