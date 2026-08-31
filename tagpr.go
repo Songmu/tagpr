@@ -356,9 +356,15 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		// Strip prefix for newSemver (fromCommitish already has full tag name)
 		currVerStr = strings.TrimPrefix(currVerStr, tp.normalizedTagPrefix)
 	}
-	currVer, err := newSemver(currVerStr)
-	if err != nil {
-		return err
+	var currVer *semv
+	if tp.cfg.CalendarVersioning() {
+		currVer = newCalendarVersion(currVerStr, tp.cfg.CalendarVersioningFormat())
+	} else {
+		var err error
+		currVer, err = newSemver(currVerStr)
+		if err != nil {
+			return err
+		}
 	}
 
 	if tp.cfg.vPrefix == nil {

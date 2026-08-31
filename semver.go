@@ -78,6 +78,29 @@ func (sv *semv) GuessNext(labels []string) *semv {
 	}
 }
 
+// newCalendarVersion builds a semv from a version string for CalVer mode
+// without routing it through SemVer parsing. CalVer version strings are not
+// required to be valid SemVer (e.g. they may include a literal prefix), so
+// parsing them with the SemVer parser can fail even though the value is a
+// perfectly valid CalVer string.
+func newCalendarVersion(v, format string) *semv {
+	if format == "" {
+		format = defaultCalendarVersioningFormat
+	}
+	vPrefix := strings.HasPrefix(v, "v")
+	verStr := strings.TrimPrefix(v, "v")
+	sv := &semv{
+		vPrefix:           vPrefix,
+		asCalendarVersion: true,
+		calverFormat:      format,
+		originalVersion:   v,
+	}
+	if cv, err := calver.Parse(format, verStr); err == nil {
+		sv.cv = cv
+	}
+	return sv
+}
+
 func newCalver(now time.Time, vPrefix bool, format string) *semv {
 	cv, _ := calver.NewWithTime(format, now)
 	return &semv{
