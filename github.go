@@ -29,7 +29,7 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 		if strings.HasSuffix(fqdn, ".ghe.com") {
 			// for GitHub Enterprise Cloud
 			// ref. https://docs.github.com/en/enterprise-cloud@latest/rest/using-the-rest-api/getting-started-with-the-rest-api
-			host = fmt.Sprintf("https://api.%s", host)
+			host = fmt.Sprintf("https://api.%s/", host)
 		} else {
 			// ref. https://github.com/google/go-github/issues/958
 			host = fmt.Sprintf("https://%s/api/v3/", host)
