@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.20.3](https://github.com/Songmu/tagpr/compare/v1.20.2...v1.20.3) - 2026-09-03
+
+- docs: add Japanese documentation site by @Songmu in https://github.com/Songmu/tagpr/pull/390
+- build(deps): bump Songmu/tagpr from 1.20.1 to 1.20.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/400
+- fix: ensure base URL for GitHub Enterprise Cloud has a trailing slash by @kjmkznr in https://github.com/Songmu/tagpr/pull/405
+
 ## [v1.20.2](https://github.com/Songmu/tagpr/compare/v1.20.1...v1.20.2) - 2026-08-25
 
 - docs: clarify tagpr.versionFile behavior by @tokuhirom in https://github.com/Songmu/tagpr/pull/370
