@@ -1,5 +1,16 @@
 # Changelog
 
+## [v1.20.4](https://github.com/Songmu/tagpr/compare/v1.20.3...v1.20.4) - 2026-09-22
+
+- build(deps): bump reviewdog/action-staticcheck from 1.31.0 to 1.32.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/411
+- build(deps): bump codecov/codecov-action from 7.0.0 to 7.1.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/410
+- Update dependency gohugoio/hugo to v0.166.0 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/409
+- build(deps): bump Songmu/tagpr from 1.20.2 to 1.20.3 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/408
+- build(deps): bump golang.org/x/oauth2 from 0.36.0 to 0.37.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/407
+- build(deps): bump actions/deploy-pages from 5.0.0 to 5.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/406
+- Modernize release workflow by @Songmu in https://github.com/Songmu/tagpr/pull/414
+- update install.sh with insmith by @Songmu in https://github.com/Songmu/tagpr/pull/415
+
 ## [v1.20.3](https://github.com/Songmu/tagpr/compare/v1.20.2...v1.20.3) - 2026-09-03
 
 - docs: add Japanese documentation site by @Songmu in https://github.com/Songmu/tagpr/pull/390
