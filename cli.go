@@ -22,11 +22,32 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		fmt.Sprintf("%s (v%s rev:%s)", cmdName, version, revision), flag.ContinueOnError)
 	fs.SetOutput(errStream)
 	ver := fs.Bool("version", false, "display version")
+	mode := fs.String("mode", string(executionModeAuto), "execution mode: auto, prepare, or tag")
+	pendingTag := fs.String("pending-tag", "", "expected tag to create in tag mode")
+	targetSHA := fs.String("target-sha", "", "commit SHA to tag in tag mode")
+	releaseBoundarySHA := fs.String(
+		"release-boundary-sha", "", "release notes boundary SHA in tag mode")
+	pullRequestNumber := fs.Int(
+		"pull-request-number", 0, "merged release pull request number in tag mode")
+	baseTag := fs.String("base-tag", "", "previous release tag in tag mode")
 	if err := fs.Parse(argv); err != nil {
 		return err
 	}
 	if *ver {
 		return printVersion(outStream)
+	}
+	opts := runOptions{
+		Mode: executionMode(*mode),
+		Candidate: releaseCandidate{
+			PendingTag:         *pendingTag,
+			TargetSHA:          *targetSHA,
+			ReleaseBoundarySHA: *releaseBoundarySHA,
+			PullRequestNumber:  *pullRequestNumber,
+			BaseTag:            *baseTag,
+		},
+	}
+	if err := opts.validate(); err != nil {
+		return err
 	}
 
 	tp, err := newTagPR(ctx, &commander{
@@ -34,5 +55,6 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 	if err != nil {
 		return err
 	}
+	tp.runOptions = opts
 	return tp.Run(ctx)
 }
