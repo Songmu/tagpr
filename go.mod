@@ -1,8 +1,6 @@
 module github.com/Songmu/tagpr
 
-go 1.25.0
-
-toolchain go1.26.0
+go 1.26.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
@@ -13,7 +11,7 @@ require (
 	github.com/google/go-github/v83 v83.0.0
 	github.com/k1LoW/calver v1.0.2
 	github.com/saracen/walker v0.1.4
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
