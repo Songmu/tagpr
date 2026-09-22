@@ -41,6 +41,7 @@ type tagpr struct {
 	remoteName, owner, repo string
 	out                     io.Writer
 	normalizedTagPrefix     string
+	runOptions              runOptions
 }
 
 func (tp *tagpr) latestSemverTag() string {
@@ -227,7 +228,10 @@ func (tp *tagpr) initializeReleaseYaml(path string) error {
 }
 
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
-	tp := &tagpr{c: c, gitPath: c.gitPath, out: c.outStream}
+	tp := &tagpr{
+		c: c, gitPath: c.gitPath, out: c.outStream,
+		runOptions: runOptions{Mode: executionModeAuto},
+	}
 
 	var err error
 	tp.remoteName, err = tp.detectRemote()
@@ -338,11 +342,16 @@ func (tp *tagpr) isTagPR(pr *github.PullRequest) bool {
 }
 
 func (tp *tagpr) Run(ctx context.Context) error {
+	if err := tp.runOptions.validate(); err != nil {
+		return err
+	}
 	commitMessage := tp.cfg.CommitPrefix() + " " + autoCommitMessage
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
 
 	latestSemverTag := tp.latestSemverTag()
-	tp.setOutput("base_tag", latestSemverTag)
+	if tp.runOptions.Mode != executionModeTag {
+		tp.setOutput("base_tag", latestSemverTag)
+	}
 	currVerStr := latestSemverTag
 	fromCommitish := "refs/tags/" + currVerStr
 	if currVerStr == "" {
@@ -383,6 +392,10 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
+	if tp.runOptions.Mode == executionModeTag {
+		return tp.finalizeRelease(ctx, tp.runOptions.Candidate)
+	}
+
 	branch, _, err := tp.c.Git("symbolic-ref", "--short", "HEAD")
 	if err != nil {
 		return fmt.Errorf("failed to git symbolic-ref: %w", err)
@@ -398,12 +411,19 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := tp.tagRelease(ctx, pr, currVer, latestSemverTag); err != nil {
+		candidate, err := tp.prepareReleaseCandidate(pr, currVer, latestSemverTag)
+		if err != nil {
 			return err
 		}
-		b, _ := json.Marshal(pr)
-		tp.setOutput("pull_request", string(b))
-		return nil
+		if tp.runOptions.Mode == executionModePrepare {
+			if err := tp.setCandidateOutputs(candidate); err != nil {
+				return err
+			}
+			b, _ := json.Marshal(pr)
+			tp.setOutput("pull_request", string(b))
+			return nil
+		}
+		return tp.completeRelease(ctx, candidate, pr, false)
 	}
 	mergeLogArgs := []string{"log", "--merges", "--first-parent", "--pretty=format:%P",
 		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}

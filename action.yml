@@ -9,6 +9,25 @@ inputs:
   config:
     description: "A path to the tagpr configuration file"
     required: false
+  mode:
+    description: "Execution mode: auto, prepare, or tag"
+    required: false
+    default: "auto"
+  pending-tag:
+    description: "The tag proposed by prepare mode"
+    required: false
+  target-sha:
+    description: "The exact commit SHA to tag"
+    required: false
+  release-boundary-sha:
+    description: "The commit boundary used to generate release notes"
+    required: false
+  pull-request-number:
+    description: "The merged release pull request number"
+    required: false
+  base-tag:
+    description: "The previous release tag"
+    required: false
 outputs:
   tag:
     description: "The semver tag, which is output only when the tagpr has tagged"
@@ -19,6 +38,18 @@ outputs:
   base_tag:
     description: "The base semver tag for comparison, empty if no previous tag exists"
     value: ${{ steps.tagpr.outputs.base_tag }}
+  pending_tag:
+    description: "The proposed tag, which is output only when tagging is deferred"
+    value: ${{ steps.tagpr.outputs.pending_tag }}
+  target_sha:
+    description: "The exact merged release commit proposed for tagging"
+    value: ${{ steps.tagpr.outputs.target_sha }}
+  release_boundary_sha:
+    description: "The commit boundary used to generate release notes"
+    value: ${{ steps.tagpr.outputs.release_boundary_sha }}
+  pull_request_number:
+    description: "The merged release pull request number"
+    value: ${{ steps.tagpr.outputs.pull_request_number }}
 runs:
   using: "composite"
   steps:
@@ -29,12 +60,28 @@ runs:
       TEMP_PATH="$(mktemp -d)"
       PATH="${TEMP_PATH}:$PATH"
       bash "$GITHUB_ACTION_PATH/install.sh" -b "$TEMP_PATH" "$TAGPR_VERSION"
-      tagpr
+      args=(--mode "$TAGPR_MODE")
+      if [[ "$TAGPR_MODE" == "tag" ]]; then
+        args+=(
+          --pending-tag "$TAGPR_PENDING_TAG"
+          --target-sha "$TAGPR_TARGET_SHA"
+          --release-boundary-sha "$TAGPR_RELEASE_BOUNDARY_SHA"
+          --pull-request-number "$TAGPR_PULL_REQUEST_NUMBER"
+          --base-tag "$TAGPR_BASE_TAG"
+        )
+      fi
+      tagpr "${args[@]}"
     shell: bash
     env:
       ACTION_REF: ${{ github.action_ref }}
       TAGPR_VERSION: ${{ inputs.version }}
       TAGPR_CONFIG_FILE: ${{ inputs.config }}
+      TAGPR_MODE: ${{ inputs.mode }}
+      TAGPR_PENDING_TAG: ${{ inputs['pending-tag'] }}
+      TAGPR_TARGET_SHA: ${{ inputs['target-sha'] }}
+      TAGPR_RELEASE_BOUNDARY_SHA: ${{ inputs['release-boundary-sha'] }}
+      TAGPR_PULL_REQUEST_NUMBER: ${{ inputs['pull-request-number'] }}
+      TAGPR_BASE_TAG: ${{ inputs['base-tag'] }}
 branding:
   icon: 'git-pull-request'
   color: 'blue'

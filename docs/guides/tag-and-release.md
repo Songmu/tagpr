@@ -65,6 +65,141 @@ Other available outputs are:
 - `base_tag`: the previous tag used as the comparison base, or an empty value for the
   first release.
 
+## Test and approve before tagging {#test-and-approve-before-tagging}
+
+By default, tagpr creates the tag as soon as it detects a merged release pull request.
+Use `prepare` and `tag` modes when the exact merged commit must pass additional tests or
+wait for a protected-environment approval before tagging.
+
+`prepare` emits these candidate outputs without creating a tag:
+
+- `pending_tag`: the proposed version tag;
+- `target_sha`: the exact merged release commit;
+- `release_boundary_sha`: the boundary used to generate release notes;
+- `pull_request_number`: the merged release pull request;
+- `base_tag`: the previous release tag.
+
+The final job passes those values unchanged to `tag` mode. tagpr then verifies the
+candidate against repository state before creating the tag. The target may cease to be
+the release branch head while approval is pending, but it must still be an ancestor of
+the configured release branch.
+
+```yaml
+name: tagpr
+on:
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+
+# Keep the active approval run and collapse later main pushes into one pending run.
+concurrency:
+  group: tagpr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      pending_tag: ${{ steps.tagpr.outputs.pending_tag }}
+      target_sha: ${{ steps.tagpr.outputs.target_sha }}
+      release_boundary_sha: ${{ steps.tagpr.outputs.release_boundary_sha }}
+      pull_request_number: ${{ steps.tagpr.outputs.pull_request_number }}
+      base_tag: ${{ steps.tagpr.outputs.base_tag }}
+    steps:
+    - name: Generate token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ secrets.CLIENT_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: read
+    - uses: actions/checkout@v6
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+    - id: tagpr
+      uses: Songmu/tagpr@v1
+      with:
+        mode: prepare
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  test-release:
+    needs: prepare
+    if: needs.prepare.outputs.pending_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ needs.prepare.outputs.target_sha }}
+        persist-credentials: false
+    - run: go test ./...
+
+  create-tag:
+    needs:
+    - prepare
+    - test-release
+    if: needs.prepare.outputs.pending_tag != '' && needs.test-release.result == 'success'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+    # This token is created after the protected environment is approved.
+    - name: Generate token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ secrets.CLIENT_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: read
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ needs.prepare.outputs.target_sha }}
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+    - uses: Songmu/tagpr@v1
+      with:
+        mode: tag
+        pending-tag: ${{ needs.prepare.outputs.pending_tag }}
+        target-sha: ${{ needs.prepare.outputs.target_sha }}
+        release-boundary-sha: ${{ needs.prepare.outputs.release_boundary_sha }}
+        pull-request-number: ${{ needs.prepare.outputs.pull_request_number }}
+        base-tag: ${{ needs.prepare.outputs.base_tag }}
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+```
+
+Create the `release` environment under the repository's **Settings → Environments**
+page and configure its required reviewers. GitHub waits before starting `create-tag`,
+so environment secrets and the final job's short-lived token are not used before
+approval. A deployment that remains unapproved for 30 days
+[fails automatically][deployment-approval].
+
+Workflow-level concurrency is required for this layout. While a candidate waits for
+approval, another release-branch push must not start a second `prepare` invocation
+against the same unreleased range. With `cancel-in-progress: false`, the active approval
+run remains in progress and GitHub keeps at most one later run pending. For multiple
+tagpr configurations in a monorepo, include the config path or another stable release
+stream identifier in the concurrency group.
+
+Finalization is retryable. If the tag was pushed successfully but GitHub Release
+creation failed, rerunning the final job accepts the tag when it already points to the
+candidate's `target_sha` and retries the Release operation. A tag with the same name
+pointing to another commit is rejected.
+
 ## Trigger a separate release workflow {#trigger-a-separate-workflow}
 
 To run the release flow in a workflow configured with `on.push.tags`:
@@ -148,5 +283,6 @@ For the action's complete output reference, see the
 
 [bot-pr-approval]: https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/
 [create-app-token]: https://github.com/actions/create-github-app-token
+[deployment-approval]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments
 [ecschedule-tagpr]: https://github.com/Songmu/ecschedule/blob/main/.github/workflows/tagpr.yaml
 [github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow

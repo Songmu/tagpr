@@ -13,13 +13,9 @@ import (
 	"github.com/google/go-github/v83/github"
 )
 
-func (tp *tagpr) latestMergedReleasePullRequest(ctx context.Context) (*github.PullRequest, error) {
-	// tag and exit if the HEAD is the merged tagpr
-	commitish, _, err := tp.c.Git("rev-parse", "HEAD")
-	if err != nil {
-		return nil, err
-	}
-
+func (tp *tagpr) mergedReleasePullRequestForCommit(
+	ctx context.Context, commitish string,
+) (*github.PullRequest, error) {
 	// Retry because GitHub's internal commit-to-PR index may not be updated
 	// immediately after a merge, causing the API to return an empty list.
 	// This is especially common with squash merges but can also happen with
@@ -62,6 +58,14 @@ func (tp *tagpr) latestMergedReleasePullRequest(ctx context.Context) (*github.Pu
 		}
 	}
 	return nil, nil
+}
+
+func (tp *tagpr) latestMergedReleasePullRequest(ctx context.Context) (*github.PullRequest, error) {
+	commitish, _, err := tp.c.Git("rev-parse", "HEAD")
+	if err != nil {
+		return nil, err
+	}
+	return tp.mergedReleasePullRequestForCommit(ctx, commitish)
 }
 
 const (
@@ -167,25 +171,44 @@ func (tp *tagpr) withCheckout(commitish, restoreBranch string, fn func() error) 
 	return fn()
 }
 
-func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
-	var (
-		vfile string
-		err   error
-	)
-	releaseBranch := tp.cfg.ReleaseBranch()
-
+func (tp *tagpr) prepareReleaseCandidate(
+	pr *github.PullRequest, currVer *semv, latestSemverTag string,
+) (releaseCandidate, error) {
+	targetSHA, _, err := tp.c.Git("rev-parse", "HEAD")
+	if err != nil {
+		return releaseCandidate{}, err
+	}
 	boundarySHA, err := tp.releaseBoundarySHA(pr)
 	if err != nil {
-		return err
+		return releaseCandidate{}, err
 	}
+	pendingTag, err := tp.calculatePendingTag(
+		pr, currVer, boundarySHA, targetSHA, tp.cfg.ReleaseBranch())
+	if err != nil {
+		return releaseCandidate{}, err
+	}
+	return releaseCandidate{
+		PendingTag:         pendingTag,
+		TargetSHA:          targetSHA,
+		ReleaseBoundarySHA: boundarySHA,
+		PullRequestNumber:  pr.GetNumber(),
+		BaseTag:            latestSemverTag,
+	}, nil
+}
 
+func (tp *tagpr) calculatePendingTag(
+	pr *github.PullRequest,
+	currVer *semv,
+	boundarySHA, targetSHA, restoreCommitish string,
+) (string, error) {
+	var vfile string
 	if tp.cfg.VersionFile() == "" {
-		if err := tp.withCheckout(boundarySHA, releaseBranch, func() error {
+		if err := tp.withCheckout(boundarySHA, restoreCommitish, func() error {
 			var detectErr error
 			vfile, detectErr = detectVersionFile(".", currVer)
 			return detectErr
 		}); err != nil {
-			return err
+			return "", err
 		}
 	} else if tp.cfg.VersionFile() != "-" {
 		vfiles := strings.Split(tp.cfg.VersionFile(), ",")
@@ -194,11 +217,16 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 
 	var nextTag string
 	if vfile != "" {
-		nextVer, err := retrieveVersionFromFile(vfile, currVer)
-		if err != nil {
-			return err
+		if err := tp.withCheckout(targetSHA, restoreCommitish, func() error {
+			nextVer, retrieveErr := retrieveVersionFromFile(vfile, currVer)
+			if retrieveErr != nil {
+				return retrieveErr
+			}
+			nextTag = nextVer.Tag()
+			return nil
+		}); err != nil {
+			return "", err
 		}
-		nextTag = nextVer.Tag()
 	} else {
 		var labels []string
 		for _, l := range pr.Labels {
@@ -206,21 +234,116 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		}
 		nextTag = currVer.GuessNext(labels).Tag()
 	}
-	// Add prefix for monorepo support
-	fullNextTag := fullTag(tp.normalizedTagPrefix, nextTag)
+	return fullTag(tp.normalizedTagPrefix, nextTag), nil
+}
 
-	previousTag := &latestSemverTag
-	if *previousTag == "" {
-		previousTag = nil
+func (tp *tagpr) setCandidateOutputs(candidate releaseCandidate) error {
+	outputs := []struct {
+		name  string
+		value string
+	}{
+		{"pending_tag", candidate.PendingTag},
+		{"target_sha", candidate.TargetSHA},
+		{"release_boundary_sha", candidate.ReleaseBoundarySHA},
+		{"pull_request_number", fmt.Sprintf("%d", candidate.PullRequestNumber)},
+	}
+	for _, output := range outputs {
+		if err := tp.setOutput(output.name, output.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (tp *tagpr) finalizeRelease(ctx context.Context, candidate releaseCandidate) error {
+	if err := (runOptions{Mode: executionModeTag, Candidate: candidate}).validate(); err != nil {
+		return err
+	}
+	targetSHA, err := tp.resolveExactCommit(candidate.TargetSHA)
+	if err != nil {
+		return fmt.Errorf("failed to resolve target SHA: %w", err)
+	}
+	boundarySHA, err := tp.resolveExactCommit(candidate.ReleaseBoundarySHA)
+	if err != nil {
+		return fmt.Errorf("failed to resolve release boundary SHA: %w", err)
+	}
+	candidate.TargetSHA = targetSHA
+	candidate.ReleaseBoundarySHA = boundarySHA
+
+	if _, _, err := tp.c.Git(
+		"fetch", tp.remote(),
+		"+refs/heads/"+tp.cfg.ReleaseBranch()+
+			":refs/remotes/"+tp.remote()+"/"+tp.cfg.ReleaseBranch(),
+	); err != nil {
+		return fmt.Errorf("failed to fetch release branch: %w", err)
+	}
+	remoteReleaseBranch := tp.remote() + "/" + tp.cfg.ReleaseBranch()
+	if err := tp.requireAncestor(targetSHA, remoteReleaseBranch,
+		"target commit is not an ancestor of the release branch"); err != nil {
+		return err
+	}
+	if err := tp.requireAncestor(boundarySHA, targetSHA,
+		"release boundary is not an ancestor of the target commit"); err != nil {
+		return err
+	}
+	if candidate.BaseTag != "" {
+		if err := tp.requireAncestor(candidate.BaseTag, boundarySHA,
+			"base tag is not an ancestor of the release boundary"); err != nil {
+			return err
+		}
 	}
 
-	// To avoid putting pull requests created by tagpr itself in the release notes,
-	// we generate release notes in advance.
-	// Stop at the selected boundary to exclude the release pull request itself.
-	targetCommitish := boundarySHA
+	pr, err := tp.mergedReleasePullRequestForCommit(ctx, targetSHA)
+	if err != nil {
+		return err
+	}
+	if pr == nil || pr.GetNumber() != candidate.PullRequestNumber {
+		return fmt.Errorf(
+			"target commit %s is not associated with merged tagpr pull request #%d",
+			targetSHA, candidate.PullRequestNumber)
+	}
+
+	localTagExists, remoteTagExists, err := tp.inspectExistingTag(
+		candidate.PendingTag, targetSHA)
+	if err != nil {
+		return err
+	}
+	latestTag := tp.latestSemverTag()
+	if latestTag != candidate.BaseTag &&
+		!((localTagExists || remoteTagExists) && latestTag == candidate.PendingTag) {
+		return fmt.Errorf("base tag changed from %q to %q", candidate.BaseTag, latestTag)
+	}
+
+	currVer, err := tp.versionFromBaseTag(candidate.BaseTag)
+	if err != nil {
+		return err
+	}
+	recalculatedTag, err := tp.calculatePendingTag(
+		pr, currVer, boundarySHA, targetSHA, targetSHA)
+	if err != nil {
+		return err
+	}
+	if recalculatedTag != candidate.PendingTag {
+		return fmt.Errorf(
+			"pending tag changed from %q to %q", candidate.PendingTag, recalculatedTag)
+	}
+	return tp.completeRelease(ctx, candidate, pr, remoteTagExists)
+}
+
+func (tp *tagpr) completeRelease(
+	ctx context.Context,
+	candidate releaseCandidate,
+	pr *github.PullRequest,
+	tagExists bool,
+) error {
+	previousTag := &candidate.BaseTag
+	if candidate.BaseTag == "" {
+		previousTag = nil
+	}
+	targetCommitish := candidate.ReleaseBoundarySHA
 	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
 		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
-			TagName:               fullNextTag,
+			TagName:               candidate.PendingTag,
 			PreviousTagName:       previousTag,
 			TargetCommitish:       &targetCommitish,
 			ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
@@ -230,23 +353,50 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return err
 	}
 
-	if _, _, err := tp.c.Git("tag", fullNextTag); err != nil {
-		return err
+	if !tagExists {
+		localSHA, _, localErr := tp.c.Git(
+			"rev-parse", "--verify", "refs/tags/"+candidate.PendingTag+"^{commit}")
+		if localErr != nil {
+			if _, _, err := tp.c.Git(
+				"tag", candidate.PendingTag, candidate.TargetSHA); err != nil {
+				return err
+			}
+		} else if localSHA != candidate.TargetSHA {
+			return fmt.Errorf(
+				"tag %s already points to %s, want %s",
+				candidate.PendingTag, localSHA, candidate.TargetSHA)
+		}
+		ref := "refs/tags/" + candidate.PendingTag
+		if _, _, err := tp.c.Git("push", tp.remote(), ref+":"+ref); err != nil {
+			_, existsAfterPush, verifyErr := tp.inspectExistingTag(
+				candidate.PendingTag, candidate.TargetSHA)
+			if verifyErr != nil || !existsAfterPush {
+				return err
+			}
+		}
 	}
-	_, _, err = tp.c.Git("push", "--tags")
-	if err != nil {
-		return err
-	}
-	tp.setOutput("tag", fullNextTag)
 
 	if !tp.cfg.Release() {
-		return nil
+		return tp.setFinalOutputs(candidate, pr)
 	}
-	// Don't use GenerateReleaseNote flag and use pre generated one
+	existingRelease, resp, err := tp.gh.Repositories.GetReleaseByTag(
+		ctx, tp.owner, tp.repo, candidate.PendingTag)
+	if err == nil {
+		if existingRelease.GetDraft() != tp.cfg.ReleaseDraft() {
+			return fmt.Errorf(
+				"GitHub Release for %s already exists with draft=%t, want draft=%t",
+				candidate.PendingTag, existingRelease.GetDraft(), tp.cfg.ReleaseDraft())
+		}
+		return tp.setFinalOutputs(candidate, pr)
+	}
+	if resp == nil || resp.StatusCode != 404 {
+		showGHError(err, resp)
+		return err
+	}
 	_, resp, err = tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
-			TagName:         &fullNextTag,
-			TargetCommitish: &releaseBranch,
+			TagName:         &candidate.PendingTag,
+			TargetCommitish: &candidate.TargetSHA,
 			Name:            &releases.Name,
 			Body:            &releases.Body,
 			Draft:           github.Ptr(tp.cfg.ReleaseDraft()),
@@ -255,5 +405,100 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		showGHError(err, resp)
 		return err
 	}
+	return tp.setFinalOutputs(candidate, pr)
+}
+
+func (tp *tagpr) setFinalOutputs(candidate releaseCandidate, pr *github.PullRequest) error {
+	if err := tp.setOutput("tag", candidate.PendingTag); err != nil {
+		return err
+	}
+	if err := tp.setOutput("base_tag", candidate.BaseTag); err != nil {
+		return err
+	}
+	b, err := json.Marshal(pr)
+	if err != nil {
+		return err
+	}
+	return tp.setOutput("pull_request", string(b))
+}
+
+func (tp *tagpr) resolveExactCommit(candidateSHA string) (string, error) {
+	sha, _, err := tp.c.Git("rev-parse", "--verify", candidateSHA+"^{commit}")
+	if err != nil {
+		return "", err
+	}
+	if sha != candidateSHA {
+		return "", fmt.Errorf("%q is not a full commit SHA", candidateSHA)
+	}
+	return sha, nil
+}
+
+func (tp *tagpr) requireAncestor(ancestor, descendant, message string) error {
+	if _, _, err := tp.c.Git("merge-base", "--is-ancestor", ancestor, descendant); err != nil {
+		return fmt.Errorf("%s: %s is not an ancestor of %s", message, ancestor, descendant)
+	}
 	return nil
+}
+
+func (tp *tagpr) inspectExistingTag(tag, targetSHA string) (bool, bool, error) {
+	localSHA, _, localErr := tp.c.Git("rev-parse", "--verify", "refs/tags/"+tag+"^{commit}")
+	if localErr == nil && localSHA != targetSHA {
+		return false, false,
+			fmt.Errorf("tag %s already points to %s, want %s", tag, localSHA, targetSHA)
+	}
+
+	out, _, err := tp.c.Git("ls-remote", "--tags", tp.remote(), "refs/tags/"+tag)
+	if err != nil {
+		return false, false, err
+	}
+	if out == "" {
+		return localErr == nil, false, nil
+	}
+	fields := strings.Fields(out)
+	if len(fields) == 0 {
+		return false, false, fmt.Errorf("failed to parse remote tag %s", tag)
+	}
+	if fields[0] != targetSHA {
+		return false, false, fmt.Errorf(
+			"remote tag %s already points to %s, want %s", tag, fields[0], targetSHA)
+	}
+	return localErr == nil, true, nil
+}
+
+func (tp *tagpr) remote() string {
+	if tp.remoteName == "" {
+		return "origin"
+	}
+	return tp.remoteName
+}
+
+func (tp *tagpr) versionFromBaseTag(baseTag string) (*semv, error) {
+	version := baseTag
+	if version == "" {
+		version = "v0.0.0"
+	} else {
+		version = strings.TrimPrefix(version, tp.normalizedTagPrefix)
+	}
+	currVer, err := newSemver(version)
+	if err != nil {
+		return nil, err
+	}
+	if tp.cfg.vPrefix == nil {
+		currVer.vPrefix = strings.HasPrefix(version, "v")
+	} else {
+		currVer.vPrefix = *tp.cfg.vPrefix
+	}
+	currVer.asCalendarVersion = tp.cfg.CalendarVersioning()
+	currVer.calverFormat = tp.cfg.CalendarVersioningFormat()
+	return currVer, nil
+}
+
+func (tp *tagpr) tagRelease(
+	ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string,
+) error {
+	candidate, err := tp.prepareReleaseCandidate(pr, currVer, latestSemverTag)
+	if err != nil {
+		return err
+	}
+	return tp.completeRelease(ctx, candidate, pr, false)
 }
