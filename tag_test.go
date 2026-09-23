@@ -389,6 +389,102 @@ func TestTagReleaseMergeMethods(t *testing.T) {
 	}
 }
 
+func TestTagSigningEnabled(t *testing.T) {
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+
+	tests := map[string]struct {
+		value   string
+		want    bool
+		wantErr bool
+	}{
+		"unset":   {},
+		"false":   {value: "false"},
+		"true":    {value: "true", want: true},
+		"invalid": {value: "invalid", wantErr: true},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			cmd := exec.Command("git", "init", "--quiet", dir)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("git init failed: %v\n%s", err, out)
+			}
+			if tt.value != "" {
+				cmd := exec.Command("git", "-C", dir, "config", "tag.gpgSign", tt.value)
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("git config failed: %v\n%s", err, out)
+				}
+			}
+
+			tp := &tagpr{c: &commander{
+				gitPath: "git", dir: dir, outStream: io.Discard, errStream: io.Discard,
+			}}
+			got, err := tp.tagSigningEnabled()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("tagSigningEnabled() expected an error, but got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("tagSigningEnabled() failed: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("tagSigningEnabled() = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTagReleaseSignedTag(t *testing.T) {
+	sshKeygen, err := exec.LookPath("ssh-keygen")
+	if err != nil {
+		t.Skip("ssh-keygen is required to test signed tags")
+	}
+
+	r := newTestRepo(t, "")
+	baseSHA := r.merge("merge")
+	headSHA := r.git("rev-parse", "HEAD")
+
+	signingKey := filepath.Join(t.TempDir(), "signing-key")
+	cmd := exec.Command(sshKeygen, "-q", "-t", "ed25519", "-N", "", "-f", signingKey)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("ssh-keygen failed: %v\n%s", err, out)
+	}
+	r.git("config", "gpg.format", "ssh")
+	r.git("config", "user.signingKey", signingKey)
+	r.git("config", "tag.gpgSign", "true")
+
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	currVer, err := newSemver("v0.1.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pr := &github.PullRequest{
+		Number: github.Ptr(1),
+		Base:   &github.PullRequestBranch{SHA: github.Ptr(baseSHA)},
+		Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+	}
+	if err := tp.tagRelease(context.Background(), pr, currVer, "v0.1.0"); err != nil {
+		t.Fatalf("tagRelease() failed: %v", err)
+	}
+
+	if got := r.git("cat-file", "-t", "v0.1.1"); got != "tag" {
+		t.Errorf("tag type = %q, want annotated tag", got)
+	}
+	if got := r.git("rev-parse", "v0.1.1^{}"); got != headSHA {
+		t.Errorf("the tag v0.1.1 points to %s, want the merged HEAD %s", got, headSHA)
+	}
+	tagObject := r.git("cat-file", "tag", "v0.1.1")
+	if !strings.Contains(tagObject, "\nRelease v0.1.1\n") {
+		t.Errorf("tag object does not contain the release message:\n%s", tagObject)
+	}
+	if !strings.Contains(tagObject, "-----BEGIN SSH SIGNATURE-----") {
+		t.Errorf("tag object does not contain an SSH signature:\n%s", tagObject)
+	}
+}
+
 // TestTagReleaseVersionFileDetection ensures that the version file detection,
 // which checks out the base commit of the release pull request, works for all
 // the merge methods.
