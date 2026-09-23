@@ -2,6 +2,7 @@ package tagpr
 
 import (
 	"bytes"
+	"errors"
 	"log"
 	"text/template"
 )
@@ -39,7 +40,31 @@ func init() {
 }
 
 type tmplArg struct {
-	NextVersion, Branch, Changelog, TagPrefix string
+	NextVersion, Branch, TagPrefix string
+	loadChangelog                  func() (string, error)
+}
+
+type changelogTemplateError struct {
+	err error
+}
+
+func (e *changelogTemplateError) Error() string {
+	return e.err.Error()
+}
+
+func (e *changelogTemplateError) Unwrap() error {
+	return e.err
+}
+
+func (arg *tmplArg) Changelog() (string, error) {
+	if arg.loadChangelog == nil {
+		return "", nil
+	}
+	changelog, err := arg.loadChangelog()
+	if err != nil {
+		return "", &changelogTemplateError{err: err}
+	}
+	return changelog, nil
 }
 
 func newPRTmpl(tmpl *template.Template) *prTmpl {
@@ -49,18 +74,49 @@ func newPRTmpl(tmpl *template.Template) *prTmpl {
 	return &prTmpl{tmpl: tmpl}
 }
 
+func loadPRTmpl(cfg *config) *prTmpl {
+	if t := cfg.Template(); t != "" {
+		tmpl, err := template.ParseFiles(t)
+		if err == nil {
+			return newPRTmpl(tmpl)
+		}
+		log.Printf("parse configured template failed: %s\n", err)
+	} else if t := cfg.TemplateText(); t != "" {
+		tmpl, err := template.New("templateText").Parse(t)
+		if err == nil {
+			return newPRTmpl(tmpl)
+		}
+		log.Printf("parse configured template failed: %s\n", err)
+	}
+	return newPRTmpl(nil)
+}
+
 type prTmpl struct {
 	tmpl *template.Template
+}
+
+func unwrapChangelogTemplateError(err error) error {
+	var changelogErr *changelogTemplateError
+	if errors.As(err, &changelogErr) {
+		return changelogErr.err
+	}
+	return nil
 }
 
 func (pt *prTmpl) Render(arg *tmplArg) (string, error) {
 	var b bytes.Buffer
 	err := pt.tmpl.Execute(&b, arg)
 	if err != nil {
+		if changelogErr := unwrapChangelogTemplateError(err); changelogErr != nil {
+			return "", changelogErr
+		}
 		log.Printf("failed to render configured template: %s\n", err)
 		b.Reset()
 		// fallback to default template
 		err = defaultTmpl.Execute(&b, arg)
+		if changelogErr := unwrapChangelogTemplateError(err); changelogErr != nil {
+			return "", changelogErr
+		}
 	}
 	return b.String(), err
 }

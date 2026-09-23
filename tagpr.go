@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/Songmu/gitconfig"
@@ -752,44 +750,76 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
-	opts := []gh2changelog.Option{
-		gh2changelog.GitPath(tp.gitPath),
-		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
-		gh2changelog.GitHubClient(tp.gh),
-		gh2changelog.TagPrefix(tp.normalizedTagPrefix),
-		gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
+	host := "github.com"
+	if tp.gh.BaseURL != nil {
+		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
 	}
-	if tp.cfg.ReleaseYAMLPath() != "" {
-		opts = append(opts, gh2changelog.ReleaseYamlPath(tp.cfg.ReleaseYAMLPath()))
-	}
-	if fixedMajor, err := tp.cfg.FixedMajorVersion(); err == nil && fixedMajor != nil {
-		opts = append(opts, gh2changelog.FilteredMajorVersion(*fixedMajor))
-	}
-	if tp.cfg.CalendarVersioning() && latestSemverTag != "" {
-		opts = append(opts, gh2changelog.VersionTags([]string{latestSemverTag}))
-	}
-	gch, err := gh2changelog.New(ctx, opts...)
-	if err != nil {
-		return err
-	}
+	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
+	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+	draft := &lazyDraftChangelog{load: func() (*draftChangelog, error) {
+		opts := []gh2changelog.Option{
+			gh2changelog.GitPath(tp.gitPath),
+			gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
+			gh2changelog.GitHubClient(tp.gh),
+			gh2changelog.TagPrefix(tp.normalizedTagPrefix),
+			gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
+		}
+		if tp.cfg.ReleaseYAMLPath() != "" {
+			opts = append(opts, gh2changelog.ReleaseYamlPath(tp.cfg.ReleaseYAMLPath()))
+		}
+		if fixedMajor, err := tp.cfg.FixedMajorVersion(); err == nil && fixedMajor != nil {
+			opts = append(opts, gh2changelog.FilteredMajorVersion(*fixedMajor))
+		}
+		if tp.cfg.CalendarVersioning() && latestSemverTag != "" {
+			opts = append(opts, gh2changelog.VersionTags([]string{latestSemverTag}))
+		}
+		gch, err := gh2changelog.New(ctx, opts...)
+		if err != nil {
+			return nil, err
+		}
 
-	draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-	changelog, orig, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
-	if err != nil {
-		return err
+		draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+		changelog, generatedNotes, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		return &draftChangelog{
+			generator:      gch,
+			changelog:      changelog,
+			generatedNotes: generatedNotes,
+		}, nil
+	}}
+	prArg := &tmplArg{
+		NextVersion: nextVer.Tag(),
+		Branch:      rcBranch,
+		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
+		loadChangelog: func() (string, error) {
+			generatedNotes, err := draft.GeneratedNotes()
+			if err != nil {
+				return "", err
+			}
+			return replaceCompareLink(
+				generatedNotes, host, tp.owner, tp.repo, currTag, nextTag, rcBranch), nil
+		},
 	}
+	pt := loadPRTmpl(tp.cfg)
 
-	if tp.cfg.changelog == nil || *tp.cfg.changelog {
+	if tp.cfg.Changelog() {
+		result, err := draft.Load()
+		if err != nil {
+			return err
+		}
 		changelogMd := tp.cfg.ChangelogFile()
+		changelog := result.changelog
 		if !exists(changelogMd) {
-			logs, _, err := gch.Changelogs(ctx, 20)
+			logs, _, err := result.generator.Changelogs(ctx, 20)
 			if err != nil {
 				return err
 			}
 			changelog = strings.Join(
 				append([]string{changelog}, logs...), "\n")
 		}
-		if _, err := gch.Update(changelog, 0); err != nil {
+		if _, err := result.generator.Update(changelog, 0); err != nil {
 			return err
 		}
 
@@ -823,6 +853,11 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
+	prText, err := pt.Render(prArg)
+	if err != nil {
+		return err
+	}
+
 	// Create or Get remote rcBranch reference
 	rcBranchRef := "refs/heads/" + rcBranch
 	_, resp, err = tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, rcBranchRef)
@@ -848,41 +883,6 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, rcBranchRef, updateRef)
 	if err != nil {
 		showGHError(err, resp)
-		return err
-	}
-
-	var tmpl *template.Template
-	if t := tp.cfg.Template(); t != "" {
-		tmpTmpl, err := template.ParseFiles(t)
-		if err == nil {
-			tmpl = tmpTmpl
-		} else {
-			log.Printf("parse configured template failed: %s\n", err)
-		}
-	} else if t := tp.cfg.TemplateText(); t != "" {
-		tmpTmplTxt, err := template.New("templateText").Parse(t)
-		if err == nil {
-			tmpl = tmpTmplTxt
-		} else {
-			log.Printf("parse configured template failed: %s\n", err)
-		}
-	}
-
-	host := "github.com"
-	if tp.gh.BaseURL != nil {
-		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
-	}
-	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
-	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currTag, nextTag, rcBranch)
-	pt := newPRTmpl(tmpl)
-	prText, err := pt.Render(&tmplArg{
-		NextVersion: nextVer.Tag(),
-		Branch:      rcBranch,
-		Changelog:   orig,
-		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
-	})
-	if err != nil {
 		return err
 	}
 

@@ -11,7 +11,8 @@ the result before release. tagpr converts the generated Markdown into a
 
 ## Generation flow
 
-When tagpr prepares a release pull request, it calls GitHub with:
+When generated notes are needed while tagpr prepares a release pull request, it calls
+GitHub with:
 
 - the proposed next tag;
 - the previous release tag, when one exists;
@@ -20,12 +21,13 @@ When tagpr prepares a release pull request, it calls GitHub with:
 
 GitHub returns generated release notes for the pull requests and contributors between
 the two versions. tagpr converts those notes into the changelog entry and includes the
-generated notes in the release pull request body.
+generated notes in the release pull request body where the template references
+`.Changelog`.
 
 After the release pull request is merged, tagpr generates the notes again for the final
-tag and uses the returned title and body when creating the GitHub Release. Generating
-the notes before creating the release also prevents the release pull request itself
-from being included as a released change.
+tag when GitHub Release creation is enabled, and uses the returned title and body for
+the release. Generating the notes before creating the release also prevents the release
+pull request itself from being included as a released change.
 
 ## Customize generated notes
 
@@ -82,8 +84,20 @@ artifacts tagpr writes:
 - `tagpr.release = draft` creates a draft GitHub Release.
 - `tagpr.release = false` creates the tag without creating a GitHub Release.
 
-The release pull request body still uses GitHub's generated notes when changelog-file or
-GitHub Release creation is disabled.
+Release-note generation is demand-driven:
+
+| Phase | Generated when |
+| --- | --- |
+| Preparing the release pull request | `tagpr.changelog` is enabled, or rendering the effective pull request template evaluates `.Changelog` |
+| After merge | `tagpr.release` is `true` or `draft` |
+
+Therefore, setting `tagpr.changelog = false` and using a pull request template without
+`.Changelog` skips the Generate Release Notes API while preparing the pull request.
+Because `.Changelog` is evaluated lazily, references in unused definitions or
+conditional branches that are not executed do not call the API.
+Setting `tagpr.release = false` skips that API after merge as well. A parse or render
+failure in a configured template falls back to the built-in template, which references
+`.Changelog` and therefore still generates notes.
 
 If release assets must be built after tagging, see
 [Coordinating Immutable Releases](immutable-releases.md) before enabling immutable releases.

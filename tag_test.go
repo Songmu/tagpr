@@ -274,25 +274,37 @@ func TestLatestMergedReleasePullRequestPaginatesAndMatchesBase(t *testing.T) {
 	}
 }
 
-// newTestTagpr builds a tagpr which talks to a stub GitHub API server. The
-// target_commitish passed to the release notes generation API is stored into
-// the returned pointer.
-func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *string) {
+type testReleaseRequests struct {
+	targetCommitish    string
+	generateNotesCalls int
+	createReleaseCalls int
+}
+
+// newTestTagpr builds a tagpr which talks to a stub GitHub API server.
+func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *testReleaseRequests) {
 	t.Helper()
 	// the push event payload is opt-in for each test case
 	t.Setenv(envGitHubEventName, "")
 	t.Setenv(envGitHubEventPath, "")
-	var targetCommitish string
+	requests := &testReleaseRequests{}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/Songmu/tagpr/releases/generate-notes",
 		func(w http.ResponseWriter, req *http.Request) {
+			requests.generateNotesCalls++
 			var body struct {
 				TargetCommitish string `json:"target_commitish"`
 			}
 			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 				t.Errorf("failed to decode the request body: %v", err)
 			}
-			targetCommitish = body.TargetCommitish
+			requests.targetCommitish = body.TargetCommitish
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{
+				"name": "v0.2.0", "body": "release notes"})
+		})
+	mux.HandleFunc("/repos/Songmu/tagpr/releases",
+		func(w http.ResponseWriter, req *http.Request) {
+			requests.createReleaseCalls++
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{
 				"name": "v0.2.0", "body": "release notes"})
@@ -315,7 +327,7 @@ func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *string) {
 		out:   os.Stdout,
 		owner: "Songmu",
 		repo:  "tagpr",
-	}, &targetCommitish
+	}, requests
 }
 
 func newTestConfig(versionFile string) *config {
@@ -338,7 +350,13 @@ func TestTagReleaseMergeMethods(t *testing.T) {
 			baseSHA := r.merge(method)
 			headSHA := r.git("rev-parse", "HEAD")
 
-			tp, targetCommitish := newTestTagpr(t, r, newTestConfig("-"))
+			cfg := newTestConfig("-")
+			releaseMode := "true"
+			if method == "squash" {
+				releaseMode = "draft"
+			}
+			cfg.release = &releaseMode
+			tp, requests := newTestTagpr(t, r, cfg)
 			currVer, err := newSemver("v0.1.0")
 			if err != nil {
 				t.Fatal(err)
@@ -356,8 +374,13 @@ func TestTagReleaseMergeMethods(t *testing.T) {
 			if got := r.git("rev-parse", "v0.1.1"); got != headSHA {
 				t.Errorf("the tag v0.1.1 points to %s, want the merged HEAD %s", got, headSHA)
 			}
-			if *targetCommitish != baseSHA {
-				t.Errorf("target_commitish = %s, want the base SHA %s", *targetCommitish, baseSHA)
+			if requests.targetCommitish != baseSHA {
+				t.Errorf("target_commitish = %s, want the base SHA %s",
+					requests.targetCommitish, baseSHA)
+			}
+			if requests.generateNotesCalls != 1 || requests.createReleaseCalls != 1 {
+				t.Errorf("release API calls = generate:%d create:%d, want 1 each",
+					requests.generateNotesCalls, requests.createReleaseCalls)
 			}
 			if got := r.git("symbolic-ref", "--short", "HEAD"); got != "main" {
 				t.Errorf("the current branch is %s, want main", got)
@@ -379,7 +402,7 @@ func TestTagReleaseVersionFileDetection(t *testing.T) {
 			// detectVersionFile scans the current working directory
 			t.Chdir(r.dir)
 
-			tp, targetCommitish := newTestTagpr(t, r, newTestConfig(""))
+			tp, requests := newTestTagpr(t, r, newTestConfig(""))
 			currVer, err := newSemver("v0.1.0")
 			if err != nil {
 				t.Fatal(err)
@@ -397,8 +420,9 @@ func TestTagReleaseVersionFileDetection(t *testing.T) {
 			if got := r.git("rev-parse", "v0.2.0"); got != headSHA {
 				t.Errorf("the tag v0.2.0 points to %s, want the merged HEAD %s", got, headSHA)
 			}
-			if *targetCommitish != baseSHA {
-				t.Errorf("target_commitish = %s, want the base SHA %s", *targetCommitish, baseSHA)
+			if requests.generateNotesCalls != 0 || requests.createReleaseCalls != 0 {
+				t.Errorf("release API calls = generate:%d create:%d, want 0 each",
+					requests.generateNotesCalls, requests.createReleaseCalls)
 			}
 		})
 	}
@@ -667,7 +691,9 @@ func TestTagReleaseStaleBase(t *testing.T) {
 			r.merge(method)
 			headSHA := r.git("rev-parse", "HEAD")
 
-			tp, targetCommitish := newTestTagpr(t, r, newTestConfig("-"))
+			cfg := newTestConfig("-")
+			cfg.release = github.Ptr("true")
+			tp, requests := newTestTagpr(t, r, cfg)
 			t.Setenv(envGitHubEventName, "push")
 			t.Setenv(envGitHubEventPath,
 				writeEventFile(t, `{"before":"`+beforeSHA+`","after":"`+headSHA+
@@ -689,9 +715,9 @@ func TestTagReleaseStaleBase(t *testing.T) {
 			if got := r.git("rev-parse", "v0.1.1"); got != headSHA {
 				t.Errorf("the tag v0.1.1 points to %s, want the merged HEAD %s", got, headSHA)
 			}
-			if *targetCommitish != beforeSHA {
+			if requests.targetCommitish != beforeSHA {
 				t.Errorf("target_commitish = %s, want the event before SHA %s",
-					*targetCommitish, beforeSHA)
+					requests.targetCommitish, beforeSHA)
 			}
 		})
 	}

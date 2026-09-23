@@ -344,6 +344,10 @@ func (cfg *config) TemplateText() string {
 	return stringify(cfg.templateText)
 }
 
+func (cfg *config) Changelog() bool {
+	return cfg.changelog == nil || *cfg.changelog
+}
+
 func (cfg *config) Release() bool {
 	rel := strings.ToLower(stringify(cfg.release))
 	if rel == "draft" || rel == "" {

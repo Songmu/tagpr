@@ -214,20 +214,24 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		previousTag = nil
 	}
 
-	// To avoid putting pull requests created by tagpr itself in the release notes,
-	// we generate release notes in advance.
-	// Stop at the selected boundary to exclude the release pull request itself.
-	targetCommitish := boundarySHA
-	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
-		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
-			TagName:               fullNextTag,
-			PreviousTagName:       previousTag,
-			TargetCommitish:       &targetCommitish,
-			ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
-		})
-	if err != nil {
-		showGHError(err, resp)
-		return err
+	var releases *github.RepositoryReleaseNotes
+	if tp.cfg.Release() {
+		// To avoid putting pull requests created by tagpr itself in the release notes,
+		// we generate release notes in advance.
+		// Stop at the selected boundary to exclude the release pull request itself.
+		targetCommitish := boundarySHA
+		var resp *github.Response
+		releases, resp, err = tp.gh.Repositories.GenerateReleaseNotes(
+			ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
+				TagName:               fullNextTag,
+				PreviousTagName:       previousTag,
+				TargetCommitish:       &targetCommitish,
+				ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
+			})
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
 	}
 
 	if _, _, err := tp.c.Git("tag", fullNextTag); err != nil {
@@ -243,7 +247,7 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		return nil
 	}
 	// Don't use GenerateReleaseNote flag and use pre generated one
-	_, resp, err = tp.gh.Repositories.CreateRelease(
+	_, resp, err := tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
 			TagName:         &fullNextTag,
 			TargetCommitish: &releaseBranch,
