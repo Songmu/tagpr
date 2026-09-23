@@ -1,7 +1,9 @@
 package tagpr
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -637,5 +639,140 @@ func TestIsTagPR(t *testing.T) {
 				t.Errorf("isTagPR() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestExecReleaseCommand(t *testing.T) {
+	currVer, err := newSemver("v1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextVer, err := newSemver("v1.3.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("success", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		tp := &tagpr{c: &commander{
+			outStream: &stdout,
+			errStream: &stderr,
+		}}
+
+		err := tp.Exec(
+			configCommand,
+			`printf '%s/%s' "$TAGPR_CURRENT_VERSION" "$TAGPR_NEXT_VERSION"`,
+			currVer,
+			nextVer,
+		)
+		if err != nil {
+			t.Fatalf("Exec() error = %v", err)
+		}
+		if got, want := stdout.String(), "v1.2.3/v1.3.0"; got != want {
+			t.Errorf("stdout = %q, want %q", got, want)
+		}
+		if got := stderr.String(); got != "" {
+			t.Errorf("stderr = %q, want empty", got)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		tp := &tagpr{c: &commander{
+			outStream: &stdout,
+			errStream: &stderr,
+		}}
+		command := `printf 'first 100%%\nsecond\n' >&2; exit 7`
+
+		err := tp.Exec(configCommand, command, currVer, nextVer)
+		if err == nil {
+			t.Fatal("Exec() error = nil, want command failure")
+		}
+		for _, want := range []string{
+			configCommand,
+			fmt.Sprintf("%q", command),
+			"exit status 7",
+			"first 100%\nsecond",
+		} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("Exec() error = %q, want it to contain %q", err, want)
+			}
+		}
+		if got, want := stderr.String(), "first 100%\nsecond\n"; got != want {
+			t.Errorf("stderr = %q, want %q", got, want)
+		}
+	})
+}
+
+func TestRunReleaseCommandContinuesAndAggregatesFailures(t *testing.T) {
+	currVer, err := newSemver("v1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextVer, err := newSemver("v1.3.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	tp := &tagpr{c: &commander{
+		outStream: &stdout,
+		errStream: &stderr,
+	}}
+	preCommand := `printf 'pre failed\n' >&2; exit 2`
+	postCommand := `printf post-ran; printf 'post failed\n' >&2; exit 3`
+	var commandErr error
+	tp.runReleaseCommand(
+		&commandErr,
+		configCommand,
+		preCommand,
+		currVer,
+		nextVer,
+	)
+	tp.runReleaseCommand(
+		&commandErr,
+		configPostVersionCommand,
+		postCommand,
+		currVer,
+		nextVer,
+	)
+
+	if commandErr == nil {
+		t.Fatal("commandErr = nil, want aggregated failures")
+	}
+	if got, want := stdout.String(), "post-ran"; got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
+	}
+	for _, want := range []string{
+		fmt.Sprintf("%s %q failed: exit status 2", configCommand, preCommand),
+		fmt.Sprintf("%s %q failed: exit status 3", configPostVersionCommand, postCommand),
+	} {
+		if !strings.Contains(commandErr.Error(), want) {
+			t.Errorf("commandErr = %q, want it to contain %q", commandErr, want)
+		}
+	}
+
+	laterErr := errors.New("later processing failed")
+	runErr := errors.Join(laterErr, commandErr)
+	if !errors.Is(runErr, laterErr) {
+		t.Errorf("joined error does not contain later processing error: %v", runErr)
+	}
+	for _, want := range []string{
+		"::error title=tagpr.command failed::",
+		"::error title=tagpr.postVersionCommand failed::",
+	} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("stderr = %q, want it to contain %q", stderr.String(), want)
+		}
+	}
+}
+
+func TestShowErrorAnnotationEscapesMessage(t *testing.T) {
+	var buf bytes.Buffer
+	showErrorAnnotation(&buf, "command failed", "bad 100%\nnext\rline")
+
+	const want = "::error title=command failed::bad 100%25%0Anext%0Dline\n"
+	if got := buf.String(); got != want {
+		t.Errorf("showErrorAnnotation() = %q, want %q", got, want)
 	}
 }
