@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -167,6 +168,18 @@ func (tp *tagpr) withCheckout(commitish, restoreBranch string, fn func() error) 
 	return fn()
 }
 
+func (tp *tagpr) tagSigningEnabled() (bool, error) {
+	value, stderr, err := tp.c.Git("config", "--bool", "--get", "tag.gpgSign")
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && value == "" && stderr == "" {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to read tag.gpgSign: %w", err)
+	}
+	return value == "true", nil
+}
+
 func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer *semv, latestSemverTag string) error {
 	var (
 		vfile string
@@ -234,7 +247,16 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		}
 	}
 
-	if _, _, err := tp.c.Git("tag", fullNextTag); err != nil {
+	tagArgs := []string{"tag"}
+	signTag, err := tp.tagSigningEnabled()
+	if err != nil {
+		return err
+	}
+	if signTag {
+		tagArgs = append(tagArgs, "-s", "-m", "Release "+fullNextTag)
+	}
+	tagArgs = append(tagArgs, fullNextTag)
+	if _, _, err := tp.c.Git(tagArgs...); err != nil {
 		return err
 	}
 	_, _, err = tp.c.Git("push", "--tags")
