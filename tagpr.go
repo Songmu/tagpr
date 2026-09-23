@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/Songmu/gitconfig"
@@ -752,74 +750,86 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
-	opts := []gh2changelog.Option{
-		gh2changelog.GitPath(tp.gitPath),
-		gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
-		gh2changelog.GitHubClient(tp.gh),
-		gh2changelog.TagPrefix(tp.normalizedTagPrefix),
-		gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
+	prArg := &tmplArg{
+		NextVersion: nextVer.Tag(),
+		Branch:      rcBranch,
+		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
 	}
-	if tp.cfg.ReleaseYAMLPath() != "" {
-		opts = append(opts, gh2changelog.ReleaseYamlPath(tp.cfg.ReleaseYAMLPath()))
-	}
-	if fixedMajor, err := tp.cfg.FixedMajorVersion(); err == nil && fixedMajor != nil {
-		opts = append(opts, gh2changelog.FilteredMajorVersion(*fixedMajor))
-	}
-	if tp.cfg.CalendarVersioning() && latestSemverTag != "" {
-		opts = append(opts, gh2changelog.VersionTags([]string{latestSemverTag}))
-	}
-	gch, err := gh2changelog.New(ctx, opts...)
-	if err != nil {
-		return err
-	}
+	pt := loadPRTmpl(tp.cfg)
+	pt.Prepare(prArg)
 
-	draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-	changelog, orig, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
-	if err != nil {
-		return err
-	}
+	var orig string
+	if needsDraftReleaseNotes(tp.cfg, pt) {
+		opts := []gh2changelog.Option{
+			gh2changelog.GitPath(tp.gitPath),
+			gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
+			gh2changelog.GitHubClient(tp.gh),
+			gh2changelog.TagPrefix(tp.normalizedTagPrefix),
+			gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
+		}
+		if tp.cfg.ReleaseYAMLPath() != "" {
+			opts = append(opts, gh2changelog.ReleaseYamlPath(tp.cfg.ReleaseYAMLPath()))
+		}
+		if fixedMajor, err := tp.cfg.FixedMajorVersion(); err == nil && fixedMajor != nil {
+			opts = append(opts, gh2changelog.FilteredMajorVersion(*fixedMajor))
+		}
+		if tp.cfg.CalendarVersioning() && latestSemverTag != "" {
+			opts = append(opts, gh2changelog.VersionTags([]string{latestSemverTag}))
+		}
+		gch, err := gh2changelog.New(ctx, opts...)
+		if err != nil {
+			return err
+		}
 
-	if tp.cfg.changelog == nil || *tp.cfg.changelog {
-		changelogMd := tp.cfg.ChangelogFile()
-		if !exists(changelogMd) {
-			logs, _, err := gch.Changelogs(ctx, 20)
+		draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+		changelog, generatedNotes, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
+		if err != nil {
+			return err
+		}
+		orig = generatedNotes
+
+		if tp.cfg.Changelog() {
+			changelogMd := tp.cfg.ChangelogFile()
+			if !exists(changelogMd) {
+				logs, _, err := gch.Changelogs(ctx, 20)
+				if err != nil {
+					return err
+				}
+				changelog = strings.Join(
+					append([]string{changelog}, logs...), "\n")
+			}
+			if _, err := gch.Update(changelog, 0); err != nil {
+				return err
+			}
+
+			// Create a new tree object for CHANGELOG.md
+			treeEntries = nil
+			contentBytes, err := os.ReadFile(changelogMd)
 			if err != nil {
 				return err
 			}
-			changelog = strings.Join(
-				append([]string{changelog}, logs...), "\n")
-		}
-		if _, err := gch.Update(changelog, 0); err != nil {
-			return err
-		}
-
-		// Create a new tree object for CHANGELOG.md
-		treeEntries = nil
-		contentBytes, err := os.ReadFile(changelogMd)
-		if err != nil {
-			return err
-		}
-		treeEntries = append(treeEntries, &github.TreeEntry{
-			Path:    github.Ptr(changelogMd),
-			Type:    github.Ptr("blob"),
-			Content: github.Ptr(string(contentBytes)),
-			Mode:    github.Ptr("100644"),
-		})
-		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
-		if err != nil {
-			showGHError(err, resp)
-			return err
-		}
-		// Create a new commit
-		commit = github.Commit{
-			Message: github.Ptr(changelogMessage),
-			Tree:    tree,
-			Parents: []*github.Commit{newCommit},
-		}
-		newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-		if err != nil {
-			showGHError(err, resp)
-			return err
+			treeEntries = append(treeEntries, &github.TreeEntry{
+				Path:    github.Ptr(changelogMd),
+				Type:    github.Ptr("blob"),
+				Content: github.Ptr(string(contentBytes)),
+				Mode:    github.Ptr("100644"),
+			})
+			tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
+			// Create a new commit
+			commit = github.Commit{
+				Message: github.Ptr(changelogMessage),
+				Tree:    tree,
+				Parents: []*github.Commit{newCommit},
+			}
+			newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+			if err != nil {
+				showGHError(err, resp)
+				return err
+			}
 		}
 	}
 
@@ -851,23 +861,6 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		return err
 	}
 
-	var tmpl *template.Template
-	if t := tp.cfg.Template(); t != "" {
-		tmpTmpl, err := template.ParseFiles(t)
-		if err == nil {
-			tmpl = tmpTmpl
-		} else {
-			log.Printf("parse configured template failed: %s\n", err)
-		}
-	} else if t := tp.cfg.TemplateText(); t != "" {
-		tmpTmplTxt, err := template.New("templateText").Parse(t)
-		if err == nil {
-			tmpl = tmpTmplTxt
-		} else {
-			log.Printf("parse configured template failed: %s\n", err)
-		}
-	}
-
 	host := "github.com"
 	if tp.gh.BaseURL != nil {
 		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
@@ -875,13 +868,8 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
 	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
 	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currTag, nextTag, rcBranch)
-	pt := newPRTmpl(tmpl)
-	prText, err := pt.Render(&tmplArg{
-		NextVersion: nextVer.Tag(),
-		Branch:      rcBranch,
-		Changelog:   orig,
-		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
-	})
+	prArg.Changelog = orig
+	prText, err := pt.Render(prArg)
 	if err != nil {
 		return err
 	}

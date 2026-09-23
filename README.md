@@ -174,6 +174,11 @@ You can customize these changes:
 See [Release pull request templates](docs/reference/templates.md) for the available
 template variables and examples.
 
+When `tagpr.changelog = false` and the effective pull request template does not
+reference `.Changelog`, tagpr skips generated release notes while preparing the release
+pull request. It also skips post-merge release-note generation when
+`tagpr.release = false`.
+
 ## Choosing the next version
 
 ### Semantic Versioning
@@ -424,7 +429,9 @@ Environment variable: `TAGPR_CALENDAR_VERSIONING`.
 
 #### tagpr.changelog (Optional)
 
-Whether to create or update the changelog. Changelog generation is enabled by default.
+Whether to create or update the changelog. Changelog updates are enabled by default.
+When disabled, release notes are still generated for a pull request template that
+references `.Changelog`.
 
 Environment variable: `TAGPR_CHANGELOG`.
 

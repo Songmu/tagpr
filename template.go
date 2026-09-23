@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"text/template"
+	"text/template/parse"
 )
 
 const defaultTmplStr = `{{if .TagPrefix}}[{{.TagPrefix}}] {{end}}Release for {{.NextVersion}}
@@ -49,8 +50,123 @@ func newPRTmpl(tmpl *template.Template) *prTmpl {
 	return &prTmpl{tmpl: tmpl}
 }
 
+func loadPRTmpl(cfg *config) *prTmpl {
+	if t := cfg.Template(); t != "" {
+		tmpl, err := template.ParseFiles(t)
+		if err == nil {
+			return newPRTmpl(tmpl)
+		}
+		log.Printf("parse configured template failed: %s\n", err)
+	} else if t := cfg.TemplateText(); t != "" {
+		tmpl, err := template.New("templateText").Parse(t)
+		if err == nil {
+			return newPRTmpl(tmpl)
+		}
+		log.Printf("parse configured template failed: %s\n", err)
+	}
+	return newPRTmpl(nil)
+}
+
 type prTmpl struct {
 	tmpl *template.Template
+}
+
+func (pt *prTmpl) Prepare(arg *tmplArg) {
+	var b bytes.Buffer
+	if err := pt.tmpl.Execute(&b, arg); err != nil {
+		log.Printf("failed to render configured template: %s\n", err)
+		pt.tmpl = defaultTmpl
+	}
+}
+
+func (pt *prTmpl) UsesChangelog() bool {
+	for _, tmpl := range pt.tmpl.Templates() {
+		if tmpl.Tree != nil && nodeUsesChangelog(tmpl.Tree.Root) {
+			return true
+		}
+	}
+	return false
+}
+
+func needsDraftReleaseNotes(cfg *config, pt *prTmpl) bool {
+	return cfg.Changelog() || pt.UsesChangelog()
+}
+
+func nodeUsesChangelog(node parse.Node) bool {
+	if node == nil {
+		return false
+	}
+	switch n := node.(type) {
+	case *parse.ListNode:
+		if n == nil {
+			return false
+		}
+		for _, child := range n.Nodes {
+			if nodeUsesChangelog(child) {
+				return true
+			}
+		}
+	case *parse.ActionNode:
+		if n == nil {
+			return false
+		}
+		return nodeUsesChangelog(n.Pipe)
+	case *parse.IfNode:
+		if n == nil {
+			return false
+		}
+		return nodeUsesChangelog(n.Pipe) ||
+			nodeUsesChangelog(n.List) ||
+			nodeUsesChangelog(n.ElseList)
+	case *parse.RangeNode:
+		if n == nil {
+			return false
+		}
+		return nodeUsesChangelog(n.Pipe) ||
+			nodeUsesChangelog(n.List) ||
+			nodeUsesChangelog(n.ElseList)
+	case *parse.WithNode:
+		if n == nil {
+			return false
+		}
+		return nodeUsesChangelog(n.Pipe) ||
+			nodeUsesChangelog(n.List) ||
+			nodeUsesChangelog(n.ElseList)
+	case *parse.TemplateNode:
+		if n == nil {
+			return false
+		}
+		return nodeUsesChangelog(n.Pipe)
+	case *parse.PipeNode:
+		if n == nil {
+			return false
+		}
+		for _, cmd := range n.Cmds {
+			if nodeUsesChangelog(cmd) {
+				return true
+			}
+		}
+	case *parse.CommandNode:
+		if n == nil {
+			return false
+		}
+		for _, arg := range n.Args {
+			if nodeUsesChangelog(arg) {
+				return true
+			}
+		}
+	case *parse.FieldNode:
+		if n == nil {
+			return false
+		}
+		return len(n.Ident) > 0 && n.Ident[0] == "Changelog"
+	case *parse.ChainNode:
+		if n == nil {
+			return false
+		}
+		return nodeUsesChangelog(n.Node)
+	}
+	return false
 }
 
 func (pt *prTmpl) Render(arg *tmplArg) (string, error) {
