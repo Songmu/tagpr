@@ -93,12 +93,20 @@ changes. The command may modify or delete more than one file.
 
 ## Command output and failures
 
-Standard output and standard error are written to the tagpr log.
+Standard output and standard error are streamed to the tagpr log.
 
-In the current implementation, a non-zero command exit status is not propagated as a
-tagpr error. The workflow can therefore continue after a command failure. Commands
-should validate their output, and maintainers should inspect the resulting release pull
-request and action log before merging.
+If either command exits with a non-zero status, tagpr records the failure and emits a
+GitHub Actions error annotation containing the configuration key, command, exit status,
+and standard error. It still runs the remaining release preparation steps. In
+particular, a failed `tagpr.command` does not prevent version files from being updated,
+`tagpr.postVersionCommand` from running, or the release pull request from being created
+or updated.
+
+After the release pull request processing finishes, tagpr returns the recorded command
+failure and exits with a non-zero status. If both commands fail, or later tagpr
+processing also fails, the errors are reported together. The GitHub Actions step is
+therefore marked as failed even when the release pull request was successfully created
+or updated; inspect the annotation and command output before merging it.
 
 ## Release after tagging
 

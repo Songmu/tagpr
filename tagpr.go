@@ -335,7 +335,12 @@ func (tp *tagpr) isTagPR(pr *github.PullRequest) bool {
 	return false
 }
 
-func (tp *tagpr) Run(ctx context.Context) error {
+func (tp *tagpr) Run(ctx context.Context) (runErr error) {
+	var commandErr error
+	defer func() {
+		runErr = errors.Join(runErr, commandErr)
+	}()
+
 	commitMessage := tp.cfg.CommitPrefix() + " " + autoCommitMessage
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
 
@@ -473,7 +478,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	}
 
 	if prog := tp.cfg.Command(); prog != "" {
-		tp.Exec(prog, currVer, nextVer)
+		tp.runReleaseCommand(&commandErr, configCommand, prog, currVer, nextVer)
 	}
 
 	if len(vfiles) > 0 && vfiles[0] != "" {
@@ -486,7 +491,7 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	tp.c.Git("add", "-f", tp.cfg.conf) // ignore any errors
 
 	if prog := tp.cfg.PostVersionCommand(); prog != "" {
-		tp.Exec(prog, currVer, nextVer)
+		tp.runReleaseCommand(&commandErr, configPostVersionCommand, prog, currVer, nextVer)
 	}
 
 	releaseYaml := tp.cfg.ReleaseYAMLPath()
@@ -1003,17 +1008,38 @@ func (tp *tagpr) getVfiles(currVer *semv) ([]string, error) {
 	return vfiles, nil
 }
 
-func (tp *tagpr) Exec(prog string, currVer, nextVer *semv) {
+func (tp *tagpr) Exec(name, command string, currVer, nextVer *semv) error {
+	prog := command
 	var progArgs []string
 	if strings.ContainsAny(prog, " \n") {
 		progArgs = []string{"-c", prog}
 		prog = "sh"
 	}
-	tp.c.Cmd(prog, progArgs, map[string]string{
+	_, stderr, err := tp.c.Cmd(prog, progArgs, map[string]string{
 		"TAGPR_CURRENT_VERSION": currVer.Tag(),
 		"TAGPR_NEXT_VERSION":    nextVer.Tag(),
 	})
+	if err == nil {
+		return nil
+	}
 
+	commandErr := fmt.Errorf("%s %q failed: %w", name, command, err)
+	if stderr != "" {
+		commandErr = fmt.Errorf("%w\n%s", commandErr, stderr)
+	}
+	return commandErr
+}
+
+func (tp *tagpr) showReleaseCommandError(name string, err error) {
+	fmt.Fprintln(tp.c.errStream, err)
+	showErrorAnnotation(tp.c.errStream, name+" failed", err.Error())
+}
+
+func (tp *tagpr) runReleaseCommand(errs *error, name, command string, currVer, nextVer *semv) {
+	if err := tp.Exec(name, command, currVer, nextVer); err != nil {
+		*errs = errors.Join(*errs, err)
+		tp.showReleaseCommandError(name, err)
+	}
 }
 
 func (tp *tagpr) defaultBranch() (string, error) {
