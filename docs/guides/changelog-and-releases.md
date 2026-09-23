@@ -88,11 +88,13 @@ Release-note generation is demand-driven:
 
 | Phase | Generated when |
 | --- | --- |
-| Preparing the release pull request | `tagpr.changelog` is enabled, or the effective pull request template references `.Changelog` |
+| Preparing the release pull request | `tagpr.changelog` is enabled, or rendering the effective pull request template evaluates `.Changelog` |
 | After merge | `tagpr.release` is `true` or `draft` |
 
 Therefore, setting `tagpr.changelog = false` and using a pull request template without
 `.Changelog` skips the Generate Release Notes API while preparing the pull request.
+Because `.Changelog` is evaluated lazily, references in unused definitions or
+conditional branches that are not executed do not call the API.
 Setting `tagpr.release = false` skips that API after merge as well. A parse or render
 failure in a configured template falls back to the built-in template, which references
 `.Changelog` and therefore still generates notes.

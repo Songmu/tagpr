@@ -2,9 +2,9 @@ package tagpr
 
 import (
 	"bytes"
+	"errors"
 	"log"
 	"text/template"
-	"text/template/parse"
 )
 
 const defaultTmplStr = `{{if .TagPrefix}}[{{.TagPrefix}}] {{end}}Release for {{.NextVersion}}
@@ -40,7 +40,31 @@ func init() {
 }
 
 type tmplArg struct {
-	NextVersion, Branch, Changelog, TagPrefix string
+	NextVersion, Branch, TagPrefix string
+	loadChangelog                  func() (string, error)
+}
+
+type changelogTemplateError struct {
+	err error
+}
+
+func (e *changelogTemplateError) Error() string {
+	return e.err.Error()
+}
+
+func (e *changelogTemplateError) Unwrap() error {
+	return e.err
+}
+
+func (arg *tmplArg) Changelog() (string, error) {
+	if arg.loadChangelog == nil {
+		return "", nil
+	}
+	changelog, err := arg.loadChangelog()
+	if err != nil {
+		return "", &changelogTemplateError{err: err}
+	}
+	return changelog, nil
 }
 
 func newPRTmpl(tmpl *template.Template) *prTmpl {
@@ -71,112 +95,28 @@ type prTmpl struct {
 	tmpl *template.Template
 }
 
-func (pt *prTmpl) Prepare(arg *tmplArg) {
-	var b bytes.Buffer
-	if err := pt.tmpl.Execute(&b, arg); err != nil {
-		log.Printf("failed to render configured template: %s\n", err)
-		pt.tmpl = defaultTmpl
+func unwrapChangelogTemplateError(err error) error {
+	var changelogErr *changelogTemplateError
+	if errors.As(err, &changelogErr) {
+		return changelogErr.err
 	}
-}
-
-func (pt *prTmpl) UsesChangelog() bool {
-	for _, tmpl := range pt.tmpl.Templates() {
-		if tmpl.Tree != nil && nodeUsesChangelog(tmpl.Tree.Root) {
-			return true
-		}
-	}
-	return false
-}
-
-func needsDraftReleaseNotes(cfg *config, pt *prTmpl) bool {
-	return cfg.Changelog() || pt.UsesChangelog()
-}
-
-func nodeUsesChangelog(node parse.Node) bool {
-	if node == nil {
-		return false
-	}
-	switch n := node.(type) {
-	case *parse.ListNode:
-		if n == nil {
-			return false
-		}
-		for _, child := range n.Nodes {
-			if nodeUsesChangelog(child) {
-				return true
-			}
-		}
-	case *parse.ActionNode:
-		if n == nil {
-			return false
-		}
-		return nodeUsesChangelog(n.Pipe)
-	case *parse.IfNode:
-		if n == nil {
-			return false
-		}
-		return nodeUsesChangelog(n.Pipe) ||
-			nodeUsesChangelog(n.List) ||
-			nodeUsesChangelog(n.ElseList)
-	case *parse.RangeNode:
-		if n == nil {
-			return false
-		}
-		return nodeUsesChangelog(n.Pipe) ||
-			nodeUsesChangelog(n.List) ||
-			nodeUsesChangelog(n.ElseList)
-	case *parse.WithNode:
-		if n == nil {
-			return false
-		}
-		return nodeUsesChangelog(n.Pipe) ||
-			nodeUsesChangelog(n.List) ||
-			nodeUsesChangelog(n.ElseList)
-	case *parse.TemplateNode:
-		if n == nil {
-			return false
-		}
-		return nodeUsesChangelog(n.Pipe)
-	case *parse.PipeNode:
-		if n == nil {
-			return false
-		}
-		for _, cmd := range n.Cmds {
-			if nodeUsesChangelog(cmd) {
-				return true
-			}
-		}
-	case *parse.CommandNode:
-		if n == nil {
-			return false
-		}
-		for _, arg := range n.Args {
-			if nodeUsesChangelog(arg) {
-				return true
-			}
-		}
-	case *parse.FieldNode:
-		if n == nil {
-			return false
-		}
-		return len(n.Ident) > 0 && n.Ident[0] == "Changelog"
-	case *parse.ChainNode:
-		if n == nil {
-			return false
-		}
-		return nodeUsesChangelog(n.Node)
-	}
-	return false
+	return nil
 }
 
 func (pt *prTmpl) Render(arg *tmplArg) (string, error) {
 	var b bytes.Buffer
 	err := pt.tmpl.Execute(&b, arg)
 	if err != nil {
+		if changelogErr := unwrapChangelogTemplateError(err); changelogErr != nil {
+			return "", changelogErr
+		}
 		log.Printf("failed to render configured template: %s\n", err)
 		b.Reset()
 		// fallback to default template
 		err = defaultTmpl.Execute(&b, arg)
+		if changelogErr := unwrapChangelogTemplateError(err); changelogErr != nil {
+			return "", changelogErr
+		}
 	}
 	return b.String(), err
 }

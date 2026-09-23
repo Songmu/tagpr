@@ -77,6 +77,8 @@ monorepo の場合:
 
 GitHub の生成リリースノートを表示する場所に `{{.Changelog}}` を含めます。これを省略すると、リリースプルリクエスト本文からそのノートが削除されます。さらに `tagpr.changelog = false` も設定されている場合、テンプレートと changelog ファイルのどちらも生成結果を使わないため、tagpr はリリースプルリクエストの準備時にリリースノートを生成しません。
 
+`.Changelog` は遅延評価されます。使われないテンプレート定義や、実行されない条件分岐内の参照ではリリースノートを生成しません。
+
 `.Changelog` の省略だけでは、changelog ファイルの更新や GitHub Release の生成は無効になりません。changelog が有効ならリリースプルリクエストの準備時にノートが必要であり、GitHub Release が有効ならマージ後に新しいノートが生成されます。
 
 ノートの生成方法は、[Changelog と GitHub Releases](../guides/changelog-and-releases.md) を参照してください。

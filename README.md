@@ -175,9 +175,10 @@ See [Release pull request templates](docs/reference/templates.md) for the availa
 template variables and examples.
 
 When `tagpr.changelog = false` and the effective pull request template does not
-reference `.Changelog`, tagpr skips generated release notes while preparing the release
-pull request. It also skips post-merge release-note generation when
-`tagpr.release = false`.
+evaluate `.Changelog`, tagpr skips generated release notes while preparing the release
+pull request. References in unused template definitions or branches that are not
+executed do not trigger generation. It also skips post-merge release-note generation
+when `tagpr.release = false`.
 
 ## Choosing the next version
 

@@ -750,16 +750,13 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 	}
 
-	prArg := &tmplArg{
-		NextVersion: nextVer.Tag(),
-		Branch:      rcBranch,
-		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
+	host := "github.com"
+	if tp.gh.BaseURL != nil {
+		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
 	}
-	pt := loadPRTmpl(tp.cfg)
-	pt.Prepare(prArg)
-
-	var orig string
-	if needsDraftReleaseNotes(tp.cfg, pt) {
+	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
+	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
+	draft := &lazyDraftChangelog{load: func() (*draftChangelog, error) {
 		opts := []gh2changelog.Option{
 			gh2changelog.GitPath(tp.gitPath),
 			gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
@@ -778,59 +775,87 @@ func (tp *tagpr) Run(ctx context.Context) error {
 		}
 		gch, err := gh2changelog.New(ctx, opts...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
 		changelog, generatedNotes, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
 		if err != nil {
+			return nil, err
+		}
+		return &draftChangelog{
+			generator:      gch,
+			changelog:      changelog,
+			generatedNotes: generatedNotes,
+		}, nil
+	}}
+	prArg := &tmplArg{
+		NextVersion: nextVer.Tag(),
+		Branch:      rcBranch,
+		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
+		loadChangelog: func() (string, error) {
+			generatedNotes, err := draft.GeneratedNotes()
+			if err != nil {
+				return "", err
+			}
+			return replaceCompareLink(
+				generatedNotes, host, tp.owner, tp.repo, currTag, nextTag, rcBranch), nil
+		},
+	}
+	pt := loadPRTmpl(tp.cfg)
+
+	if tp.cfg.Changelog() {
+		result, err := draft.Load()
+		if err != nil {
 			return err
 		}
-		orig = generatedNotes
-
-		if tp.cfg.Changelog() {
-			changelogMd := tp.cfg.ChangelogFile()
-			if !exists(changelogMd) {
-				logs, _, err := gch.Changelogs(ctx, 20)
-				if err != nil {
-					return err
-				}
-				changelog = strings.Join(
-					append([]string{changelog}, logs...), "\n")
-			}
-			if _, err := gch.Update(changelog, 0); err != nil {
-				return err
-			}
-
-			// Create a new tree object for CHANGELOG.md
-			treeEntries = nil
-			contentBytes, err := os.ReadFile(changelogMd)
+		changelogMd := tp.cfg.ChangelogFile()
+		changelog := result.changelog
+		if !exists(changelogMd) {
+			logs, _, err := result.generator.Changelogs(ctx, 20)
 			if err != nil {
 				return err
 			}
-			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path:    github.Ptr(changelogMd),
-				Type:    github.Ptr("blob"),
-				Content: github.Ptr(string(contentBytes)),
-				Mode:    github.Ptr("100644"),
-			})
-			tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
-			if err != nil {
-				showGHError(err, resp)
-				return err
-			}
-			// Create a new commit
-			commit = github.Commit{
-				Message: github.Ptr(changelogMessage),
-				Tree:    tree,
-				Parents: []*github.Commit{newCommit},
-			}
-			newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-			if err != nil {
-				showGHError(err, resp)
-				return err
-			}
+			changelog = strings.Join(
+				append([]string{changelog}, logs...), "\n")
 		}
+		if _, err := result.generator.Update(changelog, 0); err != nil {
+			return err
+		}
+
+		// Create a new tree object for CHANGELOG.md
+		treeEntries = nil
+		contentBytes, err := os.ReadFile(changelogMd)
+		if err != nil {
+			return err
+		}
+		treeEntries = append(treeEntries, &github.TreeEntry{
+			Path:    github.Ptr(changelogMd),
+			Type:    github.Ptr("blob"),
+			Content: github.Ptr(string(contentBytes)),
+			Mode:    github.Ptr("100644"),
+		})
+		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+		// Create a new commit
+		commit = github.Commit{
+			Message: github.Ptr(changelogMessage),
+			Tree:    tree,
+			Parents: []*github.Commit{newCommit},
+		}
+		newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
+	}
+
+	prText, err := pt.Render(prArg)
+	if err != nil {
+		return err
 	}
 
 	// Create or Get remote rcBranch reference
@@ -858,19 +883,6 @@ func (tp *tagpr) Run(ctx context.Context) error {
 	_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, rcBranchRef, updateRef)
 	if err != nil {
 		showGHError(err, resp)
-		return err
-	}
-
-	host := "github.com"
-	if tp.gh.BaseURL != nil {
-		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
-	}
-	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
-	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-	orig = replaceCompareLink(orig, host, tp.owner, tp.repo, currTag, nextTag, rcBranch)
-	prArg.Changelog = orig
-	prText, err := pt.Render(prArg)
-	if err != nil {
 		return err
 	}
 

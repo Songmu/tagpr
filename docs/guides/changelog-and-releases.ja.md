@@ -66,10 +66,10 @@ monorepo の各プロジェクトに独自のリリースノートルールが�
 
 | フェーズ | 生成する条件 |
 | --- | --- |
-| リリースプルリクエストの準備時 | `tagpr.changelog` が有効、または有効なプルリクエストテンプレートが `.Changelog` を参照する |
+| リリースプルリクエストの準備時 | `tagpr.changelog` が有効、または有効なプルリクエストテンプレートの描画時に `.Changelog` が評価される |
 | マージ後 | `tagpr.release` が `true` または `draft` |
 
-したがって、`tagpr.changelog = false` を設定し、`.Changelog` を含まないプルリクエストテンプレートを使うと、プルリクエストの準備時に Generate Release Notes API を呼びません。さらに `tagpr.release = false` を設定すると、マージ後もこの API を呼びません。設定したテンプレートの解析または描画に失敗した場合は、`.Changelog` を参照する組み込みテンプレートにフォールバックするため、従来どおりノートを生成します。
+したがって、`tagpr.changelog = false` を設定し、`.Changelog` を含まないプルリクエストテンプレートを使うと、プルリクエストの準備時に Generate Release Notes API を呼びません。`.Changelog` は遅延評価されるため、使われないテンプレート定義や実行されない条件分岐内の参照でも API を呼びません。さらに `tagpr.release = false` を設定すると、マージ後もこの API を呼びません。設定したテンプレートの解析または描画に失敗した場合は、`.Changelog` を参照する組み込みテンプレートにフォールバックするため、従来どおりノートを生成します。
 
 タグ付け後にリリースアセットをビルドする必要がある場合は、immutable release を有効にする前に [Immutable Releases の活用と連携](immutable-releases.md) を参照してください。tagpr に draft の準備を任せるタイミングと、別のワークフローにリリース作成を委任するタイミングを説明しています。
 
