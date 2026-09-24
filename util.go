@@ -2,6 +2,7 @@ package tagpr
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -45,6 +46,19 @@ func showGHError(err error, resp *github.Response) {
 	}
 	// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
 	fmt.Printf("::error title=%s::%s\n", title, message)
+}
+
+func showErrorAnnotation(w io.Writer, title, message string) {
+	fmt.Fprintf(w, "::error title=%s::%s\n", title, escapeWorkflowCommandData(message))
+}
+
+func escapeWorkflowCommandData(s string) string {
+	r := strings.NewReplacer(
+		"%", "%25",
+		"\r", "%0D",
+		"\n", "%0A",
+	)
+	return r.Replace(s)
 }
 
 // normalizeTagPrefix ensures consistent prefix format (with trailing slash).

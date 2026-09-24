@@ -7,6 +7,49 @@ tagpr では、バージョンタグの作成をリリースフローの起点�
 > [!NOTE]
 > リポジトリで immutable release を有効にし、後続の処理で GitHub Release にアセットを追加する場合は、すべてのアセットを添付してから公開する必要があります。`tagpr.release = draft` と `tagpr.release = false` の連携パターンは、[Immutable Releases の活用と連携](immutable-releases.md) を参照してください。
 
+## 署名付きタグ
+
+tagpr は Git 標準の `tag.gpgSign` 設定を尊重します。`true` の場合は
+`Release <tag>` というメッセージを持つ署名付き annotated tag を作成します。
+`false` または未設定の場合は、従来どおり lightweight tag を作成します。
+
+署名方式、鍵、agent、証明書、Git identity は、tagpr の実行前に設定してください。
+tagpr は署名鍵の import や管理を行いません。たとえば GPG、SSH、X.509 のいずれかを
+設定した後、次のように署名付きタグを有効にします。
+
+```yaml
+- name: Enable signed tags
+  run: git config --global tag.gpgSign true
+```
+
+署名が有効でも Git が署名を作成できない場合、tagpr はタグを push せずに失敗します。
+
+GitHub Actions で keyless 署名を利用する場合は、
+[Chainguard の `setup-gitsign` Action][setup-gitsign]を使って workflow の OIDC identity
+を Git の署名に利用できます。
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+  id-token: write
+
+steps:
+- uses: actions/checkout@v6
+  with:
+    persist-credentials: false
+- uses: chainguard-dev/actions/setup-gitsign@805da2efdffdc42b8afd8880e575a48b471ef544 # v1.6.37
+- uses: Songmu/tagpr@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+`setup-gitsign` 自身が `tag.gpgSign` を有効にするため、追加の Git 設定は不要です。
+長期間有効な署名鍵ではなく、短命な Sigstore 証明書を利用します。現時点では GitHub は
+gitsign による commit や tag の署名を `Verified` と表示しません。検証が必要な場合は
+[`gitsign verify-tag`][gitsign-verification]を利用してください。
+
 ## `GITHUB_TOKEN` の制約 {#github_token-constraints}
 
 リポジトリの `GITHUB_TOKEN` は、GitHub がワークフロー実行ごとに自動作成するため、tagpr で使う最も簡単な認証情報です。ただし、`GITHUB_TOKEN` で作成されたイベントは[通常、別のワークフロー実行を開始しません][github-token-trigger]。これは tagpr に対して次の 2 箇所に影響します。
@@ -247,4 +290,6 @@ Action の完全な出力リファレンスは、[README](../../README.md#output
 [create-app-token]: https://github.com/actions/create-github-app-token
 [deployment-approval]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments
 [ecschedule-tagpr]: https://github.com/Songmu/ecschedule/blob/main/.github/workflows/tagpr.yaml
+[gitsign-verification]: https://github.com/sigstore/gitsign#verifying-commits
 [github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
+[setup-gitsign]: https://github.com/chainguard-dev/actions/tree/main/setup-gitsign

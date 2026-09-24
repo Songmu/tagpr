@@ -5,7 +5,7 @@ inputs:
   version:
     description: "A version to install tagpr"
     required: false
-    default: "v1.20.4"
+    default: "v1.21.0"
   config:
     description: "A path to the tagpr configuration file"
     required: false
@@ -60,8 +60,9 @@ runs:
       TEMP_PATH="$(mktemp -d)"
       PATH="${TEMP_PATH}:$PATH"
       bash "$GITHUB_ACTION_PATH/install.sh" -b "$TEMP_PATH" "$TAGPR_VERSION"
-      args=(--mode "$TAGPR_MODE")
+      args=()
       if [[ "$TAGPR_MODE" == "tag" ]]; then
+        args+=(--mode tag)
         args+=(
           --pending-tag "$TAGPR_PENDING_TAG"
           --target-sha "$TAGPR_TARGET_SHA"
@@ -69,6 +70,8 @@ runs:
           --pull-request-number "$TAGPR_PULL_REQUEST_NUMBER"
           --base-tag "$TAGPR_BASE_TAG"
         )
+      elif [[ "$TAGPR_MODE" == "prepare" ]]; then
+        args+=(--mode prepare)
       fi
       tagpr "${args[@]}"
     shell: bash

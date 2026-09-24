@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.21.0](https://github.com/Songmu/tagpr/compare/v1.20.4...v1.21.0) - 2026-09-23
+
+- Skip unused release note generation by @Songmu in https://github.com/Songmu/tagpr/pull/417
+- [incompatible] Report release command failures by @Songmu in https://github.com/Songmu/tagpr/pull/419
+- Support signed release tags by @Songmu in https://github.com/Songmu/tagpr/pull/420
+
 ## [v1.20.4](https://github.com/Songmu/tagpr/compare/v1.20.3...v1.20.4) - 2026-09-22
 
 - build(deps): bump reviewdog/action-staticcheck from 1.31.0 to 1.32.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/411

@@ -14,6 +14,49 @@ workflow.
 > [Coordinating Immutable Releases](immutable-releases.md) for the
 > `tagpr.release = draft` and `tagpr.release = false` coordination patterns.
 
+## Signed tags
+
+tagpr respects Git's standard `tag.gpgSign` configuration. When it is `true`, tagpr
+creates a signed annotated tag with the message `Release <tag>`. When it is `false` or
+unset, tagpr creates the same lightweight tag as before.
+
+Configure the signing format, key, agent, certificate, and Git identity before running
+tagpr. tagpr does not import or manage signing keys. For example, after configuring
+GPG, SSH, or X.509 signing:
+
+```yaml
+- name: Enable signed tags
+  run: git config --global tag.gpgSign true
+```
+
+If signing is enabled but Git cannot create the signature, tagpr fails without pushing
+the tag.
+
+For keyless signing in GitHub Actions, [Chainguard's `setup-gitsign` action][setup-gitsign]
+configures Git to use the workflow's OIDC identity:
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+  id-token: write
+
+steps:
+- uses: actions/checkout@v6
+  with:
+    persist-credentials: false
+- uses: chainguard-dev/actions/setup-gitsign@805da2efdffdc42b8afd8880e575a48b471ef544 # v1.6.37
+- uses: Songmu/tagpr@v1
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+`setup-gitsign` enables `tag.gpgSign` itself, so no additional Git configuration is
+required. It uses short-lived Sigstore certificates instead of a long-lived signing
+key. GitHub does not currently display gitsign commit or tag signatures as `Verified`;
+use [`gitsign verify-tag`][gitsign-verification] when verification is required.
+
 ## `GITHUB_TOKEN` constraints {#github_token-constraints}
 
 The repository's `GITHUB_TOKEN` is the simplest credential to use with tagpr because
@@ -285,4 +328,6 @@ For the action's complete output reference, see the
 [create-app-token]: https://github.com/actions/create-github-app-token
 [deployment-approval]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments
 [ecschedule-tagpr]: https://github.com/Songmu/ecschedule/blob/main/.github/workflows/tagpr.yaml
+[gitsign-verification]: https://github.com/sigstore/gitsign#verifying-commits
 [github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
+[setup-gitsign]: https://github.com/chainguard-dev/actions/tree/main/setup-gitsign

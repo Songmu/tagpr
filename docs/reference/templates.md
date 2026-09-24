@@ -81,8 +81,17 @@ precedence.
 ## Changelog placement
 
 Include `{{.Changelog}}` where GitHub's generated release notes should appear. Omitting
-it removes those notes from the release pull request body, but it does not disable
-changelog-file updates or GitHub Release generation.
+it removes those notes from the release pull request body. When
+`tagpr.changelog = false` is also set, tagpr skips release-note generation while
+preparing the release pull request because neither the template nor the changelog file
+uses the result.
+
+`.Changelog` is evaluated lazily. References in unused template definitions or
+conditional branches that are not executed do not generate release notes.
+
+Omitting `.Changelog` does not by itself disable changelog-file updates or GitHub
+Release generation. An enabled changelog still requires notes while preparing the
+release pull request, and an enabled GitHub Release generates fresh notes after merge.
 
 See [Changelog and GitHub Releases](../guides/changelog-and-releases.md) for how those
 notes are generated.

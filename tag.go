@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/google/go-github/v83/github"
+	"github.com/k1LoW/calver"
 )
 
 func (tp *tagpr) mergedReleasePullRequestForCommit(
@@ -171,6 +173,18 @@ func (tp *tagpr) withCheckout(commitish, restoreBranch string, fn func() error) 
 	return fn()
 }
 
+func (tp *tagpr) tagSigningEnabled() (bool, error) {
+	value, stderr, err := tp.c.Git("config", "--bool", "--get", "tag.gpgSign")
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && value == "" && stderr == "" {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to read tag.gpgSign: %w", err)
+	}
+	return value == "true", nil
+}
+
 func (tp *tagpr) prepareReleaseCandidate(
 	pr *github.PullRequest, currVer *semv, latestSemverTag string,
 ) (releaseCandidate, error) {
@@ -314,20 +328,42 @@ func (tp *tagpr) finalizeRelease(ctx context.Context, candidate releaseCandidate
 		return fmt.Errorf("base tag changed from %q to %q", candidate.BaseTag, latestTag)
 	}
 
-	currVer, err := tp.versionFromBaseTag(candidate.BaseTag)
-	if err != nil {
-		return err
-	}
-	recalculatedTag, err := tp.calculatePendingTag(
-		pr, currVer, boundarySHA, targetSHA, targetSHA)
-	if err != nil {
-		return err
-	}
-	if recalculatedTag != candidate.PendingTag {
-		return fmt.Errorf(
-			"pending tag changed from %q to %q", candidate.PendingTag, recalculatedTag)
+	if tp.cfg.CalendarVersioning() {
+		if err := tp.validateCalverTag(candidate.PendingTag); err != nil {
+			return err
+		}
+	} else {
+		currVer, err := tp.versionFromBaseTag(candidate.BaseTag)
+		if err != nil {
+			return err
+		}
+		recalculatedTag, err := tp.calculatePendingTag(
+			pr, currVer, boundarySHA, targetSHA, targetSHA)
+		if err != nil {
+			return err
+		}
+		if recalculatedTag != candidate.PendingTag {
+			return fmt.Errorf(
+				"pending tag changed from %q to %q", candidate.PendingTag, recalculatedTag)
+		}
 	}
 	return tp.completeRelease(ctx, candidate, pr, remoteTagExists)
+}
+
+func (tp *tagpr) validateCalverTag(tag string) error {
+	format := tp.cfg.CalendarVersioningFormat()
+	if format == "" {
+		format = defaultCalendarVersioningFormat
+	}
+	version := strings.TrimPrefix(tag, tp.normalizedTagPrefix)
+	if tp.cfg.vPrefix == nil || *tp.cfg.vPrefix {
+		version = strings.TrimPrefix(version, "v")
+	}
+	if _, err := calver.Parse(format, version); err != nil {
+		return fmt.Errorf("pending tag %q is not valid for CalVer format %q: %w",
+			tag, format, err)
+	}
+	return nil
 }
 
 func (tp *tagpr) completeRelease(
@@ -340,25 +376,42 @@ func (tp *tagpr) completeRelease(
 	if candidate.BaseTag == "" {
 		previousTag = nil
 	}
-	targetCommitish := candidate.ReleaseBoundarySHA
-	releases, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
-		ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
-			TagName:               candidate.PendingTag,
-			PreviousTagName:       previousTag,
-			TargetCommitish:       &targetCommitish,
-			ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
-		})
-	if err != nil {
-		showGHError(err, resp)
-		return err
+	var releases *github.RepositoryReleaseNotes
+	var resp *github.Response
+	var err error
+	if tp.cfg.Release() {
+		targetCommitish := candidate.ReleaseBoundarySHA
+		tagName := candidate.PendingTag
+		if tagExists {
+			tagName += "-notes"
+		}
+		releases, resp, err = tp.gh.Repositories.GenerateReleaseNotes(
+			ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
+				TagName:               tagName,
+				PreviousTagName:       previousTag,
+				TargetCommitish:       &targetCommitish,
+				ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
+			})
+		if err != nil {
+			showGHError(err, resp)
+			return err
+		}
 	}
 
 	if !tagExists {
 		localSHA, _, localErr := tp.c.Git(
 			"rev-parse", "--verify", "refs/tags/"+candidate.PendingTag+"^{commit}")
 		if localErr != nil {
-			if _, _, err := tp.c.Git(
-				"tag", candidate.PendingTag, candidate.TargetSHA); err != nil {
+			tagArgs := []string{"tag"}
+			signTag, err := tp.tagSigningEnabled()
+			if err != nil {
+				return err
+			}
+			if signTag {
+				tagArgs = append(tagArgs, "-s", "-m", "Release "+candidate.PendingTag)
+			}
+			tagArgs = append(tagArgs, candidate.PendingTag, candidate.TargetSHA)
+			if _, _, err := tp.c.Git(tagArgs...); err != nil {
 				return err
 			}
 		} else if localSHA != candidate.TargetSHA {
@@ -447,20 +500,35 @@ func (tp *tagpr) inspectExistingTag(tag, targetSHA string) (bool, bool, error) {
 			fmt.Errorf("tag %s already points to %s, want %s", tag, localSHA, targetSHA)
 	}
 
-	out, _, err := tp.c.Git("ls-remote", "--tags", tp.remote(), "refs/tags/"+tag)
+	out, _, err := tp.c.Git(
+		"ls-remote", "--tags", tp.remote(),
+		"refs/tags/"+tag, "refs/tags/"+tag+"^{}")
 	if err != nil {
 		return false, false, err
 	}
 	if out == "" {
 		return localErr == nil, false, nil
 	}
-	fields := strings.Fields(out)
-	if len(fields) == 0 {
+	var remoteSHA string
+	for line := range strings.SplitSeq(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if strings.HasSuffix(fields[1], "^{}") {
+			remoteSHA = fields[0]
+			break
+		}
+		if remoteSHA == "" {
+			remoteSHA = fields[0]
+		}
+	}
+	if remoteSHA == "" {
 		return false, false, fmt.Errorf("failed to parse remote tag %s", tag)
 	}
-	if fields[0] != targetSHA {
+	if remoteSHA != targetSHA {
 		return false, false, fmt.Errorf(
-			"remote tag %s already points to %s, want %s", tag, fields[0], targetSHA)
+			"remote tag %s already points to %s, want %s", tag, remoteSHA, targetSHA)
 	}
 	return localErr == nil, true, nil
 }
