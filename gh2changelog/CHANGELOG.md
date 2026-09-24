@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.8.0](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.3...gh2changelog/v0.8.0) - 2026-08-23
+
+- build(deps): bump github.com/Masterminds/semver/v3 from 3.4.0 to 3.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/349
+- build(deps): bump Songmu/tagpr from 1.18.2 to 1.18.3 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/348
+- feat: support Cargo.toml as a version file for Rust projects by @gfx in https://github.com/Songmu/tagpr/pull/350
+- docs: update README configuration and checkout examples by @shamaton in https://github.com/Songmu/tagpr/pull/353
+- Add blank line after changelog heading to be markdownlint-safe by @gfx in https://github.com/Songmu/tagpr/pull/358
+- build(deps): bump github.com/k1LoW/calver from 1.0.1 to 1.0.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/357
+- build(deps): bump codecov/codecov-action from 6.0.0 to 6.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/356
+- build(deps): bump actions/create-github-app-token from 3.1.1 to 3.2.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/355
+- build(deps): bump Songmu/tagpr from 1.18.3 to 1.19.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/352
+- fix: preserve CalVer zero-padding when tagging from a version file by @usadamasa in https://github.com/Songmu/tagpr/pull/363
+- build(deps): bump actions/setup-go from 6.4.0 to 6.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/366
+- build(deps): bump Songmu/tagpr from 1.19.0 to 1.20.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/360
+- build(deps): bump codecov/codecov-action from 6.0.1 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/362
+- build(deps): bump reviewdog/action-staticcheck from 1.28.0 to 1.29.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/364
+- build(deps): bump actions/checkout from 6.0.2 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/365
+- docs: clarify tagpr.versionFile behavior by @tokuhirom in https://github.com/Songmu/tagpr/pull/370
+- build(deps): bump actions/setup-go from 6.5.0 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/369
+- build(deps): bump actions/checkout from 7.0.0 to 7.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/373
+- build(deps): bump Songmu/tagpr from 1.20.0 to 1.20.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/368
+- Improve README and add documentation guides by @Songmu in https://github.com/Songmu/tagpr/pull/375
+
 ## [v0.7.3](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.2...gh2changelog/v0.7.3) - 2026-04-15
 - build(deps): bump actions/setup-go from 6.2.0 to 6.3.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/322
 - build(deps): bump Songmu/tagpr from 1.17.0 to 1.17.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/323
