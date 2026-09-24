@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.21.1](https://github.com/Songmu/tagpr/compare/v1.21.0...v1.21.1) - 2026-09-24
+
+- Group go-github major updates by @Songmu in https://github.com/Songmu/tagpr/pull/422
+
 ## [v1.21.0](https://github.com/Songmu/tagpr/compare/v1.20.4...v1.21.0) - 2026-09-23
 
 - Skip unused release note generation by @Songmu in https://github.com/Songmu/tagpr/pull/417
