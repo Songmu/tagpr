@@ -55,6 +55,27 @@
       enabled: false,
     },
     {
+      description: 'Update google/go-github major versions in both Go modules',
+      matchManagers: [
+        'gomod',
+      ],
+      matchDepNames: [
+        '/^github\\.com\\/google\\/go-github\\/v\\d+$/',
+      ],
+      matchDepTypes: [
+        'require',
+      ],
+      matchUpdateTypes: [
+        'major',
+      ],
+      matchFileNames: [
+        'go.mod',
+        'gh2changelog/go.mod',
+      ],
+      groupName: 'google/go-github major',
+      minimumGroupSize: 2,
+    },
+    {
       matchDepNames: [
         'gohugoio/hugo',
       ],
