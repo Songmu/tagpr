@@ -109,10 +109,18 @@ This configuration creates tags such as `tools/v1.2.3`.
 
 ## Action configuration
 
-The GitHub Action has two inputs:
+The GitHub Action supports these general inputs:
 
 - `config` selects a configuration file other than `.tagpr`;
-- `version` selects the tagpr executable version installed by the action.
+- `version` selects the tagpr executable version installed by the action;
+- `mode` selects `auto`, `prepare`, or `tag`. The default is `auto`.
 
-It exposes `tag`, `pull_request`, and `base_tag` outputs. See
-[Tagging and release](../guides/tag-and-release.md) for usage.
+`tag` mode also accepts `pending-tag`, `target-sha`, `release-boundary-sha`,
+`pull-request-number`, and `base-tag`, which must be passed from a prior `prepare`
+invocation.
+
+The existing outputs are `tag`, `pull_request`, and `base_tag`. `prepare` mode also
+exposes `pending_tag`, `target_sha`, `release_boundary_sha`, and
+`pull_request_number`. See
+[Tagging and release](../guides/tag-and-release.md#test-and-approve-before-tagging) for
+the complete two-phase workflow.

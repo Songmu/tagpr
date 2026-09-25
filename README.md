@@ -510,6 +510,18 @@ Environment variable: `TAGPR_RELEASE`.
 
 ### Inputs
 
+#### mode (Optional)
+
+Controls when tagpr creates a release tag:
+
+- `auto` keeps the default behavior: update the release pull request or immediately
+  tag a merged release pull request;
+- `prepare` updates the release pull request normally, but emits a release candidate
+  instead of tagging after the pull request is merged;
+- `tag` validates and finalizes a candidate emitted by `prepare`.
+
+The default is `auto`.
+
 #### config (Optional)
 
 The path to the tagpr configuration file. The default is `.tagpr`.
@@ -519,12 +531,30 @@ The path to the tagpr configuration file. The default is `.tagpr`.
 The version of the tagpr executable installed by the action. The action supplies a
 tested default, so most workflows should leave this unset.
 
+#### Deferred-tag inputs
+
+`tag` mode requires the candidate values emitted by `prepare`:
+
+- `pending-tag`;
+- `target-sha`;
+- `release-boundary-sha`;
+- `pull-request-number`;
+- `base-tag`, which may be empty for the first release.
+
 ### Outputs
 
 - `tag`: the created tag. It is empty when tagpr did not create a tag.
 - `pull_request`: JSON describing the release pull request created or updated by tagpr.
 - `base_tag`: the base version tag used for comparison. It is empty when no previous
   tag exists.
+- `pending_tag`: the proposed tag emitted by `prepare`.
+- `target_sha`: the exact merged release commit to test and tag.
+- `release_boundary_sha`: the commit boundary used to generate release notes.
+- `pull_request_number`: the merged release pull request associated with the candidate.
+
+See [Tagging and release](docs/guides/tag-and-release.md#test-and-approve-before-tagging)
+for a complete workflow that tests `target_sha` and waits for environment approval
+before running `tag` mode.
 
 ## GitHub Enterprise
 

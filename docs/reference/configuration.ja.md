@@ -94,9 +94,16 @@ SemVer、バージョンファイル、CalVer の完全な優先順位ルール�
 
 ## Action の設定
 
-GitHub Action には 2 つの入力があります。
+GitHub Action では次の一般的な入力を利用できます。
 
 - `config` は `.tagpr` 以外の設定ファイルを選ぶ。
 - `version` は Action がインストールする tagpr 実行可能ファイルのバージョンを選ぶ。
+- `mode` は `auto`、`prepare`、`tag` から実行モードを選ぶ。デフォルトは `auto`。
 
-`tag`、`pull_request`、`base_tag` の出力を提供します。使用方法は [タグ付けとリリース](../guides/tag-and-release.md) を参照してください。
+`tag` モードでは、先に実行した `prepare` から `pending-tag`、`target-sha`、
+`release-boundary-sha`、`pull-request-number`、`base-tag` も渡します。
+
+従来の出力は `tag`、`pull_request`、`base_tag` です。`prepare` モードではさらに
+`pending_tag`、`target_sha`、`release_boundary_sha`、`pull_request_number` を出力します。
+二相化したワークフローの全体例は、[タグ付けとリリース](../guides/tag-and-release.ja.md#test-and-approve-before-tagging)
+を参照してください。

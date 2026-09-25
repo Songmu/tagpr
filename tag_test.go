@@ -309,6 +309,24 @@ func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *testReleaseR
 			json.NewEncoder(w).Encode(map[string]string{
 				"name": "v0.2.0", "body": "release notes"})
 		})
+	mux.HandleFunc("/repos/Songmu/tagpr/commits/", func(w http.ResponseWriter, req *http.Request) {
+		if !strings.HasSuffix(req.URL.Path, "/pulls") {
+			http.NotFound(w, req)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]map[string]any{{
+			"number":    1,
+			"merged_at": "2026-09-22T00:00:00Z",
+			"head": map[string]string{
+				"ref": "tagpr-from-v0.1.0",
+			},
+			"base": map[string]string{
+				"ref": "main",
+			},
+			"labels": []map[string]string{{"name": "tagpr"}},
+		}})
+	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
@@ -816,5 +834,210 @@ func TestTagReleaseStaleBase(t *testing.T) {
 					requests.targetCommitish, beforeSHA)
 			}
 		})
+	}
+}
+
+func TestPrepareReleaseCandidate(t *testing.T) {
+	r := newTestRepo(t, "")
+	baseSHA := r.merge("merge")
+	targetSHA := r.git("rev-parse", "HEAD")
+
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	t.Setenv(envGitHubEventName, "push")
+	t.Setenv(envGitHubEventPath,
+		writeEventFile(t, `{"before":"`+baseSHA+`","after":"`+targetSHA+
+			`","ref":"refs/heads/main"}`))
+	currVer, err := newSemver("v0.1.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pr := &github.PullRequest{
+		Number: github.Ptr(1),
+		Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
+		Base:   &github.PullRequestBranch{SHA: github.Ptr(baseSHA)},
+		Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+	}
+
+	candidate, err := tp.prepareReleaseCandidate(pr, currVer, "v0.1.0")
+	if err != nil {
+		t.Fatalf("prepareReleaseCandidate() failed: %v", err)
+	}
+	if candidate.PendingTag != "v0.1.1" {
+		t.Errorf("PendingTag = %q, want v0.1.1", candidate.PendingTag)
+	}
+	if candidate.TargetSHA != targetSHA {
+		t.Errorf("TargetSHA = %q, want %q", candidate.TargetSHA, targetSHA)
+	}
+	if candidate.ReleaseBoundarySHA != baseSHA {
+		t.Errorf("ReleaseBoundarySHA = %q, want %q", candidate.ReleaseBoundarySHA, baseSHA)
+	}
+	if candidate.PullRequestNumber != 1 {
+		t.Errorf("PullRequestNumber = %d, want 1", candidate.PullRequestNumber)
+	}
+	if got := r.git("tag", "-l", "v0.1.1"); got != "" {
+		t.Errorf("prepareReleaseCandidate() created tag %q", got)
+	}
+}
+
+func TestFinalizeReleaseAfterBranchAdvances(t *testing.T) {
+	r := newTestRepo(t, "")
+	t.Chdir(r.dir)
+	baseSHA := r.merge("merge")
+	targetSHA := r.git("rev-parse", "HEAD")
+	r.git("push", "origin", "main")
+
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	candidate := releaseCandidate{
+		PendingTag:         "v0.1.1",
+		TargetSHA:          targetSHA,
+		ReleaseBoundarySHA: baseSHA,
+		PullRequestNumber:  1,
+		BaseTag:            "v0.1.0",
+	}
+
+	advancedSHA := r.advanceMain("later.md", "later\n", "advance after release merge")
+	r.git("push", "origin", "main")
+	r.git("tag", "v0.1.1", targetSHA)
+	if err := tp.finalizeRelease(context.Background(), candidate); err != nil {
+		t.Fatalf("finalizeRelease() failed: %v", err)
+	}
+	if got := r.git("rev-parse", "v0.1.1"); got != targetSHA {
+		t.Errorf("tag points to %s, want %s", got, targetSHA)
+	}
+	if got := r.git("rev-parse", "origin/main"); got != advancedSHA {
+		t.Errorf("origin/main = %s, want %s", got, advancedSHA)
+	}
+	if got := strings.Fields(r.git(
+		"ls-remote", "--tags", "origin", "refs/tags/v0.1.1"))[0]; got != targetSHA {
+		t.Errorf("remote tag points to %s, want %s", got, targetSHA)
+	}
+
+	if err := tp.finalizeRelease(context.Background(), candidate); err != nil {
+		t.Fatalf("idempotent finalizeRelease() failed: %v", err)
+	}
+}
+
+func TestFinalizeReleaseRejectsNonAncestor(t *testing.T) {
+	r := newTestRepo(t, "")
+	baseSHA := r.git("rev-parse", "HEAD")
+	r.git("checkout", "-b", "unrelated")
+	r.commit("unrelated.md", "unrelated\n", "unrelated release")
+	targetSHA := r.git("rev-parse", "HEAD")
+	r.git("checkout", "main")
+
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	candidate := releaseCandidate{
+		PendingTag:         "v0.1.1",
+		TargetSHA:          targetSHA,
+		ReleaseBoundarySHA: baseSHA,
+		PullRequestNumber:  1,
+		BaseTag:            "v0.1.0",
+	}
+	if err := tp.finalizeRelease(context.Background(), candidate); err == nil {
+		t.Fatal("finalizeRelease() expected an error")
+	}
+}
+
+func TestFinalizeReleaseRejectsAbbreviatedSHA(t *testing.T) {
+	r := newTestRepo(t, "")
+	baseSHA := r.git("rev-parse", "HEAD")
+	r.merge("merge")
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	candidate := releaseCandidate{
+		PendingTag:         "v0.1.1",
+		TargetSHA:          r.git("rev-parse", "HEAD")[:12],
+		ReleaseBoundarySHA: baseSHA,
+		PullRequestNumber:  1,
+		BaseTag:            "v0.1.0",
+	}
+	if err := tp.finalizeRelease(context.Background(), candidate); err == nil {
+		t.Fatal("finalizeRelease() expected an error")
+	}
+}
+
+func TestCompleteReleaseRetriesAfterReleaseCreationFailure(t *testing.T) {
+	r := newTestRepo(t, "")
+	baseSHA := r.merge("merge")
+	targetSHA := r.git("rev-parse", "HEAD")
+	r.git("tag", "v0.1.1", targetSHA)
+	r.git("push", "origin", "refs/tags/v0.1.1:refs/tags/v0.1.1")
+
+	var createAttempts int
+	var releaseCreated bool
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/Songmu/tagpr/releases/generate-notes",
+		func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{
+				"name": "v0.1.1", "body": "release notes"})
+		})
+	mux.HandleFunc("/repos/Songmu/tagpr/releases/tags/v0.1.1",
+		func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if !releaseCreated {
+				w.WriteHeader(http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]string{"message": "Not Found"})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{
+				"tag_name": "v0.1.1",
+				"draft":    false,
+			})
+		})
+	mux.HandleFunc("/repos/Songmu/tagpr/releases",
+		func(w http.ResponseWriter, req *http.Request) {
+			createAttempts++
+			w.Header().Set("Content-Type", "application/json")
+			if createAttempts == 1 {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"message": "temporary failure"})
+				return
+			}
+			releaseCreated = true
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(map[string]any{
+				"tag_name": "v0.1.1",
+				"draft":    false,
+			})
+		})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	u, err := url.Parse(srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli := github.NewClient(nil)
+	cli.BaseURL = u
+	cfg := newTestConfig("-")
+	cfg.release = github.Ptr("true")
+	tp := &tagpr{
+		c: &commander{
+			gitPath: "git", dir: r.dir, outStream: io.Discard, errStream: io.Discard,
+		},
+		gh:    cli,
+		cfg:   cfg,
+		owner: "Songmu",
+		repo:  "tagpr",
+	}
+	pr := &github.PullRequest{Number: github.Ptr(1)}
+	candidate := releaseCandidate{
+		PendingTag:         "v0.1.1",
+		TargetSHA:          targetSHA,
+		ReleaseBoundarySHA: baseSHA,
+		PullRequestNumber:  1,
+		BaseTag:            "v0.1.0",
+	}
+
+	if err := tp.completeRelease(context.Background(), candidate, pr, true); err == nil {
+		t.Fatal("completeRelease() expected the first release creation to fail")
+	}
+	if err := tp.completeRelease(context.Background(), candidate, pr, true); err != nil {
+		t.Fatalf("completeRelease() retry failed: %v", err)
+	}
+	if err := tp.completeRelease(context.Background(), candidate, pr, true); err != nil {
+		t.Fatalf("completeRelease() existing release check failed: %v", err)
+	}
+	if createAttempts != 2 {
+		t.Errorf("release creation attempts = %d, want 2", createAttempts)
 	}
 }
