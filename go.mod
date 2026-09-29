@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Songmu/gitconfig v0.2.2
 	github.com/Songmu/gitsemvers v0.1.0
-	github.com/Songmu/tagpr/gh2changelog v0.7.1
+	github.com/Songmu/tagpr/gh2changelog v0.8.0
 	github.com/gofri/go-github-ratelimit/v2 v2.0.2
 	github.com/google/go-github/v92 v92.0.0
 	github.com/k1LoW/calver v1.0.2
