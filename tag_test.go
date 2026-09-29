@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +25,7 @@ func TestMergedBaseSHA(t *testing.T) {
 	}{
 		"valid base SHA": {
 			pr: &github.PullRequest{
-				Base: &github.PullRequestBranch{SHA: github.Ptr("deadbeef")},
+				Base: &github.PullRequestBranch{SHA: new("deadbeef")},
 			},
 			want: "deadbeef",
 		},
@@ -35,13 +34,13 @@ func TestMergedBaseSHA(t *testing.T) {
 			wantErr: true,
 		},
 		"missing base": {
-			pr:      &github.PullRequest{Number: github.Ptr(10)},
+			pr:      &github.PullRequest{Number: new(10)},
 			wantErr: true,
 		},
 		"empty base SHA": {
 			pr: &github.PullRequest{
-				Number: github.Ptr(10),
-				Base:   &github.PullRequestBranch{SHA: github.Ptr("")},
+				Number: new(10),
+				Base:   &github.PullRequestBranch{SHA: new("")},
 			},
 			wantErr: true,
 		},
@@ -188,31 +187,31 @@ func TestLatestMergedReleasePullRequestPaginatesAndMatchesBase(t *testing.T) {
 	mergedAt := &github.Timestamp{Time: time.Now()}
 	firstPage := []*github.PullRequest{
 		{
-			Number:   github.Ptr(1),
+			Number:   new(1),
 			MergedAt: mergedAt,
-			Head:     &github.PullRequestBranch{Ref: github.Ptr("feature")},
+			Head:     &github.PullRequestBranch{Ref: new("feature")},
 		},
 		{
-			Number: github.Ptr(2),
-			Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
-			Base:   &github.PullRequestBranch{Ref: github.Ptr("main")},
-			Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+			Number: new(2),
+			Head:   &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+			Base:   &github.PullRequestBranch{Ref: new("main")},
+			Labels: []*github.Label{{Name: "tagpr"}},
 		},
 		{
-			Number:   github.Ptr(3),
+			Number:   new(3),
 			MergedAt: mergedAt,
-			Head:     &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
-			Base:     &github.PullRequestBranch{Ref: github.Ptr("release/v1")},
-			Labels:   []*github.Label{{Name: github.Ptr("tagpr")}},
+			Head:     &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+			Base:     &github.PullRequestBranch{Ref: new("release/v1")},
+			Labels:   []*github.Label{{Name: "tagpr"}},
 		},
 	}
 	secondPage := []*github.PullRequest{
 		{
-			Number:   github.Ptr(4),
+			Number:   new(4),
 			MergedAt: mergedAt,
-			Head:     &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
-			Base:     &github.PullRequestBranch{Ref: github.Ptr("main")},
-			Labels:   []*github.Label{{Name: github.Ptr("tagpr")}},
+			Head:     &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+			Base:     &github.PullRequestBranch{Ref: new("main")},
+			Labels:   []*github.Label{{Name: "tagpr"}},
 		},
 	}
 
@@ -243,12 +242,10 @@ func TestLatestMergedReleasePullRequestPaginatesAndMatchesBase(t *testing.T) {
 	srv = httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	u, err := url.Parse(srv.URL + "/")
+	cli, err := github.NewClient(github.WithURLs(new(srv.URL+"/"), nil))
 	if err != nil {
 		t.Fatal(err)
 	}
-	cli := github.NewClient(nil)
-	cli.BaseURL = u
 	tp := &tagpr{
 		c: &commander{
 			gitPath:   "git",
@@ -257,7 +254,7 @@ func TestLatestMergedReleasePullRequestPaginatesAndMatchesBase(t *testing.T) {
 			errStream: io.Discard,
 		},
 		gh:    cli,
-		cfg:   &config{releaseBranch: github.Ptr("main")},
+		cfg:   &config{releaseBranch: new("main")},
 		owner: "Songmu",
 		repo:  "tagpr",
 	}
@@ -312,12 +309,10 @@ func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *testReleaseR
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	u, err := url.Parse(srv.URL + "/")
+	cli, err := github.NewClient(github.WithURLs(new(srv.URL+"/"), nil))
 	if err != nil {
 		t.Fatal(err)
 	}
-	cli := github.NewClient(nil)
-	cli.BaseURL = u
 
 	return &tagpr{
 		c: &commander{
@@ -332,10 +327,10 @@ func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *testReleaseR
 
 func newTestConfig(versionFile string) *config {
 	return &config{
-		releaseBranch: github.Ptr("main"),
-		versionFile:   github.Ptr(versionFile),
-		vPrefix:       github.Ptr(true),
-		release:       github.Ptr("false"),
+		releaseBranch: new("main"),
+		versionFile:   new(versionFile),
+		vPrefix:       new(true),
+		release:       new("false"),
 	}
 }
 
@@ -362,10 +357,10 @@ func TestTagReleaseMergeMethods(t *testing.T) {
 				t.Fatal(err)
 			}
 			pr := &github.PullRequest{
-				Number: github.Ptr(1),
-				Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
-				Base:   &github.PullRequestBranch{SHA: github.Ptr(baseSHA)},
-				Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+				Number: new(1),
+				Head:   &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+				Base:   &github.PullRequestBranch{SHA: new(baseSHA)},
+				Labels: []*github.Label{{Name: "tagpr"}},
 			}
 			if err := tp.tagRelease(context.Background(), pr, currVer, "v0.1.0"); err != nil {
 				t.Fatalf("tagRelease() failed: %v", err)
@@ -462,9 +457,9 @@ func TestTagReleaseSignedTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	pr := &github.PullRequest{
-		Number: github.Ptr(1),
-		Base:   &github.PullRequestBranch{SHA: github.Ptr(baseSHA)},
-		Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+		Number: new(1),
+		Base:   &github.PullRequestBranch{SHA: new(baseSHA)},
+		Labels: []*github.Label{{Name: "tagpr"}},
 	}
 	if err := tp.tagRelease(context.Background(), pr, currVer, "v0.1.0"); err != nil {
 		t.Fatalf("tagRelease() failed: %v", err)
@@ -504,9 +499,9 @@ func TestTagReleaseVersionFileDetection(t *testing.T) {
 				t.Fatal(err)
 			}
 			pr := &github.PullRequest{
-				Number: github.Ptr(1),
-				Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
-				Base:   &github.PullRequestBranch{SHA: github.Ptr(baseSHA)},
+				Number: new(1),
+				Head:   &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+				Base:   &github.PullRequestBranch{SHA: new(baseSHA)},
 			}
 			if err := tp.tagRelease(context.Background(), pr, currVer, "v0.1.0"); err != nil {
 				t.Fatalf("tagRelease() failed: %v", err)
@@ -528,10 +523,10 @@ func TestTagReleaseVersionFileDetection(t *testing.T) {
 // commit when the base SHA is unavailable.
 func TestTagReleaseInvalidBaseSHA(t *testing.T) {
 	tests := map[string]*github.PullRequest{
-		"missing base": {Number: github.Ptr(1)},
+		"missing base": {Number: new(1)},
 		"empty base SHA": {
-			Number: github.Ptr(1),
-			Base:   &github.PullRequestBranch{SHA: github.Ptr("")},
+			Number: new(1),
+			Base:   &github.PullRequestBranch{SHA: new("")},
 		},
 	}
 	for name, pr := range tests {
@@ -633,11 +628,11 @@ func TestReleaseBoundarySHA(t *testing.T) {
 			outStream: io.Discard,
 			errStream: io.Discard,
 		},
-		cfg: &config{releaseBranch: github.Ptr("main")},
+		cfg: &config{releaseBranch: new("main")},
 	}
 	basePR := &github.PullRequest{
-		Number: github.Ptr(1),
-		Base:   &github.PullRequestBranch{SHA: github.Ptr("basesha")},
+		Number: new(1),
+		Base:   &github.PullRequestBranch{SHA: new("basesha")},
 	}
 	tests := map[string]struct {
 		eventName string
@@ -649,34 +644,38 @@ func TestReleaseBoundarySHA(t *testing.T) {
 	}{
 		"event takes precedence": {
 			eventName: "push",
-			payload: github.Ptr(`{"before":"eventsha","after":"` + headSHA +
+			payload: new(`{"before":"eventsha","after":"` + headSHA +
 				`","ref":"refs/heads/main"}`),
+
 			pr:   basePR,
 			want: "eventsha",
 		},
 		"event takes precedence without a pull request": {
 			eventName: "push",
-			payload: github.Ptr(`{"before":"eventsha","after":"` + headSHA +
+			payload: new(`{"before":"eventsha","after":"` + headSHA +
 				`","ref":"refs/heads/main"}`),
+
 			want: "eventsha",
 		},
 		"wrong ref falls back": {
 			eventName: "push",
-			payload: github.Ptr(`{"before":"eventsha","after":"` + headSHA +
+			payload: new(`{"before":"eventsha","after":"` + headSHA +
 				`","ref":"refs/heads/feature"}`),
+
 			pr:   basePR,
 			want: "basesha",
 		},
 		"wrong after falls back": {
 			eventName: "push",
-			payload: github.Ptr(`{"before":"eventsha","after":"other",` +
+			payload: new(`{"before":"eventsha","after":"other",` +
 				`"ref":"refs/heads/main"}`),
+
 			pr:   basePR,
 			want: "basesha",
 		},
 		"non-push event ignores before": {
 			eventName: "pull_request",
-			payload:   github.Ptr(`{"before":"unrelatedsha"}`),
+			payload:   new(`{"before":"unrelatedsha"}`),
 			pr:        basePR,
 			want:      "basesha",
 		},
@@ -684,33 +683,36 @@ func TestReleaseBoundarySHA(t *testing.T) {
 			unsetEnv: true, pr: basePR, want: "basesha"},
 		"fallback when before is missing": {
 			eventName: "push",
-			payload: github.Ptr(`{"after":"` + headSHA +
+			payload: new(`{"after":"` + headSHA +
 				`","ref":"refs/heads/main"}`),
+
 			pr:   basePR,
 			want: "basesha",
 		},
 		"fallback when before is empty": {
 			eventName: "push",
-			payload: github.Ptr(`{"before":"","after":"` + headSHA +
+			payload: new(`{"before":"","after":"` + headSHA +
 				`","ref":"refs/heads/main"}`),
+
 			pr:   basePR,
 			want: "basesha",
 		},
 		"fallback when before is all-zero": {
 			eventName: "push",
-			payload: github.Ptr(`{"before":"` + strings.Repeat("0", 40) +
+			payload: new(`{"before":"` + strings.Repeat("0", 40) +
 				`","after":"` + headSHA + `","ref":"refs/heads/main"}`),
+
 			pr:   basePR,
 			want: "basesha",
 		},
 		"malformed payload": {
 			eventName: "push",
-			payload:   github.Ptr(`{"before":`),
+			payload:   new(`{"before":`),
 			pr:        basePR,
 			wantErr:   true,
 		},
 		"fallback without a base": {
-			unsetEnv: true, pr: &github.PullRequest{Number: github.Ptr(1)}, wantErr: true},
+			unsetEnv: true, pr: &github.PullRequest{Number: new(1)}, wantErr: true},
 		"fallback without a pull request": {
 			unsetEnv: true, pr: nil, wantErr: true},
 	}
@@ -788,7 +790,7 @@ func TestTagReleaseStaleBase(t *testing.T) {
 			headSHA := r.git("rev-parse", "HEAD")
 
 			cfg := newTestConfig("-")
-			cfg.release = github.Ptr("true")
+			cfg.release = new("true")
 			tp, requests := newTestTagpr(t, r, cfg)
 			t.Setenv(envGitHubEventName, "push")
 			t.Setenv(envGitHubEventPath,
@@ -799,10 +801,10 @@ func TestTagReleaseStaleBase(t *testing.T) {
 				t.Fatal(err)
 			}
 			pr := &github.PullRequest{
-				Number: github.Ptr(1),
-				Head:   &github.PullRequestBranch{Ref: github.Ptr("tagpr-from-v0.1.0")},
-				Base:   &github.PullRequestBranch{SHA: github.Ptr(staleBaseSHA)},
-				Labels: []*github.Label{{Name: github.Ptr("tagpr")}},
+				Number: new(1),
+				Head:   &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+				Base:   &github.PullRequestBranch{SHA: new(staleBaseSHA)},
+				Labels: []*github.Label{{Name: "tagpr"}},
 			}
 			if err := tp.tagRelease(context.Background(), pr, currVer, "v0.1.0"); err != nil {
 				t.Fatalf("tagRelease() failed: %v", err)

@@ -235,11 +235,11 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 		targetCommitish := boundarySHA
 		var resp *github.Response
 		releases, resp, err = tp.gh.Repositories.GenerateReleaseNotes(
-			ctx, tp.owner, tp.repo, &github.GenerateNotesOptions{
+			ctx, tp.owner, tp.repo, github.GenerateNotesRequest{
 				TagName:               fullNextTag,
 				PreviousTagName:       previousTag,
 				TargetCommitish:       &targetCommitish,
-				ConfigurationFilePath: github.Ptr(tp.cfg.ReleaseYAMLPath()),
+				ConfigurationFilePath: new(tp.cfg.ReleaseYAMLPath()),
 			})
 		if err != nil {
 			showGHError(err, resp)
@@ -270,12 +270,12 @@ func (tp *tagpr) tagRelease(ctx context.Context, pr *github.PullRequest, currVer
 	}
 	// Don't use GenerateReleaseNote flag and use pre generated one
 	_, resp, err := tp.gh.Repositories.CreateRelease(
-		ctx, tp.owner, tp.repo, &github.RepositoryRelease{
-			TagName:         &fullNextTag,
+		ctx, tp.owner, tp.repo, github.CreateReleaseRequest{
+			TagName:         fullNextTag,
 			TargetCommitish: &releaseBranch,
 			Name:            &releases.Name,
 			Body:            &releases.Body,
-			Draft:           github.Ptr(tp.cfg.ReleaseDraft()),
+			Draft:           new(tp.cfg.ReleaseDraft()),
 		})
 	if err != nil {
 		showGHError(err, resp)

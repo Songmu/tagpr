@@ -150,7 +150,7 @@ type mockRelGen struct {
 }
 
 func (mr *mockRelGen) GenerateReleaseNotes(
-	ctx context.Context, owner, repo string, opts *github.GenerateNotesOptions) (
+	ctx context.Context, owner, repo string, opts github.GenerateNotesRequest) (
 	*github.RepositoryReleaseNotes, *github.Response, error) {
 
 	releaseYaml := ".github/release.yml"

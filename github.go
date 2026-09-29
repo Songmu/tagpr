@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/url"
 	"strings"
 
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
@@ -19,12 +18,11 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	client := github.NewClient(rateLimiter)
-
 	fqdn := host
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		fqdn = h
 	}
+	opts := []github.ClientOptionsFunc{github.WithHTTPClient(rateLimiter)}
 	if fqdn != "github.com" {
 		if strings.HasSuffix(fqdn, ".ghe.com") {
 			// for GitHub Enterprise Cloud
@@ -34,11 +32,11 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 			// ref. https://github.com/google/go-github/issues/958
 			host = fmt.Sprintf("https://%s/api/v3/", host)
 		}
-		u, err := url.Parse(host)
-		if err != nil {
-			return nil, err
-		}
-		client.BaseURL = u
+		opts = append(opts, github.WithURLs(&host, nil))
+	}
+	client, err := github.NewClient(opts...)
+	if err != nil {
+		return nil, err
 	}
 	return client, nil
 }

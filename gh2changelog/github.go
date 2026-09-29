@@ -3,7 +3,6 @@ package gh2changelog
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/Songmu/gitconfig"
 	"github.com/google/go-github/v92/github"
@@ -20,16 +19,15 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	}
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	oauthClient := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(oauthClient)
 
 	if host != "" && host != "github.com" {
 		// ref. https://github.com/google/go-github/issues/958
 		host = fmt.Sprintf("https://%s/api/v3/", host)
-		u, err := url.Parse(host)
+		client, err := github.NewClient(github.WithHTTPClient(oauthClient), github.WithURLs(&host, nil))
 		if err != nil {
 			return nil, err
 		}
-		client.BaseURL = u
+		return client, nil
 	}
-	return client, nil
+	return github.NewClient(github.WithHTTPClient(oauthClient))
 }

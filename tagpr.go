@@ -538,17 +538,17 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				return err
 			}
 			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path:    github.Ptr(filePath),
-				Type:    github.Ptr("blob"),
-				Content: github.Ptr(string(contentBytes)),
-				Mode:    github.Ptr(newMode),
+				Path:    new(filePath),
+				Type:    new("blob"),
+				Content: new(string(contentBytes)),
+				Mode:    new(newMode),
 			})
 		case "D": // Deleted files
 			treeEntries = append(treeEntries, &github.TreeEntry{
 				SHA:  nil,
-				Path: github.Ptr(filePath),
-				Type: github.Ptr("blob"),
-				Mode: github.Ptr("100644"),
+				Path: new(filePath),
+				Type: new("blob"),
+				Mode: new("100644"),
 			})
 		}
 	}
@@ -573,7 +573,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 
 	// Create a new commit
 	commit := github.Commit{
-		Message: github.Ptr(commitMessage),
+		Message: new(commitMessage),
 		Tree:    parent.Commit.Tree,
 		Parents: []*github.Commit{parent.Commit},
 	}
@@ -647,7 +647,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 
 				// Create a new commit
 				commit := github.Commit{
-					Message: github.Ptr("cherry-pick: " + commitish),
+					Message: new("cherry-pick: " + commitish),
 					Tree:    newCommit.Tree,
 					Parents: cherryPickCommit.Parents,
 				}
@@ -660,7 +660,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				// Update temporary reference
 				updateRef := github.UpdateRef{
 					SHA:   *tempCommit.SHA,
-					Force: github.Ptr(true),
+					Force: new(true),
 				}
 				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
 				if err != nil {
@@ -669,9 +669,9 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 
 				// Merge
-				mergeRequest := &github.RepositoryMergeRequest{
-					Base: github.Ptr("tagpr-temp"),
-					Head: github.Ptr(commitish),
+				mergeRequest := github.RepositoryMergeRequest{
+					Base: "tagpr-temp",
+					Head: commitish,
 				}
 				mergeCommit, resp, err := tp.gh.Repositories.Merge(
 					ctx, tp.owner, tp.repo, mergeRequest)
@@ -701,7 +701,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				// Update temporary reference
 				updateRef = github.UpdateRef{
 					SHA:   *newCommit.SHA,
-					Force: github.Ptr(true),
+					Force: new(true),
 				}
 				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
 				if err != nil {
@@ -756,8 +756,8 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	}
 
 	host := "github.com"
-	if tp.gh.BaseURL != nil {
-		host = strings.TrimPrefix(tp.gh.BaseURL.Host, "api.")
+	if baseURL, err := url.Parse(tp.gh.BaseURL()); err == nil && baseURL.Host != "" {
+		host = strings.TrimPrefix(baseURL.Host, "api.")
 	}
 	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
 	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
@@ -835,10 +835,10 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			return err
 		}
 		treeEntries = append(treeEntries, &github.TreeEntry{
-			Path:    github.Ptr(changelogMd),
-			Type:    github.Ptr("blob"),
-			Content: github.Ptr(string(contentBytes)),
-			Mode:    github.Ptr("100644"),
+			Path:    new(changelogMd),
+			Type:    new("blob"),
+			Content: new(string(contentBytes)),
+			Mode:    new("100644"),
 		})
 		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
 		if err != nil {
@@ -847,7 +847,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		}
 		// Create a new commit
 		commit = github.Commit{
-			Message: github.Ptr(changelogMessage),
+			Message: new(changelogMessage),
 			Tree:    tree,
 			Parents: []*github.Commit{newCommit},
 		}
@@ -883,7 +883,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	}
 	updateRef := github.UpdateRef{
 		SHA:   *newCommit.SHA,
-		Force: github.Ptr(true),
+		Force: new(true),
 	}
 	_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, rcBranchRef, updateRef)
 	if err != nil {
@@ -898,11 +898,11 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		body = strings.TrimSpace(stuffs[1])
 	}
 	if currTagPR == nil {
-		pr, resp, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, &github.NewPullRequest{
-			Title: github.Ptr(title),
-			Body:  github.Ptr(body),
-			Base:  &releaseBranch,
-			Head:  github.Ptr(head),
+		pr, resp, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, github.CreatePullRequest{
+			Title: new(title),
+			Body:  new(body),
+			Base:  releaseBranch,
+			Head:  head,
 		})
 		if err != nil {
 			showGHError(err, resp)
@@ -925,8 +925,8 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		tp.setOutput("pull_request", string(b))
 		return nil
 	}
-	currTagPR.Title = github.Ptr(title)
-	currTagPR.Body = github.Ptr(mergeBody(*currTagPR.Body, body))
+	currTagPR.Title = new(title)
+	currTagPR.Body = new(mergeBody(*currTagPR.Body, body))
 	// Clear Base so go-github does not include the `base` field in the PATCH
 	// payload. When `base` is sent shortly after an UpdateRef (force-push),
 	// GitHub emits a duplicate `pull_request.synchronize` webhook, causing

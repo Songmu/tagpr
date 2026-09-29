@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 	"text/template"
-
-	"github.com/google/go-github/v92/github"
 )
 
 func renderTestTemplate(t *testing.T, text string, arg *tmplArg) (string, error) {
@@ -120,7 +118,7 @@ func TestPRTmplReturnsChangelogErrorWithoutFallback(t *testing.T) {
 
 func TestLoadPRTmplParseFailureUsesLazyDefault(t *testing.T) {
 	calls := 0
-	pt := loadPRTmpl(&config{templateText: github.Ptr(`{{`)})
+	pt := loadPRTmpl(&config{templateText: new(`{{`)})
 	got, err := pt.Render(&tmplArg{
 		loadChangelog: func() (string, error) {
 			calls++
