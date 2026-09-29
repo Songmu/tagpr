@@ -1,5 +1,65 @@
 # Changelog
 
+## [v0.8.0](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.3...gh2changelog/v0.8.0) - 2026-09-29
+
+- build(deps): bump github.com/Masterminds/semver/v3 from 3.4.0 to 3.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/349
+- build(deps): bump Songmu/tagpr from 1.18.2 to 1.18.3 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/348
+- feat: support Cargo.toml as a version file for Rust projects by @gfx in https://github.com/Songmu/tagpr/pull/350
+- docs: update README configuration and checkout examples by @shamaton in https://github.com/Songmu/tagpr/pull/353
+- Add blank line after changelog heading to be markdownlint-safe by @gfx in https://github.com/Songmu/tagpr/pull/358
+- build(deps): bump github.com/k1LoW/calver from 1.0.1 to 1.0.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/357
+- build(deps): bump codecov/codecov-action from 6.0.0 to 6.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/356
+- build(deps): bump actions/create-github-app-token from 3.1.1 to 3.2.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/355
+- build(deps): bump Songmu/tagpr from 1.18.3 to 1.19.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/352
+- fix: preserve CalVer zero-padding when tagging from a version file by @usadamasa in https://github.com/Songmu/tagpr/pull/363
+- build(deps): bump actions/setup-go from 6.4.0 to 6.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/366
+- build(deps): bump Songmu/tagpr from 1.19.0 to 1.20.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/360
+- build(deps): bump codecov/codecov-action from 6.0.1 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/362
+- build(deps): bump reviewdog/action-staticcheck from 1.28.0 to 1.29.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/364
+- build(deps): bump actions/checkout from 6.0.2 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/365
+- docs: clarify tagpr.versionFile behavior by @tokuhirom in https://github.com/Songmu/tagpr/pull/370
+- build(deps): bump actions/setup-go from 6.5.0 to 7.0.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/369
+- build(deps): bump actions/checkout from 7.0.0 to 7.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/373
+- build(deps): bump Songmu/tagpr from 1.20.0 to 1.20.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/368
+- Improve README and add documentation guides by @Songmu in https://github.com/Songmu/tagpr/pull/375
+- docs: add CalVer release workflow by @Songmu in https://github.com/Songmu/tagpr/pull/376
+- configure version file docs/VERSION to invoke tagpr on merged commit by @Songmu in https://github.com/Songmu/tagpr/pull/378
+- use client-id instead of using app-id on create-github-app-token by @Songmu in https://github.com/Songmu/tagpr/pull/380
+- docs: explain token workflow options by @Songmu in https://github.com/Songmu/tagpr/pull/381
+- docs: explain immutable release workflows by @Songmu in https://github.com/Songmu/tagpr/pull/382
+- docs: deploy site with Hugo by @Songmu in https://github.com/Songmu/tagpr/pull/383
+- docs: deploy Pages from docs tags by @Songmu in https://github.com/Songmu/tagpr/pull/384
+- docs: show release flow on site home by @Songmu in https://github.com/Songmu/tagpr/pull/385
+- ci: set up Hugo with actions-hugo by @Songmu in https://github.com/Songmu/tagpr/pull/386
+- build(deps): bump reviewdog/action-staticcheck from 1.29.0 to 1.30.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/391
+- Formally support Rebase and merge for release pull requests by @Songmu with @Copilot in https://github.com/Songmu/tagpr/pull/392
+- Configure Renovate for Go major module updates by @Songmu with @Copilot in https://github.com/Songmu/tagpr/pull/394
+- tagpr: Refactor version file detection logic by @12ya in https://github.com/Songmu/tagpr/pull/254
+- build(deps): bump reviewdog/action-staticcheck from 1.30.0 to 1.31.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/398
+- Migrate Renovate config by @renovate[bot] in https://github.com/Songmu/tagpr/pull/399
+- docs: add Japanese documentation site by @Songmu in https://github.com/Songmu/tagpr/pull/390
+- build(deps): bump Songmu/tagpr from 1.20.1 to 1.20.2 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/400
+- fix: ensure base URL for GitHub Enterprise Cloud has a trailing slash by @kjmkznr in https://github.com/Songmu/tagpr/pull/405
+- build(deps): bump reviewdog/action-staticcheck from 1.31.0 to 1.32.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/411
+- build(deps): bump codecov/codecov-action from 7.0.0 to 7.1.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/410
+- Update dependency gohugoio/hugo to v0.166.0 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/409
+- build(deps): bump Songmu/tagpr from 1.20.2 to 1.20.3 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/408
+- build(deps): bump golang.org/x/oauth2 from 0.36.0 to 0.37.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/407
+- build(deps): bump actions/deploy-pages from 5.0.0 to 5.0.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/406
+- Modernize release workflow by @Songmu in https://github.com/Songmu/tagpr/pull/414
+- update install.sh with insmith by @Songmu in https://github.com/Songmu/tagpr/pull/415
+- Skip unused release note generation by @Songmu in https://github.com/Songmu/tagpr/pull/417
+- [incompatible] Report release command failures by @Songmu in https://github.com/Songmu/tagpr/pull/419
+- Support signed release tags by @Songmu in https://github.com/Songmu/tagpr/pull/420
+- Group go-github major updates by @Songmu in https://github.com/Songmu/tagpr/pull/422
+- Fix Renovate Go major detection by @Songmu in https://github.com/Songmu/tagpr/pull/425
+- Update module github.com/google/go-github/v83 to v92 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/427
+- build(deps): bump codecov/codecov-action from 7.1.0 to 7.1.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/424
+- build(deps): bump reviewdog/action-staticcheck from 1.32.0 to 1.32.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/423
+- Update module github.com/gofri/go-github-ratelimit to v2 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/426
+- Remove duplicate go-github Renovate rule by @Songmu in https://github.com/Songmu/tagpr/pull/428
+- update go.mod with toolchain go1.27.1 by @Songmu in https://github.com/Songmu/tagpr/pull/429
+
 ## [v0.7.3](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.2...gh2changelog/v0.7.3) - 2026-04-15
 - build(deps): bump actions/setup-go from 6.2.0 to 6.3.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/322
 - build(deps): bump Songmu/tagpr from 1.17.0 to 1.17.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/323
