@@ -14,10 +14,7 @@ import (
 func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	oauthClient := oauth2.NewClient(ctx, ts)
-	rateLimiter, err := github_ratelimit.NewRateLimitWaiterClient(oauthClient.Transport)
-	if err != nil {
-		return nil, err
-	}
+	rateLimiter := github_ratelimit.NewClient(oauthClient.Transport)
 	fqdn := host
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		fqdn = h
