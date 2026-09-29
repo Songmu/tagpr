@@ -1,5 +1,17 @@
 # Changelog
 
+## [v1.21.1](https://github.com/Songmu/tagpr/compare/v1.21.0...v1.21.1) - 2026-09-29
+
+- Group go-github major updates by @Songmu in https://github.com/Songmu/tagpr/pull/422
+- Fix Renovate Go major detection by @Songmu in https://github.com/Songmu/tagpr/pull/425
+- Update module github.com/google/go-github/v83 to v92 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/427
+- build(deps): bump codecov/codecov-action from 7.1.0 to 7.1.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/424
+- build(deps): bump reviewdog/action-staticcheck from 1.32.0 to 1.32.1 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/423
+- Update module github.com/gofri/go-github-ratelimit to v2 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/426
+- Remove duplicate go-github Renovate rule by @Songmu in https://github.com/Songmu/tagpr/pull/428
+- update go.mod with toolchain go1.27.1 by @Songmu in https://github.com/Songmu/tagpr/pull/429
+- udpate gh2changelog version on go.mod by @Songmu in https://github.com/Songmu/tagpr/pull/430
+
 ## [v1.21.0](https://github.com/Songmu/tagpr/compare/v1.20.4...v1.21.0) - 2026-09-23
 
 - Skip unused release note generation by @Songmu in https://github.com/Songmu/tagpr/pull/417
