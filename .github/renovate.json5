@@ -27,6 +27,10 @@
       matchManagers: [
         'gomod',
       ],
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+      ],
       enabled: false,
     },
     {
