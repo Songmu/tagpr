@@ -6,7 +6,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/gofri/go-github-ratelimit/github_ratelimit"
+	"github.com/gofri/go-github-ratelimit/v2/github_ratelimit"
 	"github.com/google/go-github/v92/github"
 	"golang.org/x/oauth2"
 )
