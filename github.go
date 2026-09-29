@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 
-	"github.com/gofri/go-github-ratelimit/github_ratelimit"
+	"github.com/gofri/go-github-ratelimit/v2/github_ratelimit"
 	"github.com/google/go-github/v92/github"
 	"golang.org/x/oauth2"
 )
@@ -14,10 +15,7 @@ import (
 func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	oauthClient := oauth2.NewClient(ctx, ts)
-	rateLimiter, err := github_ratelimit.NewRateLimitWaiterClient(oauthClient.Transport)
-	if err != nil {
-		return nil, err
-	}
+	rateLimiter := newRateLimitClient(oauthClient.Transport)
 	fqdn := host
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		fqdn = h
@@ -39,4 +37,10 @@ func ghClient(ctx context.Context, token, host string) (*github.Client, error) {
 		return nil, err
 	}
 	return client, nil
+}
+
+func newRateLimitClient(base http.RoundTripper) *http.Client {
+	return &http.Client{
+		Transport: github_ratelimit.NewSecondaryLimiter(base),
+	}
 }
