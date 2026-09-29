@@ -246,8 +246,8 @@ SOFTWARE.
 
 ================================================================
 
-github.com/gofri/go-github-ratelimit
-https://github.com/gofri/go-github-ratelimit
+github.com/gofri/go-github-ratelimit/v2
+https://github.com/gofri/go-github-ratelimit/v2
 ----------------------------------------------------------------
 MIT License
 
@@ -306,8 +306,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================
 
-github.com/google/go-github/v83
-https://github.com/google/go-github/v83
+github.com/google/go-github/v92
+https://github.com/google/go-github/v92
 ----------------------------------------------------------------
 Copyright (c) 2013 The go-github AUTHORS. All rights reserved.
 
