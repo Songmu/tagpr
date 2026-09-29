@@ -59,6 +59,18 @@
       enabled: false,
     },
     {
+      matchManagers: [
+        'gomod',
+      ],
+      matchDepTypes: [
+        'toolchain',
+      ],
+      matchFileNames: [
+        'go.mod',
+      ],
+      enabled: true,
+    },
+    {
       matchDepNames: [
         'gohugoio/hugo',
       ],
