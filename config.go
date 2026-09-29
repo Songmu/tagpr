@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Songmu/gitconfig"
-	"github.com/google/go-github/v83/github"
 )
 
 const (
@@ -224,17 +223,17 @@ func (cfg *config) Reload() error {
 
 func (cfg *config) setFromGitconfig(dst **string, gitconfigSrc, defaultSrc string) {
 	if val, err := cfg.gitconfig.Get(gitconfigSrc); err == nil {
-		*dst = github.Ptr(val)
+		*dst = new(val)
 	} else {
 		if defaultSrc != "" {
-			*dst = github.Ptr(defaultSrc)
+			*dst = new(defaultSrc)
 		}
 	}
 }
 
 func (cfg *config) reloadField(dst **string, gitconfigSrc, envVal, defaultSrc string) {
 	if val := os.Getenv(envVal); val != "" {
-		*dst = github.Ptr(val)
+		*dst = new(val)
 	} else {
 		cfg.setFromGitconfig(dst, gitconfigSrc, defaultSrc)
 	}
@@ -245,11 +244,11 @@ func (cfg *config) reloadBoolField(dst **bool, envVal, gitconfigSrc string) erro
 		if b, err := strconv.ParseBool(val); err != nil {
 			return err
 		} else {
-			*dst = github.Ptr(b)
+			*dst = new(b)
 		}
 	} else {
 		if b, err := cfg.gitconfig.Bool(gitconfigSrc); err == nil {
-			*dst = github.Ptr(b)
+			*dst = new(b)
 		}
 	}
 
@@ -290,7 +289,7 @@ func (cfg *config) SetReleaseBranch(br string) error {
 	if err := cfg.set(configReleaseBranch, br); err != nil {
 		return err
 	}
-	cfg.releaseBranch = github.Ptr(br)
+	cfg.releaseBranch = new(br)
 	return nil
 }
 
@@ -298,7 +297,7 @@ func (cfg *config) SetVersionFile(fpath string) error {
 	if err := cfg.set(configVersionFile, fpath); err != nil {
 		return err
 	}
-	cfg.versionFile = github.Ptr(fpath)
+	cfg.versionFile = new(fpath)
 	return nil
 }
 
@@ -306,7 +305,7 @@ func (cfg *config) SetVPrefix(vPrefix bool) error {
 	if err := cfg.set(configVPrefix, strconv.FormatBool(vPrefix)); err != nil {
 		return err
 	}
-	cfg.vPrefix = github.Ptr(vPrefix)
+	cfg.vPrefix = new(vPrefix)
 	return nil
 }
 
@@ -417,7 +416,7 @@ func (cfg *config) SetCalendarVersioning(calVer string) error {
 	if err := cfg.set(configCalendarVersioning, calVer); err != nil {
 		return err
 	}
-	cfg.calendarVersioning = github.Ptr(calVer)
+	cfg.calendarVersioning = new(calVer)
 	return nil
 }
 

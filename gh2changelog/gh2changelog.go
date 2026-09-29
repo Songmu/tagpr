@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/Songmu/gitsemvers"
-	"github.com/google/go-github/v83/github"
+	"github.com/google/go-github/v92/github"
 )
 
 type releaseNoteGenerator interface {
-	GenerateReleaseNotes(context.Context, string, string, *github.GenerateNotesOptions) (
+	GenerateReleaseNotes(context.Context, string, string, github.GenerateNotesRequest) (
 		*github.RepositoryReleaseNotes, *github.Response, error)
 }
 
@@ -120,7 +120,7 @@ func (gch *GH2Changelog) Draft(
 		}
 	}
 	releases, _, err := gch.gen.GenerateReleaseNotes(
-		ctx, gch.owner, gch.repo, &github.GenerateNotesOptions{
+		ctx, gch.owner, gch.repo, github.GenerateNotesRequest{
 			TagName:               nextTag,
 			PreviousTagName:       previousTag,
 			TargetCommitish:       &releaseBranch,
@@ -168,7 +168,7 @@ func (gch *GH2Changelog) Changelog(ctx context.Context, tag string) (string, str
 	}
 	d, _ := time.Parse("2006-01-02 15:04:05 -0700", date)
 	releases, _, err := gch.gen.GenerateReleaseNotes(
-		ctx, gch.owner, gch.repo, &github.GenerateNotesOptions{
+		ctx, gch.owner, gch.repo, github.GenerateNotesRequest{
 			TagName: tag,
 		})
 	if err != nil {

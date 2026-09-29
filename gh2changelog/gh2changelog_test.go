@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Songmu/tagpr/gh2changelog"
-	"github.com/google/go-github/v83/github"
+	"github.com/google/go-github/v92/github"
 )
 
 func TestGH2Changelog(t *testing.T) {
@@ -150,7 +150,7 @@ type mockRelGen struct {
 }
 
 func (mr *mockRelGen) GenerateReleaseNotes(
-	ctx context.Context, owner, repo string, opts *github.GenerateNotesOptions) (
+	ctx context.Context, owner, repo string, opts github.GenerateNotesRequest) (
 	*github.RepositoryReleaseNotes, *github.Response, error) {
 
 	releaseYaml := ".github/release.yml"

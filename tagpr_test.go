@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-github/v83/github"
+	"github.com/google/go-github/v92/github"
 )
 
 func TestBuildChunkSearchIssuesQuery(t *testing.T) {
@@ -443,13 +443,7 @@ func TestLatestSemverTag(t *testing.T) {
 
 func newGithubLabel(name *string) *github.Label {
 	return &github.Label{
-		ID:          new(int64),
-		URL:         new(string),
-		Name:        name,
-		Color:       new(string),
-		Description: new(string),
-		Default:     new(bool),
-		NodeID:      new(string),
+		Name: *name,
 	}
 }
 
@@ -630,7 +624,7 @@ func TestIsTagPR(t *testing.T) {
 
 				// Add labels
 				if tt.hasTagprLabel {
-					pr.Labels = append(pr.Labels, &github.Label{Name: &tagprLabel})
+					pr.Labels = append(pr.Labels, &github.Label{Name: tagprLabel})
 				}
 			}
 
