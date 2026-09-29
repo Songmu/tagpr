@@ -6,7 +6,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/google/go-github/v83/github"
+	"github.com/google/go-github/v92/github"
 )
 
 func renderTestTemplate(t *testing.T, text string, arg *tmplArg) (string, error) {

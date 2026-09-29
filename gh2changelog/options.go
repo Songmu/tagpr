@@ -3,7 +3,7 @@ package gh2changelog
 import (
 	"io"
 
-	"github.com/google/go-github/v83/github"
+	"github.com/google/go-github/v92/github"
 )
 
 // GitPath sets a git executable path

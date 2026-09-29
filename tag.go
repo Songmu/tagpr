@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v83/github"
+	"github.com/google/go-github/v92/github"
 )
 
 func (tp *tagpr) latestMergedReleasePullRequest(ctx context.Context) (*github.PullRequest, error) {

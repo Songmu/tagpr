@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-github/v83/github"
+	"github.com/google/go-github/v92/github"
 )
 
 func TestBuildChunkSearchIssuesQuery(t *testing.T) {
