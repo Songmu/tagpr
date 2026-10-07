@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.21.2](https://github.com/Songmu/tagpr/compare/v1.21.1...v1.21.2) - 2026-10-07
+
+- fix: verify release attestations on github.com by @Songmu in https://github.com/Songmu/tagpr/pull/435
+
 ## [v1.21.1](https://github.com/Songmu/tagpr/compare/v1.21.0...v1.21.1) - 2026-09-29
 
 - Group go-github major updates by @Songmu in https://github.com/Songmu/tagpr/pull/422
