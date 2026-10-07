@@ -564,6 +564,7 @@ verify_attestation() {
 	[ -n "$commit" ] || return 3
 	log_info "verifying build provenance for $asset_name"
 	gh attestation verify "$artifact" \
+		--hostname github.com \
 		--repo "$REPOSITORY" \
 		--source-digest "$commit" \
 		--signer-digest "$commit" \
