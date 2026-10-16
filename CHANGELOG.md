@@ -1,5 +1,15 @@
 # Changelog
 
+## [v1.21.3](https://github.com/Songmu/tagpr/compare/v1.21.2...v1.21.3) - 2026-10-16
+
+- Update go toolchain directive to v1.27.2 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/437
+- Update module github.com/google/go-github/v92 to v93 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/440
+- build(deps): bump Songmu/goxz from 0.12.0 to 0.13.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/432
+- specify checksum: true in goxz action by @Songmu in https://github.com/Songmu/tagpr/pull/446
+- Introduce actions-lock for workflow dependencies by @Songmu in https://github.com/Songmu/tagpr/pull/447
+- Configure module labels and scoped release notes by @Songmu in https://github.com/Songmu/tagpr/pull/448
+- Update dependency gohugoio/hugo to v0.168.0 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/433
+
 ## [v1.21.2](https://github.com/Songmu/tagpr/compare/v1.21.1...v1.21.2) - 2026-10-07
 
 - fix: verify release attestations on github.com by @Songmu in https://github.com/Songmu/tagpr/pull/435
