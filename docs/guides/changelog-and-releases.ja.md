@@ -47,10 +47,16 @@ monorepo の各プロジェクトに独自のリリースノートルールが�
 [tagpr]
     tagPrefix = tools
     changelogFile = tools/CHANGELOG.md
-    releaseYAMLPath = tools/.github/release.yml
+    releaseYAMLPath = .github/tools-release.yml
 ```
 
 パスは `.tagpr` ファイルからではなく、リポジトリルートからの相対パスです。設定したファイルがリリースブランチに存在しない場合は、`tagpr.releaseYAMLPath` を設定する前に作成してコミットしてください。デフォルトの `.github/release.yml` とは異なり、カスタム設定パスが存在しない場合、リリースプルリクエストから自動的に用意することはできません。
+
+このリポジトリでは `actions/labeler` を使い、`docs/**` または `gh2changelog/**` を変更するプルリクエストに、それぞれ `docs` または `gh2changelog` ラベルを自動付与しています。各モジュールの `.tagpr` は、自身のラベルが付いたプルリクエストだけを含め、`tagpr` ラベルが付いたものを除外するリリースノート設定を指定します。
+
+設定ファイルは `.github/docs-release.yml` と `.github/gh2changelog-release.yml` に配置しています。これらのファイルを変更するプルリクエストにも対応するラベルが付与され、マージ後にそのモジュールの tagpr ワークフローが実行されます。
+
+両方のモジュールを変更するプルリクエストは、両方のリリースノートに掲載される場合があります。ルートのリリースノート設定は、`tagpr` ラベルによる除外以外では対象を絞り込みません。既存のプルリクエストをモジュールのリリースノートに含めるには、対応するラベルを付与する必要があります。
 
 ## 制御ファイルとリリース作成
 
