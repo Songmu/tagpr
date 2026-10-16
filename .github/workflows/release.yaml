@@ -33,7 +33,7 @@ jobs:
       with:
         persist-credentials: false
     - name: download release artifacts
-      uses: actions/download-artifact@v8.0.1
+      uses: actions/download-artifact@v8.0.2
       with:
         name: release-${{ github.ref_name }}
         path: release

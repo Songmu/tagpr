@@ -41,7 +41,7 @@ jobs:
       with:
         subject-path: "${{ steps.goxz.outputs.output-dir }}/*"
     - name: upload release artifacts
-      uses: actions/upload-artifact@v7.0.1
+      uses: actions/upload-artifact@v7.0.2
       with:
         name: release-${{ github.ref_name }}
         path: "${{ steps.goxz.outputs.output-dir }}/*"

@@ -17,7 +17,7 @@ jobs:
     steps:
     - name: Generate token
       id: generate_token
-      uses: actions/create-github-app-token@v3.2.0
+      uses: actions/create-github-app-token@v3.3.0
       with:
         client-id: ${{ secrets.CLIENT_ID }}
         private-key: ${{ secrets.PRIVATE_KEY }}
@@ -30,7 +30,7 @@ jobs:
         persist-credentials: false
         token: ${{ steps.generate_token.outputs.token }}
     - name: tagpr
-      uses: Songmu/tagpr@v1.20.3
+      uses: Songmu/tagpr@v1.21.2
       with:
         config: docs/.tagpr
       env:
