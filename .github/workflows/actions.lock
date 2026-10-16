@@ -3,6 +3,8 @@
 # Docs: https://gh.io/actions-lockfile
 version: 'v0.0.3'
 workflows:
+    '.github/workflows/labeler.yml':
+        - 'actions/labeler@v7.0.0'
     '.github/workflows/pages.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/deploy-pages@v5.0.1'
@@ -70,6 +72,11 @@ dependencies:
         commit: 'sha1-ed597411d8f924073f98dfc5c65a23a2325f34cd'
         owner_id: 44036562
         repo_id: 205262760
+    'actions/labeler@v7.0.0':
+        ref: 'v7.0.0'
+        commit: 'sha1-bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13'
+        owner_id: 44036562
+        repo_id: 177139928
     'actions/setup-go@v7.0.0':
         ref: 'v7.0.0'
         commit: 'sha1-b7ad1dad31e06c5925ef5d2fc7ad053ef454303e'

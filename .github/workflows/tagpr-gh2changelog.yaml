@@ -5,6 +5,7 @@ on:
     - "main"
     paths:
     - "gh2changelog/**"
+    - ".github/gh2changelog-release.yml"
   workflow_dispatch:
 permissions:
   contents: write

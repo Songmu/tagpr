@@ -1,0 +1,10 @@
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - ".github/docs-release.yml"
+gh2changelog:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "gh2changelog/**"
+          - ".github/gh2changelog-release.yml"

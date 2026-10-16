@@ -104,7 +104,7 @@ while IFS= read -r -d '' source; do
 done < <(
   find "$docs_dir" \
     -path "$site_dir" -prune -o \
-    -type f -name '*.md' -print0
+    -type f -name '*.md' ! -name 'AGENTS.md' -print0
 )
 
 duplicates="$(

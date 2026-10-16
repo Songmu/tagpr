@@ -47,10 +47,40 @@ monorepo の各プロジェクトに独自のリリースノートルールが�
 [tagpr]
     tagPrefix = tools
     changelogFile = tools/CHANGELOG.md
-    releaseYAMLPath = tools/.github/release.yml
+    releaseYAMLPath = .github/tools-release.yml
 ```
 
 パスは `.tagpr` ファイルからではなく、リポジトリルートからの相対パスです。設定したファイルがリリースブランチに存在しない場合は、`tagpr.releaseYAMLPath` を設定する前に作成してコミットしてください。デフォルトの `.github/release.yml` とは異なり、カスタム設定パスが存在しない場合、リリースプルリクエストから自動的に用意することはできません。
+
+### モノレポでのヒント: モジュールごとにノートを絞り込む {#monorepo-tip-filter-notes-by-module}
+
+生成されたリリースプルリクエストだけでなく、各モジュールの変更を含むプルリクエストにラベルを付与します。たとえば、次のように設定した `actions/labeler` をプルリクエスト用ワークフローから実行すると、ラベル付与を自動化できます。
+
+```yaml
+# .github/labeler.yml
+tools:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tools/**"
+          - ".github/tools-release.yml"
+```
+
+続いて、前述の `.tagpr` の例で指定した `.github/tools-release.yml` に、そのラベルが付いたプルリクエストだけを含めるルールを設定します。
+
+```yaml
+changelog:
+  exclude:
+    labels:
+      - tagpr
+  categories:
+    - title: Changes
+      labels:
+        - tools
+```
+
+すべてのプルリクエストを拾う `*` のカテゴリを設けなければ、モジュールのラベルに一致しないプルリクエストは掲載されません。`tagpr` ラベルを除外することで、モジュールのラベルも付いたリリースプルリクエストが掲載されるのを防ぎます。
+
+絞り込みはファイル単位ではなくプルリクエスト単位です。複数のモジュールを変更するプルリクエストは、それぞれのモジュールのノートに掲載される場合があります。既存のプルリクエストを含めるには、対応するラベルを付与する必要があります。ルートのリリースノート設定は、リポジトリ全体を対象にしたままでも構いません。モジュールの tagpr ワークフローにパスフィルタを使う場合は、リリースノート設定のパスも含めると、そのルールの変更時にもワークフローを実行できます。
 
 ## 制御ファイルとリリース作成
 

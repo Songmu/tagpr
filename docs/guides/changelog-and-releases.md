@@ -64,13 +64,52 @@ rules:
 [tagpr]
     tagPrefix = tools
     changelogFile = tools/CHANGELOG.md
-    releaseYAMLPath = tools/.github/release.yml
+    releaseYAMLPath = .github/tools-release.yml
 ```
 
 The path is relative to the repository root, not to the `.tagpr` file. If the configured
 file does not exist on the release branch, create and commit it before setting
 `tagpr.releaseYAMLPath`. Unlike the default `.github/release.yml`, a missing custom
 configuration path cannot be bootstrapped by the release pull request.
+
+### Monorepo tip: filter notes by module
+
+Label the pull requests containing changes for each module, not just the generated
+release pull requests. You can automate this with `actions/labeler`, running it from
+a pull request workflow with a configuration such as:
+
+```yaml
+# .github/labeler.yml
+tools:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tools/**"
+          - ".github/tools-release.yml"
+```
+
+Then configure `.github/tools-release.yml`, selected by the `.tagpr` example above,
+to include only pull requests with that label:
+
+```yaml
+changelog:
+  exclude:
+    labels:
+      - tagpr
+  categories:
+    - title: Changes
+      labels:
+        - tools
+```
+
+Without a `*` catch-all category, pull requests that do not match the module label
+are omitted. The `tagpr` exclusion keeps generated release pull requests out even
+if they also have the module label.
+
+Filtering is per pull request, not per file: a pull request touching multiple modules
+can appear in each module's notes. Existing pull requests need the corresponding
+labels to be included. A root release-note configuration can remain repository-wide.
+If a module's tagpr workflow uses path filters, include its release-note configuration
+path as well so changes to those rules also trigger the workflow.
 
 ## Control file and release creation
 

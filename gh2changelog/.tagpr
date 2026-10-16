@@ -3,5 +3,6 @@
     releaseBranch = main
     versionFile = gh2changelog/version.go
     changelogFile = gh2changelog/CHANGELOG.md
+    releaseYAMLPath = .github/gh2changelog-release.yml
     release = false
     tagPrefix = gh2changelog/
