@@ -1,0 +1,8 @@
+changelog:
+  exclude:
+    labels:
+      - tagpr
+  categories:
+    - title: Changes
+      labels:
+        - gh2changelog

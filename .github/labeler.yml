@@ -1,0 +1,6 @@
+docs:
+  - changed-files:
+      - any-glob-to-any-file: "docs/**"
+gh2changelog:
+  - changed-files:
+      - any-glob-to-any-file: "gh2changelog/**"

@@ -1,0 +1,8 @@
+changelog:
+  exclude:
+    labels:
+      - tagpr
+  categories:
+    - title: Documentation
+      labels:
+        - docs

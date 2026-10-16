@@ -72,6 +72,13 @@ file does not exist on the release branch, create and commit it before setting
 `tagpr.releaseYAMLPath`. Unlike the default `.github/release.yml`, a missing custom
 configuration path cannot be bootstrapped by the release pull request.
 
+This repository uses `actions/labeler` to label pull requests touching `docs/**` or
+`gh2changelog/**` with `docs` or `gh2changelog`, respectively. Each module's `.tagpr`
+selects a release-note configuration that includes only its label and excludes
+`tagpr`. A pull request touching both modules can appear in both sets of notes.
+The root release-note configuration remains unfiltered except for `tagpr`.
+Existing pull requests need the corresponding labels to appear in module notes.
+
 ## Control file and release creation
 
 The generated notes are used in several places, while these settings control which

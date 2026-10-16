@@ -3,6 +3,7 @@
     releaseBranch = main
     versionFile = docs/VERSION
     changelog = false
+    releaseYAMLPath = docs/.github/release.yml
     release = false
     tagPrefix = docs
     calendarVersioning = YYYY.0M0D.MICRO
