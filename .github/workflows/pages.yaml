@@ -23,11 +23,11 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      uses: actions/checkout@v7.0.1
       with:
         persist-credentials: false
     - name: setup go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      uses: actions/setup-go@v7.0.0
       with:
         go-version-file: docs/site/go.mod
         cache: false
@@ -35,7 +35,7 @@ jobs:
       id: hugo-version
       run: echo "version=$(cat docs/site/.hugo-version)" >> "$GITHUB_OUTPUT"
     - name: setup hugo
-      uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1
+      uses: peaceiris/actions-hugo@v3.2.1
       with:
         hugo-version: ${{ steps.hugo-version.outputs.version }}
         extended: true
@@ -43,7 +43,7 @@ jobs:
       run: ./docs/site/build.sh "$RUNNER_TEMP/site"
     - name: upload pages artifact
       if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/docs/')
-      uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      uses: actions/upload-pages-artifact@v5.0.0
       with:
         path: ${{ runner.temp }}/site
 
@@ -61,4 +61,4 @@ jobs:
     steps:
     - name: deploy pages
       id: deployment
-      uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      uses: actions/deploy-pages@v5.0.1

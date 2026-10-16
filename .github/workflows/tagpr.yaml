@@ -15,7 +15,7 @@ jobs:
     steps:
     - name: Generate token
       id: generate_token
-      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      uses: actions/create-github-app-token@v3.2.0
       with:
         client-id: ${{ secrets.CLIENT_ID }}
         private-key: ${{ secrets.PRIVATE_KEY }}
@@ -23,12 +23,12 @@ jobs:
         permission-pull-requests: write
         permission-issues: read
     - name: checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      uses: actions/checkout@v7.0.1
       with:
         persist-credentials: false
         token: ${{ steps.generate_token.outputs.token }}
     - name: setup go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      uses: actions/setup-go@v7.0.0
       with:
         go-version-file: go.mod
     - name: tagpr
