@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.8.1](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.8.0...gh2changelog/v0.8.1) - 2026-10-16
+
+### Changes
+- Update module github.com/google/go-github/v92 to v93 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/440
+- Configure module labels and scoped release notes by @Songmu in https://github.com/Songmu/tagpr/pull/448
+
 ## [v0.8.0](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.7.3...gh2changelog/v0.8.0) - 2026-09-29
 
 - build(deps): bump github.com/Masterminds/semver/v3 from 3.4.0 to 3.5.0 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/349
