@@ -7,7 +7,7 @@ toolchain go1.27.1
 require (
 	github.com/Songmu/gitconfig v0.2.2
 	github.com/Songmu/gitsemvers v0.1.0
-	github.com/google/go-github/v92 v92.0.0
+	github.com/google/go-github/v93 v93.0.0
 	golang.org/x/oauth2 v0.35.0
 )
 
