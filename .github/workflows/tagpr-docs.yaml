@@ -5,6 +5,7 @@ on:
     - "main"
     paths:
     - "docs/**"
+    - ".github/docs-release.yml"
   workflow_dispatch:
 permissions:
   contents: write

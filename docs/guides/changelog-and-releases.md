@@ -64,7 +64,7 @@ rules:
 [tagpr]
     tagPrefix = tools
     changelogFile = tools/CHANGELOG.md
-    releaseYAMLPath = tools/.github/release.yml
+    releaseYAMLPath = .github/tools-release.yml
 ```
 
 The path is relative to the repository root, not to the `.tagpr` file. If the configured
@@ -75,7 +75,10 @@ configuration path cannot be bootstrapped by the release pull request.
 This repository uses `actions/labeler` to label pull requests touching `docs/**` or
 `gh2changelog/**` with `docs` or `gh2changelog`, respectively. Each module's `.tagpr`
 selects a release-note configuration that includes only its label and excludes
-`tagpr`. A pull request touching both modules can appear in both sets of notes.
+`tagpr`. These configurations live at `.github/docs-release.yml` and
+`.github/gh2changelog-release.yml`; changes to them receive the corresponding label
+and trigger the module's tagpr workflow.
+A pull request touching both modules can appear in both sets of notes.
 The root release-note configuration remains unfiltered except for `tagpr`.
 Existing pull requests need the corresponding labels to appear in module notes.
 
