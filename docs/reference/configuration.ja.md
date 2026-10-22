@@ -94,9 +94,10 @@ SemVer、バージョンファイル、CalVer の完全な優先順位ルール�
 
 ## Action の設定
 
-GitHub Action には 2 つの入力があります。
+GitHub Action には 3 つの入力があります。
 
 - `config` は `.tagpr` 以外の設定ファイルを選ぶ。
 - `version` は Action がインストールする tagpr 実行可能ファイルのバージョンを選ぶ。
+- `attestation-token` は GitHub Enterprise Server や `*.ghe.com` で、リリースのビルド来歴(provenance)を検証するための github.com 用トークン。未設定の場合は SHA-256 チェックサムのみ検証する。
 
 `tag`、`pull_request`、`base_tag` の出力を提供します。使用方法は [タグ付けとリリース](../guides/tag-and-release.md) を参照してください。

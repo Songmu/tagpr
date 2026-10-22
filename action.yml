@@ -9,6 +9,9 @@ inputs:
   config:
     description: "A path to the tagpr configuration file"
     required: false
+  attestation-token:
+    description: "A github.com token used to verify release attestations when running on GHES or *.ghe.com. If unset there, SHA-256 checksum verification is used instead"
+    required: false
 outputs:
   tag:
     description: "The semver tag, which is output only when the tagpr has tagged"
@@ -34,6 +37,7 @@ runs:
     env:
       ACTION_REF: ${{ github.action_ref }}
       TAGPR_VERSION: ${{ inputs.version }}
+      TAGPR_ATTESTATION_TOKEN: ${{ inputs.attestation-token }}
       TAGPR_CONFIG_FILE: ${{ inputs.config }}
 branding:
   icon: 'git-pull-request'
