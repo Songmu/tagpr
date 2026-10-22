@@ -519,6 +519,14 @@ The path to the tagpr configuration file. The default is `.tagpr`.
 The version of the tagpr executable installed by the action. The action supplies a
 tested default, so most workflows should leave this unset.
 
+#### attestation-token (Optional)
+
+A github.com token used to verify the build provenance of the tagpr release when the
+workflow runs on a host other than github.com (GitHub Enterprise Server or
+`*.ghe.com`). The runner's `GITHUB_TOKEN` is issued by that host and is not valid on
+github.com. When this is unset on such a host, the action falls back to SHA-256
+checksum verification. It is not needed on github.com.
+
 ### Outputs
 
 - `tag`: the created tag. It is empty when tagpr did not create a tag.
@@ -534,6 +542,17 @@ For GitHub Enterprise, use `GH_ENTERPRISE_TOKEN` instead of `GITHUB_TOKEN`:
 - uses: Songmu/tagpr@v1
   env:
     GH_ENTERPRISE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+The action verifies the downloaded tagpr binary against its build provenance on
+github.com. On GitHub Enterprise Server or `*.ghe.com`, pass a github.com token with
+`attestation-token` to keep provenance verification; otherwise only the SHA-256
+checksum is verified:
+
+```yaml
+- uses: Songmu/tagpr@v1
+  with:
+    attestation-token: ${{ secrets.GITHUB_COM_TOKEN }}
 ```
 
 ## Troubleshooting

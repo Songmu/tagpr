@@ -545,6 +545,27 @@ attestation_capability() {
 	gh attestation verify --help 2>/dev/null | grep -q -- '--signer-digest' || return 2
 }
 
+# Attestations of the release assets live on github.com. On other hosts
+# (e.g. GHES or *.ghe.com) GITHUB_TOKEN is issued by that host and is not valid
+# on github.com, so a dedicated github.com token is required there.
+is_github_com() {
+	case "${GITHUB_SERVER_URL:-https://github.com}" in
+		https://github.com | https://github.com/) return 0 ;;
+	esac
+	return 1
+}
+
+gh_attestation_verify() {
+	if is_github_com; then
+		gh attestation verify "$@"
+	else
+		env -u GH_HOST -u GITHUB_TOKEN \
+			-u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN \
+			GH_TOKEN="$TAGPR_ATTESTATION_TOKEN" \
+			gh attestation verify "$@"
+	fi
+}
+
 resolve_tag_commit() {
 	refs=$(git ls-remote "https://github.com/$REPOSITORY.git" \
 		"refs/tags/$TAG" "refs/tags/$TAG^{}") || return 1
@@ -560,10 +581,14 @@ resolve_tag_commit() {
 
 verify_attestation() {
 	attestation_capability || return 2
+	if ! is_github_com && [ -z "${TAGPR_ATTESTATION_TOKEN:-}" ]; then
+		log_info "TAGPR_ATTESTATION_TOKEN (a github.com token) is not set on ${GITHUB_SERVER_URL}"
+		return 2
+	fi
 	commit=$(resolve_tag_commit) || return 3
 	[ -n "$commit" ] || return 3
 	log_info "verifying build provenance for $asset_name"
-	gh attestation verify "$artifact" \
+	gh_attestation_verify "$artifact" \
 		--hostname github.com \
 		--repo "$REPOSITORY" \
 		--source-digest "$commit" \
