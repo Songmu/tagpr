@@ -31,7 +31,7 @@ jobs:
         persist-credentials: false
         token: ${{ steps.generate_token.outputs.token }}
     - name: tagpr
-      uses: Songmu/tagpr@v1.21.2
+      uses: Songmu/tagpr@v1.21.3
       with:
         config: docs/.tagpr
       env:
