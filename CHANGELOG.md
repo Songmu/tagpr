@@ -1,5 +1,7 @@
 # Changelog
 
+## [v1.21.5](https://github.com/Songmu/tagpr/compare/v1.21.4...v1.21.5) - 2026-10-23
+
 ## [v1.21.4](https://github.com/Songmu/tagpr/compare/v1.21.3...v1.21.4) - 2026-10-22
 
 - Update go toolchain directive to v1.27.3 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/451
