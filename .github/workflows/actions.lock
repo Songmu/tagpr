@@ -28,11 +28,11 @@ workflows:
     '.github/workflows/tagpr-docs.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/create-github-app-token@v3.3.0'
-        - 'songmu/tagpr@v1.21.2'
+        - 'songmu/tagpr@v1.21.3'
     '.github/workflows/tagpr-gh2changelog.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/create-github-app-token@v3.3.0'
-        - 'songmu/tagpr@v1.21.2'
+        - 'songmu/tagpr@v1.21.3'
     '.github/workflows/tagpr.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/create-github-app-token@v3.3.0'
@@ -133,9 +133,9 @@ dependencies:
         commit: 'sha1-b7b74d681760746882693f3db7c94a0888a4b714'
         owner_id: 177122
         repo_id: 115265377
-    'songmu/tagpr@v1.21.2':
-        ref: 'v1.21.2'
-        commit: 'sha1-0c4eb5a3b0862693702acea436a7c68bd586530d'
+    'songmu/tagpr@v1.21.3':
+        ref: 'v1.21.3'
+        commit: 'sha1-1fcd7292d1fe8ea9a8313eef46b8d80b7a15d227'
         owner_id: 177122
         repo_id: 524603982
     'tcnksm/ghr@v0.18.5':
