@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.21.4](https://github.com/Songmu/tagpr/compare/v1.21.3...v1.21.4) - 2026-10-22
+
+- Update go toolchain directive to v1.27.3 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/451
+- Add attestation-token input for GHES/GHEC attestation verification by @kjmkznr in https://github.com/Songmu/tagpr/pull/452
+
 ## [v1.21.3](https://github.com/Songmu/tagpr/compare/v1.21.2...v1.21.3) - 2026-10-16
 
 - Update go toolchain directive to v1.27.2 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/437
