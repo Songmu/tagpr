@@ -759,7 +759,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	if baseURL, err := url.Parse(tp.gh.BaseURL()); err == nil && baseURL.Host != "" {
 		host = strings.TrimPrefix(baseURL.Host, "api.")
 	}
-	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
+	currTag := latestSemverTag
 	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
 	draft := &lazyDraftChangelog{load: func() (*draftChangelog, error) {
 		opts := []gh2changelog.Option{
@@ -959,6 +959,16 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 }
 
 func replaceCompareLink(orig, host, owner, repo, currTag, nextTag, rcBranch string) string {
+	if currTag == "" {
+		// Without a previous tag, GitHub can choose a release from another
+		// tag prefix. Link to the candidate's history instead of that range.
+		base := fmt.Sprintf("**Full Changelog**: https://%s/%s/%s/", host, owner, repo)
+		link := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(base) +
+			`(?:compare/\S+\.\.\.|commits/)` + regexp.QuoteMeta(nextTag) + `$`)
+		return link.ReplaceAllStringFunc(orig, func(string) string {
+			return base + "commits/" + rcBranch
+		})
+	}
 	const base = `**Full Changelog**: https://%s/%s/%s/compare/%s...%s`
 	beforeCompareURL := fmt.Sprintf(base, host, owner, repo, currTag, nextTag)
 	afterCompareURL := fmt.Sprintf(base, host, owner, repo, currTag, rcBranch)
