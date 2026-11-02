@@ -1,6 +1,7 @@
 package tagpr
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -993,11 +994,181 @@ func TestApplyReleasePlanRejectsNonAncestor(t *testing.T) {
 		PullRequestNumber:       1,
 		BaseTag:                 "v0.1.0",
 	}
+
 	if err := tp.applyReleasePlan(context.Background(), plan); err == nil {
 		t.Fatal("applyReleasePlan() expected an error")
 	}
 }
 
+func TestApplyReleasePlanRejectsUnfetchedReleaseTag(t *testing.T) {
+	r := newTestRepo(t, "")
+	t.Chdir(r.dir)
+	baseSHA := r.merge("merge")
+	targetSHA := r.git("rev-parse", "HEAD")
+	r.git("push", "origin", "main")
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+
+	publisher := &testRepo{dir: t.TempDir(), t: t}
+	r.git("clone", r.git("remote", "get-url", "origin"), publisher.dir)
+	publisher.git("config", "user.name", "Test")
+	publisher.git("config", "user.email", "test@example.com")
+	publisher.git("config", "commit.gpgsign", "false")
+	publisher.git("checkout", "-b", "maintenance", baseSHA)
+	publisher.commit("hotfix.md", "fix\n", "maintenance release")
+	publisher.git("tag", "v0.1.2")
+	publisher.git("push", "origin", "refs/tags/v0.1.2")
+
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               targetSHA,
+		BaseTag:                 "v0.1.0",
+		PullRequestNumber:       1,
+		ReleaseNotesBoundarySHA: baseSHA,
+	}
+	tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+	err := tp.Run(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "base tag changed") {
+		t.Fatalf("Run() error = %v, want a remote base-tag change", err)
+	}
+	if got := r.git("ls-remote", "--tags", "origin", "refs/tags/v0.1.1"); got != "" {
+		t.Errorf("stale plan published a tag: %s", got)
+	}
+}
+
+func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
+	tests := []struct {
+		name, versionFile, content, prefix, baseTag, tag string
+		calendar, tagged                                 bool
+	}{
+		{name: "no version file", versionFile: "-", baseTag: "v0.1.0", tag: "v0.1.1"},
+		{name: "version file", versionFile: "version.go", content: `const version = "0.1.0"`,
+			baseTag: "v0.1.0", tag: "v0.2.0"},
+		{name: "first release", versionFile: "-", tag: "v0.0.1"},
+		{name: "namespace", versionFile: "-", prefix: "tools",
+			baseTag: "tools/v0.1.0", tag: "tools/v0.1.1"},
+		{name: "CalVer retry on a later date", versionFile: "-", calendar: true, tagged: true,
+			baseTag: "v2000.1031.0", tag: "v2000.1101.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newTestRepo(t, tt.content)
+			t.Chdir(r.dir)
+			baseSHA := r.merge("merge")
+			targetSHA := r.git("rev-parse", "HEAD")
+			if tt.baseTag != "v0.1.0" {
+				r.git("tag", "-d", "v0.1.0")
+				if tt.baseTag != "" {
+					r.git("tag", tt.baseTag, baseSHA)
+				}
+			}
+			if tt.tagged {
+				r.git("tag", tt.tag, targetSHA)
+				r.git("push", "origin", "refs/tags/"+tt.tag)
+			}
+			prefix := normalizeTagPrefix(tt.prefix)
+			baseVersion := strings.TrimPrefix(tt.baseTag, prefix)
+			if baseVersion == "" {
+				baseVersion = "v0.0.0"
+			}
+			var notesTags, notesBases []string
+			var createCalls int
+			mux := http.NewServeMux()
+			mux.HandleFunc("/repos/Songmu/tagpr/commits/"+targetSHA+"/pulls",
+				func(w http.ResponseWriter, req *http.Request) {
+					json.NewEncoder(w).Encode([]map[string]any{{
+						"number": 1, "merged_at": "2026-11-02T00:00:00Z",
+						"merge_commit_sha": targetSHA,
+						"head": map[string]string{
+							"ref": branchPrefix + branchSafePrefix(prefix) + baseVersion,
+						},
+						"base":   map[string]string{"ref": "main", "sha": baseSHA},
+						"labels": []map[string]string{{"name": "tagpr"}},
+					}})
+				})
+			mux.HandleFunc("/repos/Songmu/tagpr/releases/generate-notes",
+				func(w http.ResponseWriter, req *http.Request) {
+					var body struct {
+						TagName         string `json:"tag_name"`
+						PreviousTagName string `json:"previous_tag_name"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+						t.Error(err)
+					}
+					notesTags = append(notesTags, body.TagName)
+					notesBases = append(notesBases, body.PreviousTagName)
+					json.NewEncoder(w).Encode(map[string]string{"name": "release", "body": "notes"})
+				})
+			mux.HandleFunc("/repos/Songmu/tagpr/releases",
+				func(w http.ResponseWriter, req *http.Request) {
+					if req.Method == http.MethodGet {
+						fmt.Fprint(w, "[]")
+						return
+					}
+					createCalls++
+					if createCalls == 1 {
+						http.Error(w, "temporary failure", http.StatusInternalServerError)
+						return
+					}
+					w.WriteHeader(http.StatusCreated)
+					json.NewEncoder(w).Encode(map[string]any{"tag_name": tt.tag, "draft": false})
+				})
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+			client, err := github.NewClient(github.WithURLs(new(srv.URL+"/"), nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg := newTestConfig(tt.versionFile)
+			cfg.release = new("true")
+			cfg.tagPrefix = new(tt.prefix)
+			if tt.calendar {
+				cfg.calendarVersioning = new("true")
+			}
+			tp := &tagpr{
+				c: &commander{
+					gitPath: "git", dir: r.dir, outStream: io.Discard, errStream: io.Discard,
+				},
+				gh: client, cfg: cfg, owner: "Songmu", repo: "tagpr",
+				runOptions:          runOptions{Mode: executionModeAuto},
+				normalizedTagPrefix: prefix,
+			}
+			if err := tp.Run(context.Background()); err == nil {
+				t.Fatal("Run() expected the first release creation to fail")
+			}
+			if err := tp.Run(context.Background()); err != nil {
+				t.Fatalf("Run() retry failed: %v", err)
+			}
+			if got := r.git("tag", "-l"); got != strings.TrimSpace(tt.baseTag+"\n"+tt.tag) {
+				t.Errorf("retry created unexpected tags: %q", got)
+			}
+			firstNotesTag := tt.tag
+			if tt.tagged {
+				firstNotesTag += "-notes"
+			}
+			if !reflect.DeepEqual(notesBases, []string{tt.baseTag, tt.baseTag}) ||
+				!reflect.DeepEqual(notesTags, []string{firstNotesTag, tt.tag + "-notes"}) {
+				t.Errorf("notes bases=%v, tags=%v; want the original base and retry tag", notesBases, notesTags)
+			}
+			t.Setenv("GITHUB_OUTPUT", "")
+			if err := os.Unsetenv("GITHUB_OUTPUT"); err != nil {
+				t.Fatal(err)
+			}
+			var output bytes.Buffer
+			tp.out = &output
+			tp.runOptions = runOptions{Mode: executionModePlan}
+			if err := tp.Run(context.Background()); err != nil {
+				t.Fatalf("Run() in plan mode after release failed: %v", err)
+			}
+			var plan releasePlan
+			if err := json.Unmarshal(output.Bytes(), &plan); err != nil {
+				t.Fatal(err)
+			}
+			if plan.Tag != tt.tag || plan.BaseTag != tt.baseTag || plan.CommitSHA != targetSHA {
+				t.Errorf("repeated plan changed the released target or baseline: %#v", plan)
+			}
+		})
+	}
+}
 func TestApplyReleasePlanRejectsAbbreviatedSHA(t *testing.T) {
 	r := newTestRepo(t, "")
 	baseSHA := r.git("rev-parse", "HEAD")

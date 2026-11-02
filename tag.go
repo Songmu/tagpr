@@ -273,6 +273,22 @@ func (tp *tagpr) setPlanOutput(plan releasePlan) error {
 	return tp.setOutput("plan", string(b))
 }
 
+func (tp *tagpr) releasePullRequestBaseTag(pr *github.PullRequest) (string, error) {
+	prefix := branchPrefix + branchSafePrefix(tp.normalizedTagPrefix)
+	version, ok := strings.CutPrefix(pr.GetHead().GetRef(), prefix)
+	if !ok || version == "" {
+		return "", fmt.Errorf("failed to determine base tag of pull request #%d", pr.GetNumber())
+	}
+	tag := fullTag(tp.normalizedTagPrefix, version)
+	if _, _, err := tp.c.Git("rev-parse", "--verify", "refs/tags/"+tag+"^{commit}"); err != nil {
+		if version == "v0.0.0" || version == "0.0.0" {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to resolve release pull request base tag %q: %w", tag, err)
+	}
+	return tag, nil
+}
+
 func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 	if err := plan.validate(); err != nil {
 		return err
@@ -289,7 +305,7 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 	plan.ReleaseNotesBoundarySHA = boundarySHA
 
 	if _, _, err := tp.c.Git(
-		"fetch", tp.remote(),
+		"fetch", "--tags", tp.remote(),
 		"+refs/heads/"+tp.cfg.ReleaseBranch()+
 			":refs/remotes/"+tp.remote()+"/"+tp.cfg.ReleaseBranch(),
 	); err != nil {

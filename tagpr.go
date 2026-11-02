@@ -416,11 +416,45 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		if err != nil {
 			return err
 		}
+		if tp.runOptions.Mode != executionModePlan {
+			if _, _, err := tp.c.Git("fetch", "--tags", tp.remote()); err != nil {
+				return fmt.Errorf("failed to fetch release tags: %w", err)
+			}
+		}
+		latestSemverTag, err = tp.releasePullRequestBaseTag(pr)
+		if err != nil {
+			return err
+		}
+		currVer, err = tp.versionFromBaseTag(latestSemverTag)
+		if err != nil {
+			return err
+		}
 		plan, err := tp.prepareReleasePlan(pr, currVer, latestSemverTag)
 		if err != nil {
 			return err
 		}
+		if tp.cfg.CalendarVersioning() {
+			vfile, err := tp.releaseVersionFile(currVer, plan.ReleaseNotesBoundarySHA, releaseBranch)
+			if err != nil {
+				return err
+			}
+			if vfile == "" {
+				latestTag := tp.latestSemverTag()
+				if latestTag != "" && latestTag != plan.BaseTag {
+					sha, _, err := tp.c.Git("rev-parse", "--verify", "refs/tags/"+latestTag+"^{commit}")
+					if err != nil {
+						return err
+					}
+					if sha == plan.CommitSHA {
+						plan.Tag = latestTag
+					}
+				}
+			}
+		}
 		if tp.runOptions.Mode == executionModePlan {
+			if err := tp.setOutput("base_tag", plan.BaseTag); err != nil {
+				return err
+			}
 			if err := tp.setPlanOutput(plan); err != nil {
 				return err
 			}
@@ -428,7 +462,15 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			tp.setOutput("pull_request", string(b))
 			return nil
 		}
-		return tp.completeRelease(ctx, plan, pr, false)
+		latestTag := tp.latestSemverTag(plan.Tag)
+		if latestTag != plan.BaseTag {
+			return fmt.Errorf("base tag changed from %q to %q", plan.BaseTag, latestTag)
+		}
+		_, tagExists, err := tp.inspectExistingTag(plan.Tag, plan.CommitSHA)
+		if err != nil {
+			return err
+		}
+		return tp.completeRelease(ctx, plan, pr, tagExists)
 	}
 	mergeLogArgs := []string{"log", "--merges", "--first-parent", "--pretty=format:%P",
 		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
