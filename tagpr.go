@@ -351,7 +351,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
 
 	latestSemverTag := tp.latestSemverTag()
-	if tp.runOptions.Mode != executionModeTag {
+	if tp.runOptions.Mode != executionModeApply {
 		tp.setOutput("base_tag", latestSemverTag)
 	}
 	currVerStr := latestSemverTag
@@ -394,8 +394,8 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		}
 	}
 
-	if tp.runOptions.Mode == executionModeTag {
-		return tp.finalizeRelease(ctx, tp.runOptions.Candidate)
+	if tp.runOptions.Mode == executionModeApply {
+		return tp.applyReleasePlan(ctx, *tp.runOptions.Plan)
 	}
 
 	branch, _, err := tp.c.Git("symbolic-ref", "--short", "HEAD")
@@ -413,19 +413,19 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		if err != nil {
 			return err
 		}
-		candidate, err := tp.prepareReleaseCandidate(pr, currVer, latestSemverTag)
+		plan, err := tp.prepareReleasePlan(pr, currVer, latestSemverTag)
 		if err != nil {
 			return err
 		}
-		if tp.runOptions.Mode == executionModePrepare {
-			if err := tp.setCandidateOutputs(candidate); err != nil {
+		if tp.runOptions.Mode == executionModePlan {
+			if err := tp.setPlanOutput(plan); err != nil {
 				return err
 			}
 			b, _ := json.Marshal(pr)
 			tp.setOutput("pull_request", string(b))
 			return nil
 		}
-		return tp.completeRelease(ctx, candidate, pr, false)
+		return tp.completeRelease(ctx, plan, pr, false)
 	}
 	mergeLogArgs := []string{"log", "--merges", "--first-parent", "--pretty=format:%P",
 		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}

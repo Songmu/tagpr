@@ -116,14 +116,12 @@ The GitHub Action supports these general inputs:
 - `attestation-token` is a github.com token used to verify the release's build
   provenance on GitHub Enterprise Server or `*.ghe.com`. If it is unset there, the
   action verifies only the SHA-256 checksum;
-- `mode` selects `auto`, `prepare`, or `tag`. The default is `auto`.
+- `mode` selects `auto`, `plan`, or `apply`. The default is `auto`.
 
-`tag` mode also accepts `pending-tag`, `target-sha`, `release-boundary-sha`,
-`pull-request-number`, and `base-tag`, which must be passed from a prior `prepare`
-invocation.
+`apply` mode requires a `plan` input containing the release plan JSON emitted by
+`plan` mode.
 
-The existing outputs are `tag`, `pull_request`, and `base_tag`. `prepare` mode also
-exposes `pending_tag`, `target_sha`, `release_boundary_sha`, and
-`pull_request_number`. See
+The existing outputs are `tag`, `pull_request`, and `base_tag`. `plan` mode also
+exposes a single `plan` JSON output when a merged release pull request is detected. See
 [Tagging and release](../guides/tag-and-release.md#test-and-approve-before-tagging) for
 the complete two-phase workflow.

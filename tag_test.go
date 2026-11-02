@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -839,49 +840,55 @@ func TestTagReleaseStaleBase(t *testing.T) {
 	}
 }
 
-func TestPrepareReleaseCandidate(t *testing.T) {
+func TestPlanModeOutputsReleasePlan(t *testing.T) {
 	r := newTestRepo(t, "")
+	t.Chdir(r.dir)
 	baseSHA := r.merge("merge")
 	targetSHA := r.git("rev-parse", "HEAD")
 
 	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	tp.runOptions = runOptions{Mode: executionModePlan}
+	outputPath := filepath.Join(t.TempDir(), "output")
+	t.Setenv("GITHUB_OUTPUT", outputPath)
 	t.Setenv(envGitHubEventName, "push")
 	t.Setenv(envGitHubEventPath,
 		writeEventFile(t, `{"before":"`+baseSHA+`","after":"`+targetSHA+
 			`","ref":"refs/heads/main"}`))
-	currVer, err := newSemver("v0.1.0")
+	if err := tp.Run(context.Background()); err != nil {
+		t.Fatalf("Run() in plan mode failed: %v", err)
+	}
+	b, err := os.ReadFile(outputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pr := &github.PullRequest{
-		Number: new(1),
-		Head:   &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
-		Base:   &github.PullRequestBranch{SHA: new(baseSHA)},
-		Labels: []*github.Label{{Name: "tagpr"}},
+	outputs := map[string]string{}
+	for line := range strings.SplitSeq(strings.TrimSpace(string(b)), "\n") {
+		name, value, _ := strings.Cut(line, "=")
+		outputs[name] = value
 	}
-
-	candidate, err := tp.prepareReleaseCandidate(pr, currVer, "v0.1.0")
-	if err != nil {
-		t.Fatalf("prepareReleaseCandidate() failed: %v", err)
+	var got map[string]any
+	if err := json.Unmarshal([]byte(outputs["plan"]), &got); err != nil {
+		t.Fatalf("failed to decode plan output: %v", err)
 	}
-	if candidate.PendingTag != "v0.1.1" {
-		t.Errorf("PendingTag = %q, want v0.1.1", candidate.PendingTag)
+	want := map[string]any{
+		"tag":                        "v0.1.1",
+		"commit_sha":                 targetSHA,
+		"base_tag":                   "v0.1.0",
+		"pull_request_number":        float64(1),
+		"release_notes_boundary_sha": baseSHA,
 	}
-	if candidate.TargetSHA != targetSHA {
-		t.Errorf("TargetSHA = %q, want %q", candidate.TargetSHA, targetSHA)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("plan = %#v, want %#v", got, want)
 	}
-	if candidate.ReleaseBoundarySHA != baseSHA {
-		t.Errorf("ReleaseBoundarySHA = %q, want %q", candidate.ReleaseBoundarySHA, baseSHA)
-	}
-	if candidate.PullRequestNumber != 1 {
-		t.Errorf("PullRequestNumber = %d, want 1", candidate.PullRequestNumber)
+	if len(outputs) != 3 || outputs["base_tag"] != "v0.1.0" || outputs["pull_request"] == "" {
+		t.Errorf("outputs = %#v, want only plan, base_tag, and pull_request", outputs)
 	}
 	if got := r.git("tag", "-l", "v0.1.1"); got != "" {
-		t.Errorf("prepareReleaseCandidate() created tag %q", got)
+		t.Errorf("plan mode created tag %q", got)
 	}
 }
 
-func TestFinalizeReleaseAfterBranchAdvances(t *testing.T) {
+func TestApplyReleasePlanAfterBranchAdvances(t *testing.T) {
 	r := newTestRepo(t, "")
 	t.Chdir(r.dir)
 	baseSHA := r.merge("merge")
@@ -889,19 +896,20 @@ func TestFinalizeReleaseAfterBranchAdvances(t *testing.T) {
 	r.git("push", "origin", "main")
 
 	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
-	candidate := releaseCandidate{
-		PendingTag:         "v0.1.1",
-		TargetSHA:          targetSHA,
-		ReleaseBoundarySHA: baseSHA,
-		PullRequestNumber:  1,
-		BaseTag:            "v0.1.0",
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               targetSHA,
+		ReleaseNotesBoundarySHA: baseSHA,
+		PullRequestNumber:       1,
+		BaseTag:                 "v0.1.0",
 	}
+	tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
 
 	advancedSHA := r.advanceMain("later.md", "later\n", "advance after release merge")
 	r.git("push", "origin", "main")
 	r.git("tag", "v0.1.1", targetSHA)
-	if err := tp.finalizeRelease(context.Background(), candidate); err != nil {
-		t.Fatalf("finalizeRelease() failed: %v", err)
+	if err := tp.Run(context.Background()); err != nil {
+		t.Fatalf("Run() in apply mode failed: %v", err)
 	}
 	if got := r.git("rev-parse", "v0.1.1"); got != targetSHA {
 		t.Errorf("tag points to %s, want %s", got, targetSHA)
@@ -914,12 +922,12 @@ func TestFinalizeReleaseAfterBranchAdvances(t *testing.T) {
 		t.Errorf("remote tag points to %s, want %s", got, targetSHA)
 	}
 
-	if err := tp.finalizeRelease(context.Background(), candidate); err != nil {
-		t.Fatalf("idempotent finalizeRelease() failed: %v", err)
+	if err := tp.Run(context.Background()); err != nil {
+		t.Fatalf("idempotent Run() in apply mode failed: %v", err)
 	}
 }
 
-func TestFinalizeReleaseRejectsNonAncestor(t *testing.T) {
+func TestApplyReleasePlanRejectsNonAncestor(t *testing.T) {
 	r := newTestRepo(t, "")
 	baseSHA := r.git("rev-parse", "HEAD")
 	r.git("checkout", "-b", "unrelated")
@@ -928,32 +936,32 @@ func TestFinalizeReleaseRejectsNonAncestor(t *testing.T) {
 	r.git("checkout", "main")
 
 	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
-	candidate := releaseCandidate{
-		PendingTag:         "v0.1.1",
-		TargetSHA:          targetSHA,
-		ReleaseBoundarySHA: baseSHA,
-		PullRequestNumber:  1,
-		BaseTag:            "v0.1.0",
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               targetSHA,
+		ReleaseNotesBoundarySHA: baseSHA,
+		PullRequestNumber:       1,
+		BaseTag:                 "v0.1.0",
 	}
-	if err := tp.finalizeRelease(context.Background(), candidate); err == nil {
-		t.Fatal("finalizeRelease() expected an error")
+	if err := tp.applyReleasePlan(context.Background(), plan); err == nil {
+		t.Fatal("applyReleasePlan() expected an error")
 	}
 }
 
-func TestFinalizeReleaseRejectsAbbreviatedSHA(t *testing.T) {
+func TestApplyReleasePlanRejectsAbbreviatedSHA(t *testing.T) {
 	r := newTestRepo(t, "")
 	baseSHA := r.git("rev-parse", "HEAD")
 	r.merge("merge")
 	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
-	candidate := releaseCandidate{
-		PendingTag:         "v0.1.1",
-		TargetSHA:          r.git("rev-parse", "HEAD")[:12],
-		ReleaseBoundarySHA: baseSHA,
-		PullRequestNumber:  1,
-		BaseTag:            "v0.1.0",
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               r.git("rev-parse", "HEAD")[:12],
+		ReleaseNotesBoundarySHA: baseSHA,
+		PullRequestNumber:       1,
+		BaseTag:                 "v0.1.0",
 	}
-	if err := tp.finalizeRelease(context.Background(), candidate); err == nil {
-		t.Fatal("finalizeRelease() expected an error")
+	if err := tp.applyReleasePlan(context.Background(), plan); err == nil {
+		t.Fatal("applyReleasePlan() expected an error")
 	}
 }
 
@@ -1020,21 +1028,21 @@ func TestCompleteReleaseRetriesAfterReleaseCreationFailure(t *testing.T) {
 		repo:  "tagpr",
 	}
 	pr := &github.PullRequest{Number: new(1)}
-	candidate := releaseCandidate{
-		PendingTag:         "v0.1.1",
-		TargetSHA:          targetSHA,
-		ReleaseBoundarySHA: baseSHA,
-		PullRequestNumber:  1,
-		BaseTag:            "v0.1.0",
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               targetSHA,
+		ReleaseNotesBoundarySHA: baseSHA,
+		PullRequestNumber:       1,
+		BaseTag:                 "v0.1.0",
 	}
 
-	if err := tp.completeRelease(context.Background(), candidate, pr, true); err == nil {
+	if err := tp.completeRelease(context.Background(), plan, pr, true); err == nil {
 		t.Fatal("completeRelease() expected the first release creation to fail")
 	}
-	if err := tp.completeRelease(context.Background(), candidate, pr, true); err != nil {
+	if err := tp.completeRelease(context.Background(), plan, pr, true); err != nil {
 		t.Fatalf("completeRelease() retry failed: %v", err)
 	}
-	if err := tp.completeRelease(context.Background(), candidate, pr, true); err != nil {
+	if err := tp.completeRelease(context.Background(), plan, pr, true); err != nil {
 		t.Fatalf("completeRelease() existing release check failed: %v", err)
 	}
 	if createAttempts != 2 {

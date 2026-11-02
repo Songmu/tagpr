@@ -6,12 +6,12 @@ import (
 )
 
 func TestRunOptionsValidate(t *testing.T) {
-	validCandidate := releaseCandidate{
-		PendingTag:         "v1.2.3",
-		TargetSHA:          strings.Repeat("a", 40),
-		ReleaseBoundarySHA: strings.Repeat("b", 40),
-		PullRequestNumber:  123,
-		BaseTag:            "v1.2.2",
+	validPlan := releasePlan{
+		Tag:                     "v1.2.3",
+		CommitSHA:               strings.Repeat("a", 40),
+		BaseTag:                 "v1.2.2",
+		PullRequestNumber:       123,
+		ReleaseNotesBoundarySHA: strings.Repeat("b", 40),
 	}
 	tests := map[string]struct {
 		opts    runOptions
@@ -20,67 +20,82 @@ func TestRunOptionsValidate(t *testing.T) {
 		"default auto": {
 			opts: runOptions{Mode: executionModeAuto},
 		},
-		"prepare": {
-			opts: runOptions{Mode: executionModePrepare},
+		"plan": {
+			opts: runOptions{Mode: executionModePlan},
 		},
-		"tag": {
-			opts: runOptions{Mode: executionModeTag, Candidate: validCandidate},
+		"apply": {
+			opts: runOptions{Mode: executionModeApply, Plan: &validPlan},
 		},
 		"invalid mode": {
 			opts:    runOptions{Mode: "invalid"},
 			wantErr: true,
 		},
-		"candidate in auto": {
-			opts:    runOptions{Mode: executionModeAuto, Candidate: validCandidate},
+		"plan in auto": {
+			opts:    runOptions{Mode: executionModeAuto, Plan: &validPlan},
 			wantErr: true,
 		},
-		"candidate in prepare": {
-			opts:    runOptions{Mode: executionModePrepare, Candidate: validCandidate},
+		"plan in plan mode": {
+			opts:    runOptions{Mode: executionModePlan, Plan: &releasePlan{}},
 			wantErr: true,
 		},
-		"tag without pending tag": {
+		"apply without plan": {
+			opts:    runOptions{Mode: executionModeApply},
+			wantErr: true,
+		},
+		"apply without tag": {
 			opts: runOptions{
-				Mode: executionModeTag,
-				Candidate: releaseCandidate{
-					TargetSHA:          validCandidate.TargetSHA,
-					ReleaseBoundarySHA: validCandidate.ReleaseBoundarySHA,
-					PullRequestNumber:  validCandidate.PullRequestNumber,
+				Mode: executionModeApply,
+				Plan: &releasePlan{
+					CommitSHA:               validPlan.CommitSHA,
+					ReleaseNotesBoundarySHA: validPlan.ReleaseNotesBoundarySHA,
+					PullRequestNumber:       validPlan.PullRequestNumber,
 				},
 			},
 			wantErr: true,
 		},
-		"tag without target": {
+		"apply without commit": {
 			opts: runOptions{
-				Mode: executionModeTag,
-				Candidate: releaseCandidate{
-					PendingTag:         validCandidate.PendingTag,
-					ReleaseBoundarySHA: validCandidate.ReleaseBoundarySHA,
-					PullRequestNumber:  validCandidate.PullRequestNumber,
+				Mode: executionModeApply,
+				Plan: &releasePlan{
+					Tag:                     validPlan.Tag,
+					ReleaseNotesBoundarySHA: validPlan.ReleaseNotesBoundarySHA,
+					PullRequestNumber:       validPlan.PullRequestNumber,
 				},
 			},
 			wantErr: true,
 		},
-		"tag without boundary": {
+		"apply without boundary": {
 			opts: runOptions{
-				Mode: executionModeTag,
-				Candidate: releaseCandidate{
-					PendingTag:        validCandidate.PendingTag,
-					TargetSHA:         validCandidate.TargetSHA,
-					PullRequestNumber: validCandidate.PullRequestNumber,
+				Mode: executionModeApply,
+				Plan: &releasePlan{
+					Tag:               validPlan.Tag,
+					CommitSHA:         validPlan.CommitSHA,
+					PullRequestNumber: validPlan.PullRequestNumber,
 				},
 			},
 			wantErr: true,
 		},
-		"tag without pull request": {
+		"apply without pull request": {
 			opts: runOptions{
-				Mode: executionModeTag,
-				Candidate: releaseCandidate{
-					PendingTag:         validCandidate.PendingTag,
-					TargetSHA:          validCandidate.TargetSHA,
-					ReleaseBoundarySHA: validCandidate.ReleaseBoundarySHA,
+				Mode: executionModeApply,
+				Plan: &releasePlan{
+					Tag:                     validPlan.Tag,
+					CommitSHA:               validPlan.CommitSHA,
+					ReleaseNotesBoundarySHA: validPlan.ReleaseNotesBoundarySHA,
 				},
 			},
 			wantErr: true,
+		},
+		"apply first release": {
+			opts: runOptions{
+				Mode: executionModeApply,
+				Plan: &releasePlan{
+					Tag:                     validPlan.Tag,
+					CommitSHA:               validPlan.CommitSHA,
+					PullRequestNumber:       validPlan.PullRequestNumber,
+					ReleaseNotesBoundarySHA: validPlan.ReleaseNotesBoundarySHA,
+				},
+			},
 		},
 	}
 

@@ -516,9 +516,9 @@ Controls when tagpr creates a release tag:
 
 - `auto` keeps the default behavior: update the release pull request or immediately
   tag a merged release pull request;
-- `prepare` updates the release pull request normally, but emits a release candidate
+- `plan` updates the release pull request normally, but emits a release plan JSON
   instead of tagging after the pull request is merged;
-- `tag` validates and finalizes a candidate emitted by `prepare`.
+- `apply` validates and executes a plan emitted by `plan`.
 
 The default is `auto`.
 
@@ -539,15 +539,10 @@ workflow runs on a host other than github.com (GitHub Enterprise Server or
 github.com. When this is unset on such a host, the action falls back to SHA-256
 checksum verification. It is not needed on github.com.
 
-#### Deferred-tag inputs
+#### plan (Optional)
 
-`tag` mode requires the candidate values emitted by `prepare`:
-
-- `pending-tag`;
-- `target-sha`;
-- `release-boundary-sha`;
-- `pull-request-number`;
-- `base-tag`, which may be empty for the first release.
+The release plan JSON emitted by `plan` mode. Required in `apply` mode; pass it
+unchanged.
 
 ### Outputs
 
@@ -555,14 +550,12 @@ checksum verification. It is not needed on github.com.
 - `pull_request`: JSON describing the release pull request created or updated by tagpr.
 - `base_tag`: the base version tag used for comparison. It is empty when no previous
   tag exists.
-- `pending_tag`: the proposed tag emitted by `prepare`.
-- `target_sha`: the exact merged release commit to test and tag.
-- `release_boundary_sha`: the commit boundary used to generate release notes.
-- `pull_request_number`: the merged release pull request associated with the candidate.
+- `plan`: release plan JSON emitted by `plan` mode when a merged release pull request
+  is detected. It is empty when tagpr only creates or updates the release pull request.
 
 See [Tagging and release](docs/guides/tag-and-release.md#test-and-approve-before-tagging)
-for a complete workflow that tests `target_sha` and waits for environment approval
-before running `tag` mode.
+for the plan JSON fields and a complete workflow that tests `plan.commit_sha` and
+waits for environment approval before running `apply` mode.
 
 ## GitHub Enterprise
 

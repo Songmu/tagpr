@@ -111,21 +111,30 @@ Other available outputs are:
 ## Test and approve before tagging {#test-and-approve-before-tagging}
 
 By default, tagpr creates the tag as soon as it detects a merged release pull request.
-Use `prepare` and `tag` modes when the exact merged commit must pass additional tests or
+Use `plan` and `apply` modes when the exact merged commit must pass additional tests or
 wait for a protected-environment approval before tagging.
 
-`prepare` emits these candidate outputs without creating a tag:
+`plan` mode creates or updates the release pull request normally. Once it detects a
+merged release pull request, it emits a single `plan` JSON output without creating a
+tag. If it only creates or updates the pull request, the `plan` output is empty.
+The JSON contains:
 
-- `pending_tag`: the proposed version tag;
-- `target_sha`: the exact merged release commit;
-- `release_boundary_sha`: the boundary used to generate release notes;
-- `pull_request_number`: the merged release pull request;
-- `base_tag`: the previous release tag.
+- `tag`: the proposed version tag;
+- `commit_sha`: the exact merged release commit to test and tag;
+- `base_tag`: the previous release tag, or an empty string for the first release;
+- `pull_request_number`: the merged release pull request number;
+- `release_notes_boundary_sha`: the end boundary used to generate release notes.
 
-The final job passes those values unchanged to `tag` mode. tagpr then verifies the
-candidate against repository state before creating the tag. The target may cease to be
+The final job passes the JSON unchanged to `apply` mode using the `plan` input.
+tagpr then verifies the plan against repository state before creating the tag.
+The target may cease to be
 the release branch head while approval is pending, but it must still be an ancestor of
 the configured release branch.
+
+The CLI equivalents are `tagpr --mode plan` and `tagpr --mode apply --plan '<JSON>'`.
+After applying the plan, use the existing `tag`, `pull_request`, and `base_tag` outputs
+for subsequent release steps. Before applying it, use `fromJSON(...).commit_sha` to
+check out the commit to test.
 
 ```yaml
 name: tagpr
@@ -146,14 +155,10 @@ permissions:
   issues: read
 
 jobs:
-  prepare:
+  plan:
     runs-on: ubuntu-latest
     outputs:
-      pending_tag: ${{ steps.tagpr.outputs.pending_tag }}
-      target_sha: ${{ steps.tagpr.outputs.target_sha }}
-      release_boundary_sha: ${{ steps.tagpr.outputs.release_boundary_sha }}
-      pull_request_number: ${{ steps.tagpr.outputs.pull_request_number }}
-      base_tag: ${{ steps.tagpr.outputs.base_tag }}
+      plan: ${{ steps.plan.outputs.plan }}
     steps:
     - name: Generate token
       id: app-token
@@ -168,31 +173,31 @@ jobs:
       with:
         token: ${{ steps.app-token.outputs.token }}
         persist-credentials: false
-    - id: tagpr
+    - id: plan
       uses: Songmu/tagpr@v1
       with:
-        mode: prepare
+        mode: plan
       env:
         GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
   test-release:
-    needs: prepare
-    if: needs.prepare.outputs.pending_tag != ''
+    needs: plan
+    if: needs.plan.outputs.plan != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
     - uses: actions/checkout@v6
       with:
-        ref: ${{ needs.prepare.outputs.target_sha }}
+        ref: ${{ fromJSON(needs.plan.outputs.plan).commit_sha }}
         persist-credentials: false
     - run: go test ./...
 
-  create-tag:
+  apply:
     needs:
-    - prepare
+    - plan
     - test-release
-    if: needs.prepare.outputs.pending_tag != '' && needs.test-release.result == 'success'
+    if: needs.plan.outputs.plan != '' && needs.test-release.result == 'success'
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -210,37 +215,34 @@ jobs:
         permission-pull-requests: read
     - uses: actions/checkout@v6
       with:
-        ref: ${{ needs.prepare.outputs.target_sha }}
+        ref: ${{ fromJSON(needs.plan.outputs.plan).commit_sha }}
         token: ${{ steps.app-token.outputs.token }}
         persist-credentials: false
-    - uses: Songmu/tagpr@v1
+    - id: apply
+      uses: Songmu/tagpr@v1
       with:
-        mode: tag
-        pending-tag: ${{ needs.prepare.outputs.pending_tag }}
-        target-sha: ${{ needs.prepare.outputs.target_sha }}
-        release-boundary-sha: ${{ needs.prepare.outputs.release_boundary_sha }}
-        pull-request-number: ${{ needs.prepare.outputs.pull_request_number }}
-        base-tag: ${{ needs.prepare.outputs.base_tag }}
+        mode: apply
+        plan: ${{ needs.plan.outputs.plan }}
       env:
         GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 ```
 
 Create the `release` environment under the repository's **Settings → Environments**
-page and configure its required reviewers. GitHub waits before starting `create-tag`,
+page and configure its required reviewers. GitHub waits before starting `apply`,
 so environment secrets and the final job's short-lived token are not used before
 approval. A deployment that remains unapproved for 30 days
 [fails automatically][deployment-approval].
 
-Workflow-level concurrency is required for this layout. While a candidate waits for
-approval, another release-branch push must not start a second `prepare` invocation
+Workflow-level concurrency is required for this layout. While a plan waits for
+approval, another release-branch push must not start a second `plan` invocation
 against the same unreleased range. With `cancel-in-progress: false`, the active approval
 run remains in progress and GitHub keeps at most one later run pending. For multiple
 tagpr configurations in a monorepo, include the config path or another stable release
 stream identifier in the concurrency group.
 
-Finalization is retryable. If the tag was pushed successfully but GitHub Release
+Applying a plan is retryable. If the tag was pushed successfully but GitHub Release
 creation failed, rerunning the final job accepts the tag when it already points to the
-candidate's `target_sha` and retries the Release operation. A tag with the same name
+plan's `commit_sha` and retries the Release operation. A tag with the same name
 pointing to another commit is rejected.
 
 ## Trigger a separate release workflow {#trigger-a-separate-workflow}

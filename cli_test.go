@@ -8,22 +8,45 @@ import (
 )
 
 func TestRunRejectsInvalidExecutionOptions(t *testing.T) {
-	tests := map[string][]string{
-		"invalid mode": {"--mode", "invalid"},
-		"missing tag candidate": {
-			"--mode", "tag",
+	tests := map[string]struct {
+		argv    []string
+		wantErr string
+	}{
+		"invalid mode": {
+			argv:    []string{"--mode", "invalid"},
+			wantErr: "invalid mode",
 		},
-		"candidate in prepare mode": {
-			"--mode", "prepare",
-			"--pending-tag", "v1.2.3",
+		"missing apply plan": {
+			argv:    []string{"--mode", "apply"},
+			wantErr: "--plan is required",
+		},
+		"plan in plan mode": {
+			argv:    []string{"--mode", "plan", "--plan", "{}"},
+			wantErr: "--plan is only valid in apply mode",
+		},
+		"plan in auto mode": {
+			argv:    []string{"--plan", "{}"},
+			wantErr: "--plan is only valid in apply mode",
+		},
+		"malformed plan": {
+			argv:    []string{"--mode", "apply", "--plan", "{"},
+			wantErr: "failed to parse --plan",
+		},
+		"null plan": {
+			argv:    []string{"--mode", "apply", "--plan", "null"},
+			wantErr: "--plan must be a JSON object",
+		},
+		"incomplete plan": {
+			argv:    []string{"--mode", "apply", "--plan", `{"tag":"v1.2.3"}`},
+			wantErr: "plan.commit_sha is required",
 		},
 	}
-	for name, argv := range tests {
+	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			err := Run(context.Background(), argv, &stdout, &stderr)
-			if err == nil {
-				t.Fatal("Run() expected an error")
+			err := Run(context.Background(), tt.argv, &stdout, &stderr)
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Run() error = %v, want %q", err, tt.wantErr)
 			}
 		})
 	}

@@ -5,45 +5,53 @@ import "fmt"
 type executionMode string
 
 const (
-	executionModeAuto    executionMode = "auto"
-	executionModePrepare executionMode = "prepare"
-	executionModeTag     executionMode = "tag"
+	executionModeAuto  executionMode = "auto"
+	executionModePlan  executionMode = "plan"
+	executionModeApply executionMode = "apply"
 )
 
-type releaseCandidate struct {
-	PendingTag         string
-	TargetSHA          string
-	ReleaseBoundarySHA string
-	PullRequestNumber  int
-	BaseTag            string
+type releasePlan struct {
+	Tag                     string `json:"tag"`
+	CommitSHA               string `json:"commit_sha"`
+	BaseTag                 string `json:"base_tag"`
+	PullRequestNumber       int    `json:"pull_request_number"`
+	ReleaseNotesBoundarySHA string `json:"release_notes_boundary_sha"`
 }
 
 type runOptions struct {
-	Mode      executionMode
-	Candidate releaseCandidate
+	Mode executionMode
+	Plan *releasePlan
 }
 
 func (opts runOptions) validate() error {
 	switch opts.Mode {
-	case executionModeAuto, executionModePrepare:
-		if opts.Candidate != (releaseCandidate{}) {
-			return fmt.Errorf("release candidate options are only valid in tag mode")
+	case executionModeAuto, executionModePlan:
+		if opts.Plan != nil {
+			return fmt.Errorf("--plan is only valid in apply mode")
 		}
-	case executionModeTag:
-		if opts.Candidate.PendingTag == "" {
-			return fmt.Errorf("--pending-tag is required in tag mode")
+	case executionModeApply:
+		if opts.Plan == nil {
+			return fmt.Errorf("--plan is required in apply mode")
 		}
-		if opts.Candidate.TargetSHA == "" {
-			return fmt.Errorf("--target-sha is required in tag mode")
-		}
-		if opts.Candidate.ReleaseBoundarySHA == "" {
-			return fmt.Errorf("--release-boundary-sha is required in tag mode")
-		}
-		if opts.Candidate.PullRequestNumber <= 0 {
-			return fmt.Errorf("--pull-request-number must be greater than zero in tag mode")
-		}
+		return opts.Plan.validate()
 	default:
-		return fmt.Errorf("invalid mode %q: expected auto, prepare, or tag", opts.Mode)
+		return fmt.Errorf("invalid mode %q: expected auto, plan, or apply", opts.Mode)
+	}
+	return nil
+}
+
+func (plan releasePlan) validate() error {
+	if plan.Tag == "" {
+		return fmt.Errorf("plan.tag is required")
+	}
+	if plan.CommitSHA == "" {
+		return fmt.Errorf("plan.commit_sha is required")
+	}
+	if plan.ReleaseNotesBoundarySHA == "" {
+		return fmt.Errorf("plan.release_notes_boundary_sha is required")
+	}
+	if plan.PullRequestNumber <= 0 {
+		return fmt.Errorf("plan.pull_request_number must be greater than zero")
 	}
 	return nil
 }
