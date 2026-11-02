@@ -132,6 +132,8 @@ the release branch head while approval is pending, but it must still be an ances
 the configured release branch.
 
 The CLI equivalents are `tagpr --mode plan` and `tagpr --mode apply --plan '<JSON>'`.
+When `GITHUB_OUTPUT` is unset, plan mode writes the JSON to stdout and diagnostics to
+stderr, so it can be saved with `tagpr --mode plan > plan.json`.
 After applying the plan, use the existing `tag`, `pull_request`, and `base_tag` outputs
 for subsequent release steps. Before applying it, use `fromJSON(...).commit_sha` to
 check out the commit to test.

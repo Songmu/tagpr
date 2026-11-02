@@ -113,6 +113,8 @@ plan を再検証してからタグを作成します。承認待ちの間に対
 設定されたリリースブランチの ancestor であればタグを作成できます。
 
 CLI では `tagpr --mode plan` と `tagpr --mode apply --plan '<JSON>'` を使います。
+`GITHUB_OUTPUT` が未設定の場合、plan モードは JSON を stdout、診断出力を stderr に出すため、
+`tagpr --mode plan > plan.json` で保存できます。
 plan 適用後のリリース処理には、従来の `tag`、`pull_request`、`base_tag` 出力を利用します。
 適用前のテストでは、`fromJSON(...).commit_sha` でテスト対象のコミットを checkout します。
 

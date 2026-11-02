@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 )
 
 const cmdName = "tagpr"
@@ -44,11 +45,16 @@ func Run(ctx context.Context, argv []string, outStream, errStream io.Writer) err
 		return err
 	}
 
+	commandOutput := outStream
+	if _, ok := os.LookupEnv("GITHUB_OUTPUT"); !ok && opts.Mode == executionModePlan {
+		commandOutput = errStream
+	}
 	tp, err := newTagPR(ctx, &commander{
-		gitPath: "git", outStream: outStream, errStream: errStream, dir: "."})
+		gitPath: "git", outStream: commandOutput, errStream: errStream, dir: "."})
 	if err != nil {
 		return err
 	}
+	tp.out = outStream
 	tp.runOptions = opts
 	return tp.Run(ctx)
 }

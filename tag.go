@@ -33,7 +33,7 @@ func (tp *tagpr) mergedReleasePullRequestForCommit(
 			pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
 				ctx, tp.owner, tp.repo, commitish, opts)
 			if err != nil {
-				showGHError(err, resp)
+				tp.showGHError(err, resp)
 				return nil, err
 			}
 			foundAssociations = foundAssociations || len(pulls) > 0
@@ -266,6 +266,10 @@ func (tp *tagpr) setPlanOutput(plan releasePlan) error {
 	if err != nil {
 		return err
 	}
+	if _, ok := os.LookupEnv("GITHUB_OUTPUT"); !ok {
+		_, err := fmt.Fprintln(tp.out, string(b))
+		return err
+	}
 	return tp.setOutput("plan", string(b))
 }
 
@@ -418,7 +422,7 @@ func (tp *tagpr) completeRelease(
 				ConfigurationFilePath: new(tp.cfg.ReleaseYAMLPath()),
 			})
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		if tagExists {
@@ -483,7 +487,7 @@ func (tp *tagpr) completeRelease(
 			Draft:           new(tp.cfg.ReleaseDraft()),
 		})
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 	return tp.setFinalOutputs(plan, pr)
@@ -495,14 +499,14 @@ func (tp *tagpr) findReleaseByTag(ctx context.Context, tag string) (*github.Repo
 		return release, nil
 	}
 	if resp == nil || resp.StatusCode != 404 {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return nil, err
 	}
 	opts := &github.ListOptions{PerPage: 100}
 	for {
 		releases, resp, err := tp.gh.Repositories.ListReleases(ctx, tp.owner, tp.repo, opts)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return nil, err
 		}
 		for _, release := range releases {

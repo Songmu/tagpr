@@ -170,7 +170,7 @@ func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []stri
 				}
 				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return []string{}, err
 				}
 				prIssues = append(prIssues, issue)
@@ -460,7 +460,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	// Get the latest commit of the release branch
 	ref, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, "refs/heads/"+releaseBranch)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -472,7 +472,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			Base: releaseBranch,
 		})
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -580,7 +580,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		// Create a new tree object if there are changes
 		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *ref.Object.SHA, treeEntries)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 	}
@@ -588,7 +588,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	// Get the parent commit to attach the commit to.
 	parent, resp, err := tp.gh.Repositories.GetCommit(ctx, tp.owner, tp.repo, *ref.Object.SHA, nil)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 	parent.Commit.SHA = parent.SHA
@@ -604,7 +604,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	}
 	newCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -640,7 +640,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			// Delete temporary reference if it exists
 			resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
 			if err != nil && resp.StatusCode != 422 {
-				showGHError(err, resp)
+				tp.showGHError(err, resp)
 				return err
 			}
 
@@ -652,7 +652,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			}
 			ref, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, createRef)
 			if err != nil {
-				showGHError(err, resp)
+				tp.showGHError(err, resp)
 				return err
 			}
 
@@ -663,7 +663,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(
 					ctx, tp.owner, tp.repo, commitish, nil)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -675,7 +675,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				tempCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -686,7 +686,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -702,7 +702,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 					if resp.StatusCode == 409 {
 						continue
 					}
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -716,7 +716,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -727,7 +727,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 			}
@@ -747,7 +747,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			// Delete temporary reference
 			resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
 			if err != nil {
-				showGHError(err, resp)
+				tp.showGHError(err, resp)
 				return err
 			}
 		}
@@ -864,7 +864,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		})
 		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		// Create a new commit
@@ -875,7 +875,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		}
 		newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 	}
@@ -890,7 +890,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	_, resp, err = tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, rcBranchRef)
 	if err != nil {
 		if resp.StatusCode != 404 {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		createNewRef := github.CreateRef{
@@ -899,7 +899,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		}
 		_, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, createNewRef)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 	}
@@ -909,7 +909,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	}
 	_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, rcBranchRef, updateRef)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -927,21 +927,21 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			Head:  head,
 		})
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		addingLabels = append(addingLabels, autoLabelName)
 		_, resp, err = tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
 		if err == nil {
 			pr = tmpPr
 		} else {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 		}
 		b, _ := json.Marshal(pr)
 		tp.setOutput("pull_request", string(b))
@@ -958,21 +958,21 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	currTagPR.Base = nil
 	pr, resp, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 	if len(addingLabels) > 0 {
 		_, resp, err := tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *currTagPR.Number, addingLabels)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
 		if err == nil {
 			pr = tmpPr
 		} else {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 		}
 	}
 	b, _ := json.Marshal(pr)
@@ -1102,7 +1102,7 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 	// the length limit specification of the query string.
 	issues, resp, err := tp.gh.Search.Issues(ctx, query, nil)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return nil, err
 	}
 	return issues.Issues, nil

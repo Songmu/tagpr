@@ -1237,6 +1237,11 @@ func TestCompleteReleaseRetriesAfterReleaseCreationFailure(t *testing.T) {
 			if err := tp.completeRelease(context.Background(), plan, pr, true); err != nil {
 				t.Fatalf("completeRelease() existing release check failed: %v", err)
 			}
+			cfg.release = new("draft")
+			if err := tp.completeRelease(context.Background(), plan, pr, true); err == nil ||
+				!strings.Contains(err.Error(), "want draft=true") {
+				t.Fatalf("completeRelease() error = %v, want a published-release state mismatch", err)
+			}
 			if createAttempts != 2 {
 				t.Errorf("release creation attempts = %d, want 2", createAttempts)
 			}
