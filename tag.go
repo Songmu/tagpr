@@ -210,10 +210,8 @@ func (tp *tagpr) prepareReleasePlan(
 	}, nil
 }
 
-func (tp *tagpr) calculateReleaseTag(
-	pr *github.PullRequest,
-	currVer *semv,
-	boundarySHA, targetSHA, restoreCommitish string,
+func (tp *tagpr) releaseVersionFile(
+	currVer *semv, boundarySHA, restoreCommitish string,
 ) (string, error) {
 	var vfile string
 	if tp.cfg.VersionFile() == "" {
@@ -227,6 +225,18 @@ func (tp *tagpr) calculateReleaseTag(
 	} else if tp.cfg.VersionFile() != "-" {
 		vfiles := strings.Split(tp.cfg.VersionFile(), ",")
 		vfile = strings.TrimSpace(vfiles[0])
+	}
+	return vfile, nil
+}
+
+func (tp *tagpr) calculateReleaseTag(
+	pr *github.PullRequest,
+	currVer *semv,
+	boundarySHA, targetSHA, restoreCommitish string,
+) (string, error) {
+	vfile, err := tp.releaseVersionFile(currVer, boundarySHA, restoreCommitish)
+	if err != nil {
+		return "", err
 	}
 
 	var nextTag string
@@ -306,6 +316,11 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 			"target commit %s is not associated with merged tagpr pull request #%d",
 			targetSHA, plan.PullRequestNumber)
 	}
+	if pr.GetMergeCommitSHA() != targetSHA {
+		return fmt.Errorf(
+			"target commit %s is not the final merge commit %s of pull request #%d",
+			targetSHA, pr.GetMergeCommitSHA(), plan.PullRequestNumber)
+	}
 
 	localTagExists, remoteTagExists, err := tp.inspectExistingTag(
 		plan.Tag, targetSHA)
@@ -318,24 +333,37 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 		return fmt.Errorf("base tag changed from %q to %q", plan.BaseTag, latestTag)
 	}
 
+	restoreCommitish, _, err := tp.c.Git("symbolic-ref", "--quiet", "--short", "HEAD")
+	if err != nil {
+		restoreCommitish, _, err = tp.c.Git("rev-parse", "HEAD")
+		if err != nil {
+			return err
+		}
+	}
+	currVer, err := tp.versionFromBaseTag(plan.BaseTag)
+	if err != nil {
+		return err
+	}
 	if tp.cfg.CalendarVersioning() {
 		if err := tp.validateCalverTag(plan.Tag); err != nil {
 			return err
 		}
-	} else {
-		currVer, err := tp.versionFromBaseTag(plan.BaseTag)
+		vfile, err := tp.releaseVersionFile(currVer, boundarySHA, restoreCommitish)
 		if err != nil {
 			return err
 		}
-		recalculatedTag, err := tp.calculateReleaseTag(
-			pr, currVer, boundarySHA, targetSHA, targetSHA)
-		if err != nil {
-			return err
+		if vfile == "" {
+			return tp.completeRelease(ctx, plan, pr, remoteTagExists)
 		}
-		if recalculatedTag != plan.Tag {
-			return fmt.Errorf(
-				"planned tag changed from %q to %q", plan.Tag, recalculatedTag)
-		}
+	}
+	recalculatedTag, err := tp.calculateReleaseTag(
+		pr, currVer, boundarySHA, targetSHA, restoreCommitish)
+	if err != nil {
+		return err
+	}
+	if recalculatedTag != plan.Tag {
+		return fmt.Errorf(
+			"planned tag changed from %q to %q", plan.Tag, recalculatedTag)
 	}
 	return tp.completeRelease(ctx, plan, pr, remoteTagExists)
 }
@@ -345,9 +373,17 @@ func (tp *tagpr) validateCalverTag(tag string) error {
 	if format == "" {
 		format = defaultCalendarVersioningFormat
 	}
-	version := strings.TrimPrefix(tag, tp.normalizedTagPrefix)
-	if tp.cfg.vPrefix == nil || *tp.cfg.vPrefix {
-		version = strings.TrimPrefix(version, "v")
+	prefix := tp.normalizedTagPrefix
+	vPrefix := tp.cfg.vPrefix == nil || *tp.cfg.vPrefix
+	if vPrefix {
+		prefix += "v"
+	}
+	if !strings.HasPrefix(tag, prefix) {
+		return fmt.Errorf("planned tag %q must start with %q", tag, prefix)
+	}
+	version := strings.TrimPrefix(tag, prefix)
+	if !vPrefix && strings.HasPrefix(version, "v") {
+		return fmt.Errorf("planned tag %q has a v prefix but tagpr.vPrefix is false", tag)
 	}
 	if _, err := calver.Parse(format, version); err != nil {
 		return fmt.Errorf("planned tag %q is not valid for CalVer format %q: %w",
@@ -386,6 +422,10 @@ func (tp *tagpr) completeRelease(
 			showGHError(err, resp)
 			return err
 		}
+		if tagExists {
+			releases.Name = strings.ReplaceAll(releases.Name, tagName, plan.Tag)
+			releases.Body = strings.ReplaceAll(releases.Body, "..."+tagName, "..."+plan.Tag)
+		}
 	}
 
 	if !tagExists {
@@ -422,19 +462,17 @@ func (tp *tagpr) completeRelease(
 	if !tp.cfg.Release() {
 		return tp.setFinalOutputs(plan, pr)
 	}
-	existingRelease, resp, err := tp.gh.Repositories.GetReleaseByTag(
-		ctx, tp.owner, tp.repo, plan.Tag)
-	if err == nil {
+	existingRelease, err := tp.findReleaseByTag(ctx, plan.Tag)
+	if err != nil {
+		return err
+	}
+	if existingRelease != nil {
 		if existingRelease.GetDraft() != tp.cfg.ReleaseDraft() {
 			return fmt.Errorf(
 				"GitHub Release for %s already exists with draft=%t, want draft=%t",
 				plan.Tag, existingRelease.GetDraft(), tp.cfg.ReleaseDraft())
 		}
 		return tp.setFinalOutputs(plan, pr)
-	}
-	if resp == nil || resp.StatusCode != 404 {
-		showGHError(err, resp)
-		return err
 	}
 	_, resp, err = tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, github.CreateReleaseRequest{
@@ -449,6 +487,37 @@ func (tp *tagpr) completeRelease(
 		return err
 	}
 	return tp.setFinalOutputs(plan, pr)
+}
+
+func (tp *tagpr) findReleaseByTag(ctx context.Context, tag string) (*github.RepositoryRelease, error) {
+	release, resp, err := tp.gh.Repositories.GetReleaseByTag(ctx, tp.owner, tp.repo, tag)
+	if err == nil {
+		return release, nil
+	}
+	if resp == nil || resp.StatusCode != 404 {
+		showGHError(err, resp)
+		return nil, err
+	}
+	if !tp.cfg.ReleaseDraft() {
+		return nil, nil
+	}
+	opts := &github.ListOptions{PerPage: 100}
+	for {
+		releases, resp, err := tp.gh.Repositories.ListReleases(ctx, tp.owner, tp.repo, opts)
+		if err != nil {
+			showGHError(err, resp)
+			return nil, err
+		}
+		for _, release := range releases {
+			if release.GetTagName() == tag {
+				return release, nil
+			}
+		}
+		if resp.NextPage == 0 {
+			return nil, nil
+		}
+		opts.Page = resp.NextPage
+	}
 }
 
 func (tp *tagpr) setFinalOutputs(plan releasePlan, pr *github.PullRequest) error {

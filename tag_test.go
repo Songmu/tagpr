@@ -285,6 +285,7 @@ func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *testReleaseR
 	t.Setenv(envGitHubEventName, "")
 	t.Setenv(envGitHubEventPath, "")
 	requests := &testReleaseRequests{}
+	mergeCommitSHA := r.git("rev-parse", "HEAD")
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/Songmu/tagpr/releases/generate-notes",
 		func(w http.ResponseWriter, req *http.Request) {
@@ -302,8 +303,12 @@ func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *testReleaseR
 		})
 	mux.HandleFunc("/repos/Songmu/tagpr/releases",
 		func(w http.ResponseWriter, req *http.Request) {
-			requests.createReleaseCalls++
 			w.Header().Set("Content-Type", "application/json")
+			if req.Method == http.MethodGet {
+				json.NewEncoder(w).Encode([]any{})
+				return
+			}
+			requests.createReleaseCalls++
 			json.NewEncoder(w).Encode(map[string]string{
 				"name": "v0.2.0", "body": "release notes"})
 		})
@@ -314,8 +319,9 @@ func newTestTagpr(t *testing.T, r *testRepo, cfg *config) (*tagpr, *testReleaseR
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode([]map[string]any{{
-			"number":    1,
-			"merged_at": "2026-09-22T00:00:00Z",
+			"number":           1,
+			"merged_at":        "2026-09-22T00:00:00Z",
+			"merge_commit_sha": mergeCommitSHA,
 			"head": map[string]string{
 				"ref": "tagpr-from-v0.1.0",
 			},
@@ -965,6 +971,118 @@ func TestApplyReleasePlanRejectsAbbreviatedSHA(t *testing.T) {
 	}
 }
 
+func TestApplyReleasePlanRejectsNonFinalPRCommit(t *testing.T) {
+	r := newTestRepo(t, "")
+	t.Chdir(r.dir)
+	baseSHA := r.merge("rebase")
+	r.git("push", "origin", "main")
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               r.git("rev-parse", "HEAD^"),
+		BaseTag:                 "v0.1.0",
+		PullRequestNumber:       1,
+		ReleaseNotesBoundarySHA: baseSHA,
+	}
+	err := tp.applyReleasePlan(context.Background(), plan)
+	if err == nil || !strings.Contains(err.Error(), "not the final merge commit") {
+		t.Fatalf("applyReleasePlan() error = %v, want a non-final commit error", err)
+	}
+	if got := r.git("tag", "-l", plan.Tag); got != "" {
+		t.Errorf("rejected plan created tag %q", got)
+	}
+}
+
+func TestApplyCalverPlanValidatesVersionAndRestoresCheckout(t *testing.T) {
+	for _, versionFile := range []string{"version.go", "", "-"} {
+		t.Run("versionFile="+versionFile, func(t *testing.T) {
+			r := newTestRepo(t, "")
+			t.Chdir(r.dir)
+			r.commit("version.go", `const version = "2026.1101.0"`, "base version")
+			r.git("tag", "v2026.1101.0")
+			baseSHA := r.git("rev-parse", "HEAD")
+			r.commit("version.go", `const version = "2026.1102.0"`, "release version")
+			targetSHA := r.git("rev-parse", "HEAD")
+			r.git("push", "origin", "main")
+			cfg := newTestConfig(versionFile)
+			cfg.calendarVersioning = new("true")
+			tp, _ := newTestTagpr(t, r, cfg)
+			plan := releasePlan{
+				Tag:                     "v2026.1102.0",
+				CommitSHA:               targetSHA,
+				BaseTag:                 "v2026.1101.0",
+				PullRequestNumber:       1,
+				ReleaseNotesBoundarySHA: baseSHA,
+			}
+			advancedSHA := r.advanceMain(
+				"version.go", `const version = "2026.1103.0"`, "advance after release")
+			r.git("push", "origin", "main")
+			restoreRef := "main"
+			if versionFile == "" {
+				r.git("checkout", advancedSHA)
+				restoreRef = "HEAD"
+			}
+			assertCheckout := func() {
+				t.Helper()
+				if got := r.git("rev-parse", "--abbrev-ref", "HEAD"); got != restoreRef {
+					t.Errorf("checkout = %s, want %s", got, restoreRef)
+				}
+				if got := r.git("rev-parse", "HEAD"); got != advancedSHA {
+					t.Errorf("HEAD = %s, want %s", got, advancedSHA)
+				}
+			}
+			if versionFile != "-" {
+				mismatched := plan
+				mismatched.Tag = "v2026.1104.0"
+				err := tp.applyReleasePlan(context.Background(), mismatched)
+				if err == nil || !strings.Contains(err.Error(), "planned tag changed") {
+					t.Fatalf("mismatched version error = %v, want a changed-tag error", err)
+				}
+				assertCheckout()
+			}
+			if versionFile == "version.go" {
+				cfg.versionFile = new("missing.go")
+				if err := tp.applyReleasePlan(context.Background(), plan); err == nil {
+					t.Fatal("missing version file should fail")
+				}
+				assertCheckout()
+				cfg.versionFile = new(versionFile)
+			}
+			if err := tp.applyReleasePlan(context.Background(), plan); err != nil {
+				t.Fatalf("applyReleasePlan() failed: %v", err)
+			}
+			assertCheckout()
+			if got := r.git("rev-parse", plan.Tag); got != targetSHA {
+				t.Errorf("tag = %s, want %s", got, targetSHA)
+			}
+		})
+	}
+}
+
+func TestValidateCalverTagRequiresConfiguredPrefix(t *testing.T) {
+	tests := []struct {
+		tag     string
+		vPrefix bool
+		wantErr bool
+	}{
+		{tag: "tools/v2026.1102.0", vPrefix: true},
+		{tag: "v2026.1102.0", vPrefix: true, wantErr: true},
+		{tag: "tools/2026.1102.0", vPrefix: true, wantErr: true},
+		{tag: "tools/v2026.1102.0", vPrefix: false, wantErr: true},
+		{tag: "tools/2026.1102.0", vPrefix: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.tag, func(t *testing.T) {
+			cfg := newTestConfig("-")
+			cfg.vPrefix = new(tt.vPrefix)
+			tp := &tagpr{cfg: cfg, normalizedTagPrefix: "tools/"}
+			if err := tp.validateCalverTag(tt.tag); (err != nil) != tt.wantErr {
+				t.Fatalf("validateCalverTag() error = %v, wantErr=%t", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestCompleteReleaseRetriesAfterReleaseCreationFailure(t *testing.T) {
 	r := newTestRepo(t, "")
 	baseSHA := r.merge("merge")
@@ -977,9 +1095,18 @@ func TestCompleteReleaseRetriesAfterReleaseCreationFailure(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/Songmu/tagpr/releases/generate-notes",
 		func(w http.ResponseWriter, req *http.Request) {
+			var notesReq struct {
+				TagName string `json:"tag_name"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&notesReq); err != nil {
+				t.Error(err)
+			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{
-				"name": "v0.1.1", "body": "release notes"})
+				"name": notesReq.TagName,
+				"body": "**Full Changelog**: https://github.com/Songmu/tagpr/compare/v0.1.0..." +
+					notesReq.TagName,
+			})
 		})
 	mux.HandleFunc("/repos/Songmu/tagpr/releases/tags/v0.1.1",
 		func(w http.ResponseWriter, req *http.Request) {
@@ -997,6 +1124,16 @@ func TestCompleteReleaseRetriesAfterReleaseCreationFailure(t *testing.T) {
 	mux.HandleFunc("/repos/Songmu/tagpr/releases",
 		func(w http.ResponseWriter, req *http.Request) {
 			createAttempts++
+			var releaseReq struct {
+				Name string `json:"name"`
+				Body string `json:"body"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&releaseReq); err != nil {
+				t.Error(err)
+			}
+			if releaseReq.Name != "v0.1.1" || strings.Contains(releaseReq.Body, "v0.1.1-notes") {
+				t.Errorf("recovered release uses synthetic tag: %#v", releaseReq)
+			}
 			w.Header().Set("Content-Type", "application/json")
 			if createAttempts == 1 {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -1047,5 +1184,72 @@ func TestCompleteReleaseRetriesAfterReleaseCreationFailure(t *testing.T) {
 	}
 	if createAttempts != 2 {
 		t.Errorf("release creation attempts = %d, want 2", createAttempts)
+	}
+}
+
+func TestCompleteReleaseFindsExistingDraftOnLaterPage(t *testing.T) {
+	r := newTestRepo(t, "")
+	baseSHA := r.merge("merge")
+	targetSHA := r.git("rev-parse", "HEAD")
+	r.git("tag", "v0.1.1", targetSHA)
+	r.git("push", "origin", "refs/tags/v0.1.1:refs/tags/v0.1.1")
+
+	var createCalls int
+	var pages []string
+	var srv *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/Songmu/tagpr/releases/generate-notes",
+		func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"name": "v0.1.1", "body": "notes"})
+		})
+	mux.HandleFunc("/repos/Songmu/tagpr/releases/tags/v0.1.1",
+		func(w http.ResponseWriter, req *http.Request) {
+			http.Error(w, "not published", http.StatusNotFound)
+		})
+	mux.HandleFunc("/repos/Songmu/tagpr/releases",
+		func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if req.Method == http.MethodPost {
+				createCalls++
+				json.NewEncoder(w).Encode(map[string]any{"tag_name": "v0.1.1", "draft": true})
+				return
+			}
+			page := req.URL.Query().Get("page")
+			pages = append(pages, page)
+			if page != "2" {
+				w.Header().Set("Link", "<"+srv.URL+
+					"/repos/Songmu/tagpr/releases?page=2>; rel=\"next\"")
+				json.NewEncoder(w).Encode([]map[string]any{{"tag_name": "v0.1.0"}})
+				return
+			}
+			json.NewEncoder(w).Encode([]map[string]any{{"tag_name": "v0.1.1", "draft": true}})
+		})
+	srv = httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	cli, err := github.NewClient(github.WithURLs(new(srv.URL+"/"), nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := newTestConfig("-")
+	cfg.release = new("draft")
+	tp := &tagpr{
+		c: &commander{
+			gitPath: "git", dir: r.dir, outStream: io.Discard, errStream: io.Discard,
+		},
+		gh: cli, cfg: cfg, owner: "Songmu", repo: "tagpr",
+	}
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               targetSHA,
+		BaseTag:                 "v0.1.0",
+		PullRequestNumber:       1,
+		ReleaseNotesBoundarySHA: baseSHA,
+	}
+	if err := tp.completeRelease(context.Background(), plan, &github.PullRequest{}, true); err != nil {
+		t.Fatalf("completeRelease() failed: %v", err)
+	}
+	if createCalls != 0 || !reflect.DeepEqual(pages, []string{"", "2"}) {
+		t.Errorf("createCalls=%d, pages=%v; want no new draft and both pages", createCalls, pages)
 	}
 }
