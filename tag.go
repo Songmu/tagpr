@@ -322,14 +322,13 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 			targetSHA, pr.GetMergeCommitSHA(), plan.PullRequestNumber)
 	}
 
-	localTagExists, remoteTagExists, err := tp.inspectExistingTag(
+	_, remoteTagExists, err := tp.inspectExistingTag(
 		plan.Tag, targetSHA)
 	if err != nil {
 		return err
 	}
-	latestTag := tp.latestSemverTag()
-	if latestTag != plan.BaseTag &&
-		!((localTagExists || remoteTagExists) && latestTag == plan.Tag) {
+	latestTag := tp.latestSemverTag(plan.Tag)
+	if latestTag != plan.BaseTag {
 		return fmt.Errorf("base tag changed from %q to %q", plan.BaseTag, latestTag)
 	}
 
@@ -425,6 +424,7 @@ func (tp *tagpr) completeRelease(
 		if tagExists {
 			releases.Name = strings.ReplaceAll(releases.Name, tagName, plan.Tag)
 			releases.Body = strings.ReplaceAll(releases.Body, "..."+tagName, "..."+plan.Tag)
+			releases.Body = strings.ReplaceAll(releases.Body, "/commits/"+tagName, "/commits/"+plan.Tag)
 		}
 	}
 
@@ -497,9 +497,6 @@ func (tp *tagpr) findReleaseByTag(ctx context.Context, tag string) (*github.Repo
 	if resp == nil || resp.StatusCode != 404 {
 		showGHError(err, resp)
 		return nil, err
-	}
-	if !tp.cfg.ReleaseDraft() {
-		return nil, nil
 	}
 	opts := &github.ListOptions{PerPage: 100}
 	for {

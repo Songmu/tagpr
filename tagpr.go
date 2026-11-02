@@ -42,11 +42,11 @@ type tagpr struct {
 	runOptions              runOptions
 }
 
-func (tp *tagpr) latestSemverTag() string {
+func (tp *tagpr) latestSemverTag(excludedTags ...string) string {
 	// CalVer mode: bypass gitsemvers because it normalizes version strings
 	// and loses zero-padding (e.g., v2026.0123.0 becomes invalid)
 	if tp.cfg.CalendarVersioning() {
-		return tp.latestCalverTag()
+		return tp.latestCalverTag(excludedTags...)
 	}
 
 	vers := (&gitsemvers.Semvers{
@@ -57,6 +57,9 @@ func (tp *tagpr) latestSemverTag() string {
 	fixedMajor, _ := tp.cfg.FixedMajorVersion()
 
 	for _, v := range vers {
+		if slices.Contains(excludedTags, v) {
+			continue
+		}
 		semvPart := strings.TrimPrefix(v, tp.normalizedTagPrefix)
 
 		// Filter by fixedMajorVersion
@@ -83,7 +86,7 @@ func (tp *tagpr) latestSemverTag() string {
 	return ""
 }
 
-func (tp *tagpr) latestCalverTag() string {
+func (tp *tagpr) latestCalverTag(excludedTags ...string) string {
 	format := tp.cfg.CalendarVersioningFormat()
 	if format == "" {
 		format = defaultCalendarVersioningFormat
@@ -103,7 +106,7 @@ func (tp *tagpr) latestCalverTag() string {
 
 	for _, tag := range strings.Split(out, "\n") {
 		tag = strings.TrimSpace(tag)
-		if tag == "" {
+		if tag == "" || slices.Contains(excludedTags, tag) {
 			continue
 		}
 
