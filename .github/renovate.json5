@@ -3,6 +3,9 @@
   extends: [
     'config:recommended',
   ],
+  addLabels: [
+    'dependencies',
+  ],
   enabledManagers: [
     'custom.regex',
     'gomod',

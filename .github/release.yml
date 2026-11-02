@@ -2,3 +2,31 @@ changelog:
   exclude:
     labels:
       - tagpr
+  categories:
+    - title: Features
+      labels:
+        - enhancement
+      exclude:
+        labels:
+          - dependencies
+    - title: Fixes
+      labels:
+        - bug
+      exclude:
+        labels:
+          - dependencies
+    - title: Documentation
+      labels:
+        - documentation
+      exclude:
+        labels:
+          - dependencies
+    - title: Other Changes
+      labels:
+        - "*"
+      exclude:
+        labels:
+          - dependencies
+    - title: Dependency Updates
+      labels:
+        - dependencies
