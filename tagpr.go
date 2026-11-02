@@ -424,7 +424,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			return err
 		}
 		if tp.runOptions.Mode != executionModePlan {
-			if _, _, err := tp.c.Git("fetch", "--tags", tp.remote()); err != nil {
+			if err := tp.fetchReleaseRefs(); err != nil {
 				return fmt.Errorf("failed to fetch release tags: %w", err)
 			}
 		}
@@ -456,6 +456,12 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 						plan.Tag = latestTag
 					}
 				}
+			}
+		}
+		if plan.BaseTag != "" {
+			if err := tp.requireAncestor(plan.BaseTag, plan.ReleaseNotesBoundarySHA,
+				"base tag is not an ancestor of the release boundary"); err != nil {
+				return err
 			}
 		}
 		if tp.runOptions.Mode == executionModePlan {

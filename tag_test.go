@@ -1036,6 +1036,32 @@ func TestApplyReleasePlanRejectsUnfetchedReleaseTag(t *testing.T) {
 	}
 }
 
+func TestApplyReleasePlanFetchesMissingTargetCommit(t *testing.T) {
+	r := newTestRepo(t, "")
+	checkout := &testRepo{dir: t.TempDir(), t: t}
+	r.git("clone", "--branch", "main", r.git("remote", "get-url", "origin"), checkout.dir)
+	baseSHA := r.merge("merge")
+	targetSHA := r.git("rev-parse", "HEAD")
+	r.git("push", "origin", "main", "refs/tags/v0.1.0")
+	t.Chdir(checkout.dir)
+	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
+	tp.c.dir = checkout.dir
+	plan := releasePlan{
+		Tag:                     "v0.1.1",
+		CommitSHA:               targetSHA,
+		BaseTag:                 "v0.1.0",
+		PullRequestNumber:       1,
+		ReleaseNotesBoundarySHA: baseSHA,
+	}
+	tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+	if err := tp.Run(context.Background()); err != nil {
+		t.Fatalf("Run() with a target missing from the initial checkout failed: %v", err)
+	}
+	if got := checkout.git("rev-parse", "refs/tags/v0.1.1^{commit}"); got != targetSHA {
+		t.Errorf("tagged %s, want the fetched plan commit %s", got, targetSHA)
+	}
+}
+
 func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 	tests := []struct {
 		name, versionFile, content, prefix, baseTag, tag string
@@ -1188,9 +1214,18 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 					t.Errorf("excluded full tags left a floating alias as the baseline: %q", got)
 				}
 				r.git("push", "origin", "main")
+				r.git("push", "--force", "origin", plan.CommitSHA+":refs/tags/"+tt.aliases[0])
 				tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
 				if err := tp.Run(context.Background()); err != nil {
 					t.Fatalf("Run() in apply mode with floating aliases failed: %v", err)
+				}
+				r.git("push", "--force", "origin", plan.CommitSHA+":refs/tags/"+tt.baseTag)
+				if err := tp.Run(context.Background()); err == nil ||
+					!strings.Contains(err.Error(), "failed to fetch release branch and tags") {
+					t.Fatalf("Run() error = %v, want a moved immutable tag to be rejected", err)
+				}
+				if got := r.git("rev-parse", "refs/tags/"+tt.baseTag+"^{commit}"); got != baseSHA {
+					t.Errorf("fetch overwrote immutable tag %s: %s", tt.baseTag, got)
 				}
 				r.git("tag", "-d", tt.baseTag)
 				pr := &github.PullRequest{
@@ -1204,6 +1239,11 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 				}
 				if got := tp.latestSemverTag(tt.tag); got != baseTag {
 					t.Errorf("shorthand-only latest tag = %q, want %q", got, baseTag)
+				}
+				tp.runOptions = runOptions{Mode: executionModeAuto}
+				if err := tp.Run(context.Background()); err == nil ||
+					!strings.Contains(err.Error(), "base tag is not an ancestor of the release boundary") {
+					t.Fatalf("Run() error = %v, want the changed release boundary to be rejected", err)
 				}
 			}
 		})

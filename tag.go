@@ -296,9 +296,76 @@ func (tp *tagpr) releasePullRequestBaseTag(pr *github.PullRequest) (string, erro
 	return "", fmt.Errorf("failed to resolve release pull request base tag %q: %w", tag, err)
 }
 
+func (tp *tagpr) fetchReleaseRefs() error {
+	out, _, err := tp.c.Git("ls-remote", "--tags", tp.remote())
+	if err != nil {
+		return err
+	}
+	tags := map[string]string{}
+	for line := range strings.SplitSeq(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		ref := strings.TrimSuffix(fields[1], "^{}")
+		if strings.HasSuffix(fields[1], "^{}") || tags[ref] == "" {
+			tags[ref] = fields[0]
+		}
+	}
+	args := []string{"fetch", "--no-tags", tp.remote(),
+		"+refs/heads/" + tp.cfg.ReleaseBranch() +
+			":refs/remotes/" + tp.remote() + "/" + tp.cfg.ReleaseBranch()}
+	type releaseRef struct {
+		name, sha string
+		version   *semv
+		precision int
+	}
+	var refs []releaseRef
+	prefix := "refs/tags/" + tp.normalizedTagPrefix
+	for ref, sha := range tags {
+		version, ok := strings.CutPrefix(ref, prefix)
+		if !ok {
+			continue
+		}
+		if tp.cfg.CalendarVersioning() {
+			if tp.validateCalverTag(strings.TrimPrefix(ref, "refs/tags/")) == nil {
+				args = append(args, ref+":"+ref)
+			}
+			continue
+		}
+		sv, err := newSemver(version)
+		if err == nil {
+			refs = append(refs, releaseRef{ref, sha, sv, strings.Count(version, ".") + 1})
+		}
+	}
+	for _, ref := range refs {
+		force := ""
+		if ref.precision < 3 && ref.version.sv.Prerelease() == "" && ref.version.sv.Metadata() == "" {
+			// Only advance aliases whose remote target also has a fully specified tag.
+			for _, full := range refs {
+				if full.version.Tag() != strings.TrimPrefix(full.name, prefix) ||
+					full.sha != ref.sha || full.version.vPrefix != ref.version.vPrefix ||
+					full.version.sv.Major() != ref.version.sv.Major() {
+					continue
+				}
+				if ref.precision == 1 || full.version.sv.Minor() == ref.version.sv.Minor() {
+					force = "+"
+					break
+				}
+			}
+		}
+		args = append(args, force+ref.name+":"+ref.name)
+	}
+	_, _, err = tp.c.Git(args...)
+	return err
+}
+
 func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 	if err := plan.validate(); err != nil {
 		return err
+	}
+	if err := tp.fetchReleaseRefs(); err != nil {
+		return fmt.Errorf("failed to fetch release branch and tags: %w", err)
 	}
 	targetSHA, err := tp.resolveExactCommit(plan.CommitSHA)
 	if err != nil {
@@ -311,13 +378,6 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 	plan.CommitSHA = targetSHA
 	plan.ReleaseNotesBoundarySHA = boundarySHA
 
-	if _, _, err := tp.c.Git(
-		"fetch", "--tags", tp.remote(),
-		"+refs/heads/"+tp.cfg.ReleaseBranch()+
-			":refs/remotes/"+tp.remote()+"/"+tp.cfg.ReleaseBranch(),
-	); err != nil {
-		return fmt.Errorf("failed to fetch release branch: %w", err)
-	}
 	remoteReleaseBranch := tp.remote() + "/" + tp.cfg.ReleaseBranch()
 	if err := tp.requireAncestor(targetSHA, remoteReleaseBranch,
 		"target commit is not an ancestor of the release branch"); err != nil {
