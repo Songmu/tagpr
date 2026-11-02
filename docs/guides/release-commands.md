@@ -111,5 +111,5 @@ or updated; inspect the annotation and command output before merging it.
 ## Release after tagging
 
 Do not use these hooks to upload packages based on a tag that does not exist yet. To run
-the release flow only after tagpr creates the tag, use the action's `tag` output as
+the release flow after tagpr creates or recovers the tag, use the action's `tag` output as
 described in [Tagging and release](tag-and-release.md).

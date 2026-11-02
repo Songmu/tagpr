@@ -222,7 +222,9 @@ reference.
 
 ## Tagging and release
 
-tagpr exposes a `tag` output only when it creates a tag. The tag is the starting point
+tagpr exposes a `tag` output after successful tag creation or recovery. A successful
+retry can return an existing matching tag, so make steps gated on this output safe to
+retry. The tag is the starting point
 for project-specific release steps such as building, packaging, publishing, and
 deployment. Use the output to conditionally run those steps in the same workflow:
 
@@ -546,7 +548,8 @@ unchanged.
 
 ### Outputs
 
-- `tag`: the created tag. It is empty when tagpr did not create a tag.
+- `tag`: the tag after successful creation or recovery, including on retries.
+  It is empty when tagpr only creates or updates the release pull request.
 - `pull_request`: JSON describing the release pull request created or updated by tagpr.
 - `base_tag`: the base version tag used for comparison. It is empty when no previous
   tag exists.

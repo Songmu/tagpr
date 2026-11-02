@@ -21,7 +21,7 @@ inputs:
     required: false
 outputs:
   tag:
-    description: "The semver tag, which is output only when the tagpr has tagged"
+    description: "The release tag after successful creation or recovery, including on retries"
     value: ${{ steps.tagpr.outputs.tag }}
   pull_request:
     description: "Information of the pull request created by tagpr in JSON format"

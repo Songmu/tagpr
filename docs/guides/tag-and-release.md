@@ -78,8 +78,9 @@ There are two ways to start the release flow automatically after tagpr creates a
 
 ## Run the release in the same workflow {#publish-in-the-same-workflow}
 
-The `tag` output is non-empty only when tagpr creates a tag. Use it as the condition for
-release steps in the same workflow:
+The `tag` output is non-empty after successful tag creation or recovery. Use it as the
+condition for release steps in the same workflow. Successful retries can return an
+existing matching tag and run these steps again, so make them safe to retry:
 
 ```yaml
 - uses: actions/checkout@v6

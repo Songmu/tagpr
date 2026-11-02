@@ -61,26 +61,33 @@ func (tp *tagpr) latestSemverTag(excludedTags ...string) string {
 			continue
 		}
 		semvPart := strings.TrimPrefix(v, tp.normalizedTagPrefix)
+		sv, err := newSemver(semvPart)
+		if err != nil {
+			continue
+		}
 
 		// Filter by fixedMajorVersion
 		if fixedMajor != nil {
-			sv, err := newSemver(semvPart)
-			if err != nil {
-				continue
-			}
 			if sv.sv.Major() != *fixedMajor {
 				continue
 			}
 		}
 
 		// Filter by vPrefix
-		if tp.cfg.vPrefix != nil {
-			if strings.HasPrefix(semvPart, "v") == *tp.cfg.vPrefix {
-				return v
+		if tp.cfg.vPrefix != nil && strings.HasPrefix(semvPart, "v") != *tp.cfg.vPrefix {
+			continue
+		}
+		for version := sv.Tag(); ; version = strings.TrimSuffix(version, ".0") {
+			tag := fullTag(tp.normalizedTagPrefix, version)
+			if slices.Contains(vers, tag) {
+				if slices.Contains(excludedTags, tag) {
+					break
+				}
+				return tag
 			}
-		} else {
-			// When vPrefix is not defined (i.e. first time tagpr setup), just return the first matching value.
-			return v
+			if !strings.HasSuffix(version, ".0") {
+				break
+			}
 		}
 	}
 	return ""

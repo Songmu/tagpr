@@ -280,13 +280,20 @@ func (tp *tagpr) releasePullRequestBaseTag(pr *github.PullRequest) (string, erro
 		return "", fmt.Errorf("failed to determine base tag of pull request #%d", pr.GetNumber())
 	}
 	tag := fullTag(tp.normalizedTagPrefix, version)
-	if _, _, err := tp.c.Git("rev-parse", "--verify", "refs/tags/"+tag+"^{commit}"); err != nil {
-		if version == "v0.0.0" || version == "0.0.0" {
-			return "", nil
+	var err error
+	for candidate := version; ; candidate = strings.TrimSuffix(candidate, ".0") {
+		tag := fullTag(tp.normalizedTagPrefix, candidate)
+		if _, _, err = tp.c.Git("rev-parse", "--verify", "refs/tags/"+tag+"^{commit}"); err == nil {
+			return tag, nil
 		}
-		return "", fmt.Errorf("failed to resolve release pull request base tag %q: %w", tag, err)
+		if !strings.HasSuffix(candidate, ".0") {
+			break
+		}
 	}
-	return tag, nil
+	if version == "v0.0.0" || version == "0.0.0" {
+		return "", nil
+	}
+	return "", fmt.Errorf("failed to resolve release pull request base tag %q: %w", tag, err)
 }
 
 func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {

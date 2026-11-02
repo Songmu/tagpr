@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1039,6 +1040,7 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 	tests := []struct {
 		name, versionFile, content, prefix, baseTag, tag string
 		calendar, tagged                                 bool
+		aliases                                          []string
 	}{
 		{name: "no version file", versionFile: "-", baseTag: "v0.1.0", tag: "v0.1.1"},
 		{name: "version file", versionFile: "version.go", content: `const version = "0.1.0"`,
@@ -1048,6 +1050,12 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 			baseTag: "tools/v0.1.0", tag: "tools/v0.1.1"},
 		{name: "CalVer retry on a later date", versionFile: "-", calendar: true, tagged: true,
 			baseTag: "v2000.1031.0", tag: "v2000.1101.0"},
+		{name: "floating aliases", versionFile: "-", baseTag: "v1.0.0", tag: "v1.0.1",
+			aliases: []string{"v1", "v1.0"}},
+		{name: "floating aliases without v", versionFile: "-", baseTag: "1.0.0", tag: "1.0.1",
+			aliases: []string{"1", "1.0"}},
+		{name: "namespaced floating aliases", versionFile: "-", prefix: "tools",
+			baseTag: "tools/v1.0.0", tag: "tools/v1.0.1", aliases: []string{"tools/v1", "tools/v1.0"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1064,6 +1072,9 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 			if tt.tagged {
 				r.git("tag", tt.tag, targetSHA)
 				r.git("push", "origin", "refs/tags/"+tt.tag)
+			}
+			for _, alias := range tt.aliases {
+				r.git("tag", alias, baseSHA)
 			}
 			prefix := normalizeTagPrefix(tt.prefix)
 			baseVersion := strings.TrimPrefix(tt.baseTag, prefix)
@@ -1121,6 +1132,7 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 			cfg := newTestConfig(tt.versionFile)
 			cfg.release = new("true")
 			cfg.tagPrefix = new(tt.prefix)
+			cfg.vPrefix = new(strings.HasPrefix(strings.TrimPrefix(tt.tag, prefix), "v"))
 			if tt.calendar {
 				cfg.calendarVersioning = new("true")
 			}
@@ -1138,7 +1150,12 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 			if err := tp.Run(context.Background()); err != nil {
 				t.Fatalf("Run() retry failed: %v", err)
 			}
-			if got := r.git("tag", "-l"); got != strings.TrimSpace(tt.baseTag+"\n"+tt.tag) {
+			wantTags := append([]string{tt.tag}, tt.aliases...)
+			if tt.baseTag != "" {
+				wantTags = append(wantTags, tt.baseTag)
+			}
+			slices.Sort(wantTags)
+			if got := r.git("tag", "-l"); got != strings.Join(wantTags, "\n") {
 				t.Errorf("retry created unexpected tags: %q", got)
 			}
 			firstNotesTag := tt.tag
@@ -1165,6 +1182,29 @@ func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 			}
 			if plan.Tag != tt.tag || plan.BaseTag != tt.baseTag || plan.CommitSHA != targetSHA {
 				t.Errorf("repeated plan changed the released target or baseline: %#v", plan)
+			}
+			if len(tt.aliases) > 0 {
+				if got := tp.latestSemverTag(tt.baseTag, tt.tag); got != "" {
+					t.Errorf("excluded full tags left a floating alias as the baseline: %q", got)
+				}
+				r.git("push", "origin", "main")
+				tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+				if err := tp.Run(context.Background()); err != nil {
+					t.Fatalf("Run() in apply mode with floating aliases failed: %v", err)
+				}
+				r.git("tag", "-d", tt.baseTag)
+				pr := &github.PullRequest{
+					Head: &github.PullRequestBranch{
+						Ref: new(branchPrefix + branchSafePrefix(prefix) + baseVersion),
+					},
+				}
+				baseTag, err := tp.releasePullRequestBaseTag(pr)
+				if err != nil || baseTag != tt.aliases[1] {
+					t.Fatalf("shorthand-only base = %q, err=%v; want %q", baseTag, err, tt.aliases[1])
+				}
+				if got := tp.latestSemverTag(tt.tag); got != baseTag {
+					t.Errorf("shorthand-only latest tag = %q, want %q", got, baseTag)
+				}
 			}
 		})
 	}
