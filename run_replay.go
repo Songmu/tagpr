@@ -38,13 +38,13 @@ func (tp *tagpr) replayManualReleaseCommits(ctx context.Context, releaseBranch, 
 	if len(cherryPicks) == 0 {
 		return newCommit, ref, nil
 	}
-	resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
+	tempRef := "refs/heads/tagpr-temp"
+	resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, tempRef)
 	if err != nil && resp.StatusCode != 422 {
 		tp.showGHError(err, resp)
 		return nil, nil, err
 	}
 
-	tempRef := "refs/heads/tagpr-temp"
 	createRef := github.CreateRef{
 		Ref: tempRef,
 		SHA: *newCommit.SHA,
@@ -69,11 +69,11 @@ func (tp *tagpr) replayManualReleaseCommits(ctx context.Context, releaseBranch, 
 	if _, _, err := tp.c.Git("reset", "--hard"); err != nil {
 		return nil, nil, err
 	}
-	if _, _, err := tp.c.Git("checkout", "tagpr-temp"); err != nil {
+	if _, _, err := tp.c.Git("checkout", strings.TrimPrefix(tempRef, "refs/heads/")); err != nil {
 		return nil, nil, err
 	}
 
-	resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
+	resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, tempRef)
 	if err != nil {
 		tp.showGHError(err, resp)
 		return nil, nil, err
