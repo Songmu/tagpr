@@ -424,6 +424,37 @@ func TestChangelogsLimitAndFailure(t *testing.T) {
 	}
 }
 
+func TestChangelogDateResponses(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		tag       string
+		responses map[string]gitResult
+		date      string
+	}{
+		{"explicit date", "v1.0.0", nil, "2022-08-16"},
+		{"unknown ref fallback", "v0.9.0", nil, "2022-08-17"},
+		{"controlled date override", "v1.0.0", map[string]gitResult{
+			"log -1 --format=%ai --date=iso v1.0.0": {out: "2023-04-05 12:00:00 +0000"},
+		}, "2023-04-05"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			gch, err := gh2changelog.New(ctx,
+				gh2changelog.Mock(t, []string{}, &mockGitter{responses: tt.responses}, &mockRelGen{}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, _, err := gch.Changelog(ctx, tt.tag)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(body, " - "+tt.date+"\n") {
+				t.Fatalf("changelog for %s lacks date %s:\n%s", tt.tag, tt.date, body)
+			}
+		})
+	}
+}
+
 type mockRelGen struct {
 	err      error
 	failTag  string
@@ -481,6 +512,9 @@ func (mg *mockGitter) Git(args ...string) (string, string, error) {
 		[]string{"log", "-1", "--format=%ai", "--date=iso", "v1.0.1"},
 		"2022-08-17 16:03:00 +0900",
 	}, {
+		[]string{"log", "-1", "--format=%ai", "--date=iso", "v1.0.0"},
+		"2022-08-16 16:03:00 +0900",
+	}, {
 		[]string{"remote"}, "origin\nSongmu",
 	}, {
 		[]string{"remote", "show", "origin"}, `* remote origin
@@ -504,9 +538,9 @@ func (mg *mockGitter) Git(args ...string) (string, string, error) {
 		if reflect.DeepEqual(args, item.arg) {
 			return item.result, "", nil
 		}
-		if len(args) == 5 && reflect.DeepEqual(args[:4], []string{"log", "-1", "--format=%ai", "--date=iso"}) {
-			return "2022-08-17 16:03:00 +0900", "", nil
-		}
+	}
+	if len(args) == 5 && reflect.DeepEqual(args[:4], []string{"log", "-1", "--format=%ai", "--date=iso"}) {
+		return "2022-08-17 16:03:00 +0900", "", nil
 	}
 	return "", "", fmt.Errorf("unsupported args: %v", args)
 }
