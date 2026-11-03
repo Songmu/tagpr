@@ -21,6 +21,12 @@ import (
 func (tp *tagpr) mergedReleasePullRequestForCommit(
 	ctx context.Context, commitish string,
 ) (*github.PullRequest, error) {
+	return tp.lookupMergedReleasePullRequestWithRetry(ctx, commitish, time.Sleep)
+}
+
+func (tp *tagpr) lookupMergedReleasePullRequestWithRetry(
+	ctx context.Context, commitish string, sleep func(time.Duration),
+) (*github.PullRequest, error) {
 	// Retry because GitHub's internal commit-to-PR index may not be updated
 	// immediately after a merge, causing the API to return an empty list.
 	// This is especially common with squash merges but can also happen with
@@ -30,39 +36,52 @@ func (tp *tagpr) mergedReleasePullRequestForCommit(
 	const retryInterval = 2 * time.Second
 
 	for i := range maxRetries {
-		opts := &github.ListOptions{PerPage: 100}
-		foundAssociations := false
-		for {
-			pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
-				ctx, tp.owner, tp.repo, commitish, opts)
-			if err != nil {
-				tp.showGHError(err, resp)
-				return nil, err
-			}
-			foundAssociations = foundAssociations || len(pulls) > 0
-			for _, pr := range pulls {
-				if !pr.GetMergedAt().IsZero() &&
-					pr.Base != nil &&
-					pr.Base.GetRef() == tp.cfg.ReleaseBranch() &&
-					tp.isTagPR(pr) {
-					return pr, nil
-				}
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opts.Page = resp.NextPage
+		pr, foundAssociations, err := tp.findMergedReleasePullRequestForCommit(ctx, commitish)
+		if err != nil {
+			return nil, err
 		}
-		if foundAssociations {
-			return nil, nil
+		if pr != nil || foundAssociations {
+			return pr, nil
 		}
 		if i < maxRetries-1 {
 			log.Printf("ListPullRequestsWithCommit returned empty for %s, retrying in %s (%d/%d)",
 				commitish, retryInterval, i+1, maxRetries)
-			time.Sleep(retryInterval)
+			sleep(retryInterval)
 		}
 	}
 	return nil, nil
+}
+
+func (tp *tagpr) findMergedReleasePullRequestForCommit(
+	ctx context.Context, commitish string,
+) (*github.PullRequest, bool, error) {
+	opts := &github.ListOptions{PerPage: 100}
+	foundAssociations := false
+	for {
+		pulls, resp, err := tp.gh.PullRequests.ListPullRequestsWithCommit(
+			ctx, tp.owner, tp.repo, commitish, opts)
+		if err != nil {
+			tp.showGHError(err, resp)
+			return nil, foundAssociations, err
+		}
+		foundAssociations = foundAssociations || len(pulls) > 0
+		for _, pr := range pulls {
+			if tp.isMergedReleasePullRequest(pr) {
+				return pr, foundAssociations, nil
+			}
+		}
+		if resp.NextPage == 0 {
+			return nil, foundAssociations, nil
+		}
+		opts.Page = resp.NextPage
+	}
+}
+
+func (tp *tagpr) isMergedReleasePullRequest(pr *github.PullRequest) bool {
+	return !pr.GetMergedAt().IsZero() &&
+		pr.Base != nil &&
+		pr.Base.GetRef() == tp.cfg.ReleaseBranch() &&
+		tp.isTagPR(pr)
 }
 
 func (tp *tagpr) latestMergedReleasePullRequest(ctx context.Context) (*github.PullRequest, error) {

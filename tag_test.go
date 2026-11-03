@@ -275,6 +275,107 @@ func TestLatestMergedReleasePullRequestPaginatesAndMatchesBase(t *testing.T) {
 	}
 }
 
+func TestMergedReleasePullRequestForCommitRetryPolicy(t *testing.T) {
+	releasePR := &github.PullRequest{
+		Number:   new(4),
+		MergedAt: &github.Timestamp{Time: time.Now()},
+		Head:     &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+		Base:     &github.PullRequestBranch{Ref: new("main")},
+		Labels:   []*github.Label{{Name: "tagpr"}},
+	}
+	type page struct {
+		pulls []*github.PullRequest
+		next  bool
+	}
+	tests := []struct {
+		name      string
+		pages     []page
+		wantPages []string
+		wantPR    int
+		wantSleep []time.Duration
+	}{
+		{
+			name:      "retry empty associations until indexed",
+			pages:     []page{{}, {pulls: []*github.PullRequest{releasePR}}},
+			wantPages: []string{"1", "1"},
+			wantPR:    4,
+			wantSleep: []time.Duration{2 * time.Second},
+		},
+		{
+			name:      "stop after three empty attempts",
+			pages:     []page{{}, {}, {}},
+			wantPages: []string{"1", "1", "1"},
+			wantSleep: []time.Duration{2 * time.Second, 2 * time.Second},
+		},
+		{
+			name: "non-release association on earlier page prevents retry",
+			pages: []page{
+				{pulls: []*github.PullRequest{{Number: new(7)}}, next: true},
+				{},
+			},
+			wantPages: []string{"1", "2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var srv *httptest.Server
+			var requestedPages []string
+			mux := http.NewServeMux()
+			mux.HandleFunc("/repos/Songmu/tagpr/commits/deadbeef/pulls",
+				func(w http.ResponseWriter, req *http.Request) {
+					number := req.URL.Query().Get("page")
+					if number == "" {
+						number = "1"
+					}
+					index := len(requestedPages)
+					requestedPages = append(requestedPages, number)
+					if req.URL.Query().Get("per_page") != "100" {
+						t.Errorf("per_page = %q, want 100", req.URL.Query().Get("per_page"))
+					}
+					var response page
+					if index < len(tt.pages) {
+						response = tt.pages[index]
+					} else {
+						t.Errorf("unexpected request %d", index+1)
+					}
+					w.Header().Set("Content-Type", "application/json")
+					if response.next {
+						w.Header().Set("Link", "<"+srv.URL+req.URL.Path+"?page=2&per_page=100>; rel=\"next\"")
+					}
+					if err := json.NewEncoder(w).Encode(response.pulls); err != nil {
+						t.Errorf("encode pull requests: %v", err)
+					}
+				})
+			srv = httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+			cli, err := github.NewClient(github.WithURLs(new(srv.URL+"/"), nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			tp := &tagpr{
+				gh: cli, cfg: &config{releaseBranch: new("main")},
+				owner: "Songmu", repo: "tagpr",
+			}
+			var sleeps []time.Duration
+			pr, err := tp.lookupMergedReleasePullRequestWithRetry(
+				context.Background(), "deadbeef",
+				func(interval time.Duration) { sleeps = append(sleeps, interval) })
+			if err != nil {
+				t.Fatal(err)
+			}
+			if pr.GetNumber() != tt.wantPR {
+				t.Errorf("returned PR #%d, want #%d", pr.GetNumber(), tt.wantPR)
+			}
+			if !slices.Equal(requestedPages, tt.wantPages) {
+				t.Errorf("requested pages = %v, want %v", requestedPages, tt.wantPages)
+			}
+			if !slices.Equal(sleeps, tt.wantSleep) {
+				t.Errorf("retry sleeps = %v, want %v", sleeps, tt.wantSleep)
+			}
+		})
+	}
+}
+
 type testReleaseRequests struct {
 	targetCommitish    string
 	generateNotesCalls int
