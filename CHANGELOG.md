@@ -1,5 +1,20 @@
 # Changelog
 
+## [v1.22.0](https://github.com/Songmu/tagpr/compare/v1.21.4...v1.22.0) - 2026-11-03
+
+### Features
+- Add experimental plan/apply flow for testing and approval before tagging by @Songmu in https://github.com/Songmu/tagpr/pull/416
+### Other Changes
+- Make release notes easier to scan with label-based categories by @Songmu in https://github.com/Songmu/tagpr/pull/461
+- refactor: separate release tag and publication stages by @Songmu in https://github.com/Songmu/tagpr/pull/464
+- refactor: separate release workflow input transformations by @Songmu in https://github.com/Songmu/tagpr/pull/466
+- refactor: clarify version file precedence and consolidate test setup by @Songmu in https://github.com/Songmu/tagpr/pull/463
+- refactor: isolate release PR inputs with behavioral coverage by @Songmu in https://github.com/Songmu/tagpr/pull/465
+- refactor: organize release orchestration into named stages by @Songmu in https://github.com/Songmu/tagpr/pull/467
+### Dependency Updates
+- Update dependency gohugoio/hugo to v0.169.0 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/460
+- build(deps): bump Songmu/tagpr from 1.21.2 to 1.21.4 by @dependabot[bot] in https://github.com/Songmu/tagpr/pull/459
+
 ## [v1.21.4](https://github.com/Songmu/tagpr/compare/v1.21.3...v1.21.4) - 2026-10-22
 
 - Update go toolchain directive to v1.27.3 by @renovate[bot] in https://github.com/Songmu/tagpr/pull/451
