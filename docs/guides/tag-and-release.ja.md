@@ -66,7 +66,8 @@ tagpr がタグを作成した後にリリースフローを自動で開始す�
 
 ## 同じワークフローでリリースする {#publish-in-the-same-workflow}
 
-`tag` 出力は tagpr がタグを作成した場合にのみ空でなくなります。同じワークフロー内のリリース処理を実行する条件に使います。
+`tag` 出力はタグの作成または復旧が成功した場合に空でなくなります。同じワークフロー内のリリース処理を実行する条件に使います。
+成功した再試行でも既存の一致するタグが返り、後続の処理が再実行されることがあるため、これらの処理も再試行に対応させてください。
 
 ```yaml
 - uses: actions/checkout@v6
@@ -90,6 +91,140 @@ tagpr がタグを作成した後にリリースフローを自動で開始す�
 
 - `pull_request`: リリースプルリクエストを説明する JSON。
 - `base_tag`: 比較の基準に使った前回のタグ。最初のリリースでは空の値。
+
+## タグ作成前にテストと承認を行う {#test-and-approve-before-tagging}
+
+> [!NOTE]
+> **Experimental:** `plan` / `apply` モードと plan JSON の形式は実験的な機能であり、
+> 今後のリリースで変更される可能性があります。
+
+デフォルトでは、tagpr はマージ済みのリリースプルリクエストを検出すると、すぐにタグを作成します。
+マージ後の正確なコミットを追加でテストする場合や、protected environment の承認を待ってからタグを
+作成する場合は、`plan` モードと `apply` モードを利用します。
+
+`plan` モードは、通常どおりリリースプルリクエストを作成・更新します。マージ済みの
+リリースプルリクエストを検出すると、タグを作成せず、リリース計画を単一の `plan` JSON として
+出力します。プルリクエストの作成・更新だけを行った場合、`plan` 出力は空です。
+JSON には次の情報が含まれます。
+
+- `tag`: 作成予定のバージョンタグ。
+- `commit_sha`: テスト・タグ付けする、マージされたリリースコミットの正確な SHA。
+- `base_tag`: 直前のリリースタグ。最初のリリースでは空文字。
+- `pull_request_number`: マージされたリリースプルリクエストの番号。
+- `release_notes_boundary_sha`: リリースノート生成に使う終点の境界。
+
+最終 job では、JSON を変更せず `apply` モードの `plan` 入力に渡します。tagpr はリポジトリの状態と
+plan を再検証してからタグを作成します。承認待ちの間に対象コミットがリリースブランチの先頭ではなくなっても、
+設定されたリリースブランチの ancestor であればタグを作成できます。
+
+plan 適用後のリリース処理には、従来の `tag`、`pull_request`、`base_tag` 出力を利用します。
+適用前のテストでは、`fromJSON(...).commit_sha` でテスト対象のコミットを checkout します。
+
+```yaml
+name: tagpr
+on:
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+
+# 承認待ちの run を維持し、後続の main push は 1 つの pending run にまとめる。
+concurrency:
+  group: tagpr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+    steps:
+    - name: Generate token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ secrets.CLIENT_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: read
+    - uses: actions/checkout@v6
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+    - id: plan
+      uses: Songmu/tagpr@v1
+      with:
+        mode: plan
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  test-release:
+    needs: plan
+    if: needs.plan.outputs.plan != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ fromJSON(needs.plan.outputs.plan).commit_sha }}
+        persist-credentials: false
+    - run: go test ./...
+
+  apply:
+    needs:
+    - plan
+    - test-release
+    if: needs.plan.outputs.plan != '' && needs.test-release.result == 'success'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+    # この token は protected environment の承認後に作成される。
+    - name: Generate token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ secrets.CLIENT_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: read
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ fromJSON(needs.plan.outputs.plan).commit_sha }}
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+    - id: apply
+      uses: Songmu/tagpr@v1
+      with:
+        mode: apply
+        plan: ${{ needs.plan.outputs.plan }}
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+```
+
+リポジトリの **Settings → Environments** で `release` environment を作成し、required reviewers を
+設定します。GitHub は `apply` を開始する前に承認を待つため、environment secrets と最終 job の
+短命 token は承認前には使われません。30 日間承認されなかった deployment は
+[自動的に失敗します][deployment-approval]。
+
+この構成では workflow-level concurrency が必須です。plan が承認を待っている間に、別の
+リリースブランチ push から同じ未リリース範囲に対する `plan` を開始してはいけません。
+`cancel-in-progress: false` にすると、承認待ちの run は継続し、後続の run は最大 1 つの pending run に
+まとめられます。monorepo で複数の tagpr 設定を使う場合は、設定ファイルのパスなど、リリース系列を
+識別できる安定した値を concurrency group に含めます。
+
+plan 適用は再実行できます。タグの push が成功した後に GitHub Release の作成だけ失敗した場合は、
+同じ plan で最終 job を再実行すると、既存タグが `commit_sha` を指していることを確認したうえで
+Release 作成を再試行します。同じ名前のタグが別のコミットを指している場合は失敗します。
 
 ## 別のリリースワークフローを起動する {#trigger-a-separate-workflow}
 
@@ -157,6 +292,7 @@ Action の完全な出力リファレンスは、[README](../../README.md#output
 
 [bot-pr-approval]: https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/
 [create-app-token]: https://github.com/actions/create-github-app-token
+[deployment-approval]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments
 [ecschedule-tagpr]: https://github.com/Songmu/ecschedule/blob/main/.github/workflows/tagpr.yaml
 [gitsign-verification]: https://github.com/sigstore/gitsign#verifying-commits
 [github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow

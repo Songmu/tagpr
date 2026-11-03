@@ -222,7 +222,9 @@ reference.
 
 ## Tagging and release
 
-tagpr exposes a `tag` output only when it creates a tag. The tag is the starting point
+tagpr exposes a `tag` output after successful tag creation or recovery. A successful
+retry can return an existing matching tag, so make steps gated on this output safe to
+retry. The tag is the starting point
 for project-specific release steps such as building, packaging, publishing, and
 deployment. Use the output to conditionally run those steps in the same workflow:
 
@@ -510,6 +512,21 @@ Environment variable: `TAGPR_RELEASE`.
 
 ### Inputs
 
+#### mode (Optional)
+
+Controls when tagpr creates a release tag:
+
+- `auto` keeps the default behavior: update the release pull request or immediately
+  tag a merged release pull request;
+- `plan` updates the release pull request normally, but emits a release plan JSON
+  instead of tagging after the pull request is merged;
+- `apply` validates and executes a plan emitted by `plan`.
+
+The default is `auto`.
+
+**Experimental:** `plan` and `apply` modes and the plan JSON format may change in
+future releases.
+
 #### config (Optional)
 
 The path to the tagpr configuration file. The default is `.tagpr`.
@@ -527,12 +544,25 @@ workflow runs on a host other than github.com (GitHub Enterprise Server or
 github.com. When this is unset on such a host, the action falls back to SHA-256
 checksum verification. It is not needed on github.com.
 
+#### plan (Optional)
+
+The experimental release plan JSON emitted by `plan` mode. Required in `apply`
+mode; pass it unchanged.
+
 ### Outputs
 
-- `tag`: the created tag. It is empty when tagpr did not create a tag.
+- `tag`: the tag after successful creation or recovery, including on retries.
+  It is empty when tagpr only creates or updates the release pull request.
 - `pull_request`: JSON describing the release pull request created or updated by tagpr.
 - `base_tag`: the base version tag used for comparison. It is empty when no previous
   tag exists.
+- `plan`: experimental release plan JSON emitted by `plan` mode when a merged release
+  pull request is detected. It is empty when tagpr only creates or updates the release
+  pull request.
+
+See [Tagging and release](docs/guides/tag-and-release.md#test-and-approve-before-tagging)
+for the plan JSON fields and a complete workflow that tests `plan.commit_sha` and
+waits for environment approval before running `apply` mode.
 
 ## GitHub Enterprise
 

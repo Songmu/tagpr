@@ -206,6 +206,10 @@ func retrieveVersionFromFile(fpath string, ref *semv) (*semv, error) {
 	if err != nil {
 		return nil, err
 	}
+	return retrieveVersionFromContents(fpath, bs, ref)
+}
+
+func retrieveVersionFromContents(fpath string, bs []byte, ref *semv) (*semv, error) {
 	var ver string
 	if m := versionReg.FindSubmatch(bs); len(m) >= 3 {
 		ver = string(m[2])

@@ -34,7 +34,7 @@ func (c *commander) SetToken(token, host string) {
 	encoded := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + token))
 	// mask value to avoid leaking token in logs
 	// ref. https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#masking-a-value-in-a-log
-	fmt.Printf("::add-mask::%s\n", encoded)
+	fmt.Fprintf(c.outStream, "::add-mask::%s\n", encoded)
 
 	c.extraheader = fmt.Sprintf(`%s=AUTHORIZATION: basic %s`, confkey, encoded)
 }

@@ -109,13 +109,20 @@ This configuration creates tags such as `tools/v1.2.3`.
 
 ## Action configuration
 
-The GitHub Action has three inputs:
+The GitHub Action supports these general inputs:
 
 - `config` selects a configuration file other than `.tagpr`;
 - `version` selects the tagpr executable version installed by the action;
 - `attestation-token` is a github.com token used to verify the release's build
   provenance on GitHub Enterprise Server or `*.ghe.com`. If it is unset there, the
-  action verifies only the SHA-256 checksum.
+  action verifies only the SHA-256 checksum;
+- `mode` selects `auto`, `plan`, or `apply`. The default is `auto`; `plan` and
+  `apply` are experimental.
 
-It exposes `tag`, `pull_request`, and `base_tag` outputs. See
-[Tagging and release](../guides/tag-and-release.md) for usage.
+`apply` mode requires a `plan` input containing the release plan JSON emitted by
+`plan` mode.
+
+The existing outputs are `tag`, `pull_request`, and `base_tag`. `plan` mode also
+exposes a single `plan` JSON output when a merged release pull request is detected. See
+[Tagging and release](../guides/tag-and-release.md#test-and-approve-before-tagging) for
+the complete two-phase workflow.

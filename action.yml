@@ -12,9 +12,16 @@ inputs:
   attestation-token:
     description: "A github.com token used to verify release attestations when running on GHES or *.ghe.com. If unset there, SHA-256 checksum verification is used instead"
     required: false
+  mode:
+    description: "Execution mode: auto, plan, or apply. The plan and apply modes are experimental"
+    required: false
+    default: "auto"
+  plan:
+    description: "Experimental release plan JSON emitted by plan mode, required in apply mode"
+    required: false
 outputs:
   tag:
-    description: "The semver tag, which is output only when the tagpr has tagged"
+    description: "The release tag after successful creation or recovery, including on retries"
     value: ${{ steps.tagpr.outputs.tag }}
   pull_request:
     description: "Information of the pull request created by tagpr in JSON format"
@@ -22,6 +29,9 @@ outputs:
   base_tag:
     description: "The base semver tag for comparison, empty if no previous tag exists"
     value: ${{ steps.tagpr.outputs.base_tag }}
+  plan:
+    description: "Experimental release plan JSON, output in plan mode when a merged release pull request is detected"
+    value: ${{ steps.tagpr.outputs.plan }}
 runs:
   using: "composite"
   steps:
@@ -32,13 +42,22 @@ runs:
       TEMP_PATH="$(mktemp -d)"
       PATH="${TEMP_PATH}:$PATH"
       bash "$GITHUB_ACTION_PATH/install.sh" -b "$TEMP_PATH" "$TAGPR_VERSION"
-      tagpr
+      args=()
+      if [[ "$TAGPR_MODE" != "auto" ]]; then
+        args+=(--mode "$TAGPR_MODE")
+      fi
+      if [[ -n "$TAGPR_PLAN" ]]; then
+        args+=(--plan "$TAGPR_PLAN")
+      fi
+      tagpr "${args[@]}"
     shell: bash
     env:
       ACTION_REF: ${{ github.action_ref }}
       TAGPR_VERSION: ${{ inputs.version }}
       TAGPR_ATTESTATION_TOKEN: ${{ inputs.attestation-token }}
       TAGPR_CONFIG_FILE: ${{ inputs.config }}
+      TAGPR_MODE: ${{ inputs.mode }}
+      TAGPR_PLAN: ${{ inputs.plan }}
 branding:
   icon: 'git-pull-request'
   color: 'blue'

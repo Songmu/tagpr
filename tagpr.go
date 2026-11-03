@@ -39,13 +39,14 @@ type tagpr struct {
 	remoteName, owner, repo string
 	out                     io.Writer
 	normalizedTagPrefix     string
+	runOptions              runOptions
 }
 
-func (tp *tagpr) latestSemverTag() string {
+func (tp *tagpr) latestSemverTag(excludedTags ...string) string {
 	// CalVer mode: bypass gitsemvers because it normalizes version strings
 	// and loses zero-padding (e.g., v2026.0123.0 becomes invalid)
 	if tp.cfg.CalendarVersioning() {
-		return tp.latestCalverTag()
+		return tp.latestCalverTag(excludedTags...)
 	}
 
 	vers := (&gitsemvers.Semvers{
@@ -56,33 +57,43 @@ func (tp *tagpr) latestSemverTag() string {
 	fixedMajor, _ := tp.cfg.FixedMajorVersion()
 
 	for _, v := range vers {
+		if slices.Contains(excludedTags, v) {
+			continue
+		}
 		semvPart := strings.TrimPrefix(v, tp.normalizedTagPrefix)
+		sv, err := newSemver(semvPart)
+		if err != nil {
+			continue
+		}
 
 		// Filter by fixedMajorVersion
 		if fixedMajor != nil {
-			sv, err := newSemver(semvPart)
-			if err != nil {
-				continue
-			}
 			if sv.sv.Major() != *fixedMajor {
 				continue
 			}
 		}
 
 		// Filter by vPrefix
-		if tp.cfg.vPrefix != nil {
-			if strings.HasPrefix(semvPart, "v") == *tp.cfg.vPrefix {
-				return v
+		if tp.cfg.vPrefix != nil && strings.HasPrefix(semvPart, "v") != *tp.cfg.vPrefix {
+			continue
+		}
+		for version := sv.Tag(); ; version = strings.TrimSuffix(version, ".0") {
+			tag := fullTag(tp.normalizedTagPrefix, version)
+			if slices.Contains(vers, tag) {
+				if slices.Contains(excludedTags, tag) {
+					break
+				}
+				return tag
 			}
-		} else {
-			// When vPrefix is not defined (i.e. first time tagpr setup), just return the first matching value.
-			return v
+			if !strings.HasSuffix(version, ".0") {
+				break
+			}
 		}
 	}
 	return ""
 }
 
-func (tp *tagpr) latestCalverTag() string {
+func (tp *tagpr) latestCalverTag(excludedTags ...string) string {
 	format := tp.cfg.CalendarVersioningFormat()
 	if format == "" {
 		format = defaultCalendarVersioningFormat
@@ -102,7 +113,7 @@ func (tp *tagpr) latestCalverTag() string {
 
 	for _, tag := range strings.Split(out, "\n") {
 		tag = strings.TrimSpace(tag)
-		if tag == "" {
+		if tag == "" || slices.Contains(excludedTags, tag) {
 			continue
 		}
 
@@ -166,7 +177,7 @@ func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []stri
 				}
 				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return []string{}, err
 				}
 				prIssues = append(prIssues, issue)
@@ -225,7 +236,10 @@ func (tp *tagpr) initializeReleaseYaml(path string) error {
 }
 
 func newTagPR(ctx context.Context, c *commander) (*tagpr, error) {
-	tp := &tagpr{c: c, gitPath: c.gitPath, out: c.outStream}
+	tp := &tagpr{
+		c: c, gitPath: c.gitPath, out: c.outStream,
+		runOptions: runOptions{Mode: executionModeAuto},
+	}
 
 	var err error
 	tp.remoteName, err = tp.detectRemote()
@@ -340,9 +354,25 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	defer func() {
 		runErr = errors.Join(runErr, commandErr)
 	}()
-
+	if err := tp.runOptions.validate(); err != nil {
+		return err
+	}
 	commitMessage := tp.cfg.CommitPrefix() + " " + autoCommitMessage
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
+
+	releaseBranch := tp.cfg.ReleaseBranch()
+	if releaseBranch == "" {
+		releaseBranch, _ = tp.defaultBranch()
+		if releaseBranch == "" {
+			releaseBranch = defaultReleaseBranch
+		}
+		if err := tp.cfg.SetReleaseBranch(releaseBranch); err != nil {
+			return err
+		}
+	}
+	if tp.runOptions.Mode == executionModeApply {
+		return tp.applyReleasePlan(ctx, *tp.runOptions.Plan)
+	}
 
 	latestSemverTag := tp.latestSemverTag()
 	tp.setOutput("base_tag", latestSemverTag)
@@ -375,17 +405,6 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	currVer.asCalendarVersion = tp.cfg.CalendarVersioning()
 	currVer.calverFormat = tp.cfg.CalendarVersioningFormat()
 
-	releaseBranch := tp.cfg.ReleaseBranch()
-	if releaseBranch == "" {
-		releaseBranch, _ = tp.defaultBranch()
-		if releaseBranch == "" {
-			releaseBranch = defaultReleaseBranch
-		}
-		if err := tp.cfg.SetReleaseBranch(releaseBranch); err != nil {
-			return err
-		}
-	}
-
 	branch, _, err := tp.c.Git("symbolic-ref", "--short", "HEAD")
 	if err != nil {
 		return fmt.Errorf("failed to git symbolic-ref: %w", err)
@@ -401,12 +420,67 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		if err != nil {
 			return err
 		}
-		if err := tp.tagRelease(ctx, pr, currVer, latestSemverTag); err != nil {
+		if tp.runOptions.Mode != executionModePlan {
+			if err := tp.fetchReleaseRefs(); err != nil {
+				return fmt.Errorf("failed to fetch release tags: %w", err)
+			}
+		}
+		latestSemverTag, err = tp.releasePullRequestBaseTag(pr)
+		if err != nil {
 			return err
 		}
-		b, _ := json.Marshal(pr)
-		tp.setOutput("pull_request", string(b))
-		return nil
+		currVer, err = tp.versionFromBaseTag(latestSemverTag)
+		if err != nil {
+			return err
+		}
+		plan, err := tp.prepareReleasePlan(pr, currVer, latestSemverTag)
+		if err != nil {
+			return err
+		}
+		if tp.cfg.CalendarVersioning() {
+			vfile, err := tp.releaseVersionFile(currVer, plan.ReleaseNotesBoundarySHA, plan.CommitSHA)
+			if err != nil {
+				return err
+			}
+			if vfile == "" {
+				latestTag := tp.latestSemverTag()
+				if latestTag != "" && latestTag != plan.BaseTag {
+					sha, _, err := tp.c.Git("rev-parse", "--verify", "refs/tags/"+latestTag+"^{commit}")
+					if err != nil {
+						return err
+					}
+					if sha == plan.CommitSHA {
+						plan.Tag = latestTag
+					}
+				}
+			}
+		}
+		if plan.BaseTag != "" {
+			if err := tp.requireAncestor(plan.BaseTag, plan.ReleaseNotesBoundarySHA,
+				"base tag is not an ancestor of the release boundary"); err != nil {
+				return err
+			}
+		}
+		if tp.runOptions.Mode == executionModePlan {
+			if err := tp.setOutput("base_tag", plan.BaseTag); err != nil {
+				return err
+			}
+			if err := tp.setPlanOutput(plan); err != nil {
+				return err
+			}
+			b, _ := json.Marshal(pr)
+			tp.setOutput("pull_request", string(b))
+			return nil
+		}
+		latestTag := tp.latestSemverTag(plan.Tag)
+		if latestTag != plan.BaseTag {
+			return fmt.Errorf("base tag changed from %q to %q", plan.BaseTag, latestTag)
+		}
+		_, tagExists, err := tp.inspectExistingTag(plan.Tag, plan.CommitSHA)
+		if err != nil {
+			return err
+		}
+		return tp.completeRelease(ctx, plan, pr, tagExists)
 	}
 	mergeLogArgs := []string{"log", "--merges", "--first-parent", "--pretty=format:%P",
 		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
@@ -438,7 +512,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	// Get the latest commit of the release branch
 	ref, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, "refs/heads/"+releaseBranch)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -450,7 +524,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			Base: releaseBranch,
 		})
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -558,7 +632,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		// Create a new tree object if there are changes
 		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *ref.Object.SHA, treeEntries)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 	}
@@ -566,7 +640,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	// Get the parent commit to attach the commit to.
 	parent, resp, err := tp.gh.Repositories.GetCommit(ctx, tp.owner, tp.repo, *ref.Object.SHA, nil)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 	parent.Commit.SHA = parent.SHA
@@ -582,7 +656,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	}
 	newCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -618,7 +692,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			// Delete temporary reference if it exists
 			resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
 			if err != nil && resp.StatusCode != 422 {
-				showGHError(err, resp)
+				tp.showGHError(err, resp)
 				return err
 			}
 
@@ -630,7 +704,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			}
 			ref, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, createRef)
 			if err != nil {
-				showGHError(err, resp)
+				tp.showGHError(err, resp)
 				return err
 			}
 
@@ -641,7 +715,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(
 					ctx, tp.owner, tp.repo, commitish, nil)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -653,7 +727,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				tempCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -664,7 +738,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -680,7 +754,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 					if resp.StatusCode == 409 {
 						continue
 					}
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -694,7 +768,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 
@@ -705,7 +779,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 				}
 				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
 				if err != nil {
-					showGHError(err, resp)
+					tp.showGHError(err, resp)
 					return err
 				}
 			}
@@ -725,7 +799,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			// Delete temporary reference
 			resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
 			if err != nil {
-				showGHError(err, resp)
+				tp.showGHError(err, resp)
 				return err
 			}
 		}
@@ -842,7 +916,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		})
 		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		// Create a new commit
@@ -853,7 +927,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		}
 		newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 	}
@@ -868,7 +942,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	_, resp, err = tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, rcBranchRef)
 	if err != nil {
 		if resp.StatusCode != 404 {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		createNewRef := github.CreateRef{
@@ -877,7 +951,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		}
 		_, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, createNewRef)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 	}
@@ -887,7 +961,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	}
 	_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, rcBranchRef, updateRef)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 
@@ -905,21 +979,21 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			Head:  head,
 		})
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		addingLabels = append(addingLabels, autoLabelName)
 		_, resp, err = tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
 		if err == nil {
 			pr = tmpPr
 		} else {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 		}
 		b, _ := json.Marshal(pr)
 		tp.setOutput("pull_request", string(b))
@@ -936,21 +1010,21 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	currTagPR.Base = nil
 	pr, resp, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return err
 	}
 	if len(addingLabels) > 0 {
 		_, resp, err := tp.gh.Issues.AddLabelsToIssue(
 			ctx, tp.owner, tp.repo, *currTagPR.Number, addingLabels)
 		if err != nil {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 			return err
 		}
 		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
 		if err == nil {
 			pr = tmpPr
 		} else {
-			showGHError(err, resp)
+			tp.showGHError(err, resp)
 		}
 	}
 	b, _ := json.Marshal(pr)
@@ -1080,7 +1154,7 @@ func (tp *tagpr) searchIssues(ctx context.Context, query string) ([]*github.Issu
 	// the length limit specification of the query string.
 	issues, resp, err := tp.gh.Search.Issues(ctx, query, nil)
 	if err != nil {
-		showGHError(err, resp)
+		tp.showGHError(err, resp)
 		return nil, err
 	}
 	return issues.Issues, nil

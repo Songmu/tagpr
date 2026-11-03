@@ -78,8 +78,9 @@ There are two ways to start the release flow automatically after tagpr creates a
 
 ## Run the release in the same workflow {#publish-in-the-same-workflow}
 
-The `tag` output is non-empty only when tagpr creates a tag. Use it as the condition for
-release steps in the same workflow:
+The `tag` output is non-empty after successful tag creation or recovery. Use it as the
+condition for release steps in the same workflow. Successful retries can return an
+existing matching tag and run these steps again, so make them safe to retry:
 
 ```yaml
 - uses: actions/checkout@v6
@@ -107,6 +108,146 @@ Other available outputs are:
 - `pull_request`: JSON describing the release pull request;
 - `base_tag`: the previous tag used as the comparison base, or an empty value for the
   first release.
+
+## Test and approve before tagging {#test-and-approve-before-tagging}
+
+> [!NOTE]
+> **Experimental:** `plan` and `apply` modes and the plan JSON format may change in
+> future releases.
+
+By default, tagpr creates the tag as soon as it detects a merged release pull request.
+Use `plan` and `apply` modes when the exact merged commit must pass additional tests or
+wait for a protected-environment approval before tagging.
+
+`plan` mode creates or updates the release pull request normally. Once it detects a
+merged release pull request, it emits a single `plan` JSON output without creating a
+tag. If it only creates or updates the pull request, the `plan` output is empty.
+The JSON contains:
+
+- `tag`: the proposed version tag;
+- `commit_sha`: the exact merged release commit to test and tag;
+- `base_tag`: the previous release tag, or an empty string for the first release;
+- `pull_request_number`: the merged release pull request number;
+- `release_notes_boundary_sha`: the end boundary used to generate release notes.
+
+The final job passes the JSON unchanged to `apply` mode using the `plan` input.
+tagpr then verifies the plan against repository state before creating the tag.
+The target may cease to be
+the release branch head while approval is pending, but it must still be an ancestor of
+the configured release branch.
+
+After applying the plan, use the existing `tag`, `pull_request`, and `base_tag` outputs
+for subsequent release steps. Before applying it, use `fromJSON(...).commit_sha` to
+check out the commit to test.
+
+```yaml
+name: tagpr
+on:
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+
+# Keep the active approval run and collapse later main pushes into one pending run.
+concurrency:
+  group: tagpr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+    steps:
+    - name: Generate token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ secrets.CLIENT_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: read
+    - uses: actions/checkout@v6
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+    - id: plan
+      uses: Songmu/tagpr@v1
+      with:
+        mode: plan
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  test-release:
+    needs: plan
+    if: needs.plan.outputs.plan != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ fromJSON(needs.plan.outputs.plan).commit_sha }}
+        persist-credentials: false
+    - run: go test ./...
+
+  apply:
+    needs:
+    - plan
+    - test-release
+    if: needs.plan.outputs.plan != '' && needs.test-release.result == 'success'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+    # This token is created after the protected environment is approved.
+    - name: Generate token
+      id: app-token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ secrets.CLIENT_ID }}
+        private-key: ${{ secrets.PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: read
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ fromJSON(needs.plan.outputs.plan).commit_sha }}
+        token: ${{ steps.app-token.outputs.token }}
+        persist-credentials: false
+    - id: apply
+      uses: Songmu/tagpr@v1
+      with:
+        mode: apply
+        plan: ${{ needs.plan.outputs.plan }}
+      env:
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+```
+
+Create the `release` environment under the repository's **Settings → Environments**
+page and configure its required reviewers. GitHub waits before starting `apply`,
+so environment secrets and the final job's short-lived token are not used before
+approval. A deployment that remains unapproved for 30 days
+[fails automatically][deployment-approval].
+
+Workflow-level concurrency is required for this layout. While a plan waits for
+approval, another release-branch push must not start a second `plan` invocation
+against the same unreleased range. With `cancel-in-progress: false`, the active approval
+run remains in progress and GitHub keeps at most one later run pending. For multiple
+tagpr configurations in a monorepo, include the config path or another stable release
+stream identifier in the concurrency group.
+
+Applying a plan is retryable. If the tag was pushed successfully but GitHub Release
+creation failed, rerunning the final job accepts the tag when it already points to the
+plan's `commit_sha` and retries the Release operation. A tag with the same name
+pointing to another commit is rejected.
 
 ## Trigger a separate release workflow {#trigger-a-separate-workflow}
 
@@ -191,6 +332,7 @@ For the action's complete output reference, see the
 
 [bot-pr-approval]: https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/
 [create-app-token]: https://github.com/actions/create-github-app-token
+[deployment-approval]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments
 [ecschedule-tagpr]: https://github.com/Songmu/ecschedule/blob/main/.github/workflows/tagpr.yaml
 [gitsign-verification]: https://github.com/sigstore/gitsign#verifying-commits
 [github-token-trigger]: https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow

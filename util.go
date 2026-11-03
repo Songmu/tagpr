@@ -29,7 +29,7 @@ func (tp *tagpr) setOutput(name, value string) error {
 	return err
 }
 
-func showGHError(err error, resp *github.Response) {
+func (tp *tagpr) showGHError(err error, resp *github.Response) {
 	title := "failed to request GitHub API"
 	message := err.Error()
 	if resp != nil {
@@ -45,7 +45,7 @@ func showGHError(err error, resp *github.Response) {
 		message += " " + strings.Join(respInfo, ", ")
 	}
 	// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-error-message
-	fmt.Printf("::error title=%s::%s\n", title, message)
+	fmt.Fprintf(tp.c.outStream, "::error title=%s::%s\n", title, message)
 }
 
 func showErrorAnnotation(w io.Writer, title, message string) {
