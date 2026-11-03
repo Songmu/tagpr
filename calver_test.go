@@ -334,12 +334,15 @@ func TestNakedPreservesZeroPadding(t *testing.T) {
 
 func TestCalverWithTagPrefix(t *testing.T) {
 	tests := []struct {
-		name      string
-		tagPrefix string
-		tags      []string
-		vPrefix   bool
-		format    string
-		wantTag   string
+		name         string
+		tagPrefix    string
+		tags         []string
+		vPrefix      bool
+		anyVPrefix   bool
+		tagSort      string
+		excludedTags []string
+		format       string
+		wantTag      string
 	}{
 		{
 			name:      "selects prefixed tag ignoring non-prefixed",
@@ -389,6 +392,32 @@ func TestCalverWithTagPrefix(t *testing.T) {
 			format:    "YYYY.0M0D.MICRO",
 			wantTag:   "",
 		},
+		{
+			name:         "excluded latest tag returns original padded predecessor",
+			tagPrefix:    "tools",
+			tags:         []string{"tools/v2026.0123.0", "tools/v2026.0124.0"},
+			vPrefix:      true,
+			excludedTags: []string{"tools/v2026.0124.0"},
+			format:       "YYYY.0M0D.MICRO",
+			wantTag:      "tools/v2026.0123.0",
+		},
+		{
+			name:       "equal versions retain first tag in Git order",
+			tagPrefix:  "tools",
+			tags:       []string{"tools/v2026.0123.0", "tools/2026.0123.0"},
+			anyVPrefix: true,
+			format:     "YYYY.0M0D.MICRO",
+			wantTag:    "tools/2026.0123.0",
+		},
+		{
+			name:       "equal versions retain first tag in reversed Git order",
+			tagPrefix:  "tools",
+			tags:       []string{"tools/2026.0123.0", "tools/v2026.0123.0"},
+			anyVPrefix: true,
+			tagSort:    "-refname",
+			format:     "YYYY.0M0D.MICRO",
+			wantTag:    "tools/v2026.0123.0",
+		},
 	}
 
 	for _, tt := range tests {
@@ -416,6 +445,9 @@ func TestCalverWithTagPrefix(t *testing.T) {
 			runGit("init")
 			runGit("config", "user.email", "test@example.com")
 			runGit("config", "user.name", "Test")
+			if tt.tagSort != "" {
+				runGit("config", "tag.sort", tt.tagSort)
+			}
 
 			testFile := filepath.Join(tmpDir, "test.txt")
 			if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
@@ -443,8 +475,11 @@ func TestCalverWithTagPrefix(t *testing.T) {
 				},
 				normalizedTagPrefix: normalizeTagPrefix(tt.tagPrefix),
 			}
+			if tt.anyVPrefix {
+				tp.cfg.vPrefix = nil
+			}
 
-			got := tp.latestSemverTag()
+			got := tp.latestSemverTag(tt.excludedTags...)
 			if got != tt.wantTag {
 				t.Errorf("latestSemverTag() = %q, want %q", got, tt.wantTag)
 			}
