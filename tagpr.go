@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -161,28 +160,13 @@ func (tp *tagpr) latestCalverTag(excludedTags ...string) string {
 
 func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []string, prShasStr, fromCommitish string) ([]string, error) {
 	var prIssues []*github.Issue
-	var err error
-	for line := range strings.SplitSeq(prShasStr, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			continue
+	for _, number := range mergedPullRequestNumbers(mergedFeatureHeadShas, prShasStr) {
+		issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, number)
+		if err != nil {
+			tp.showGHError(err, resp)
+			return []string{}, err
 		}
-		sha, ref := fields[0], fields[1]
-		for _, mergedSha := range mergedFeatureHeadShas {
-			if strings.HasPrefix(sha, mergedSha) {
-				prNumStr := strings.Trim(ref, "head/rfspul")
-				prNum, err := strconv.Atoi(prNumStr)
-				if err != nil {
-					continue
-				}
-				issue, resp, err := tp.gh.Issues.Get(ctx, tp.owner, tp.repo, prNum)
-				if err != nil {
-					tp.showGHError(err, resp)
-					return []string{}, err
-				}
-				prIssues = append(prIssues, issue)
-			}
-		}
+		prIssues = append(prIssues, issue)
 	}
 
 	// When "--abbrev" is specified, the length of the each line of the stdout isn't fixed.
@@ -197,11 +181,8 @@ func (tp *tagpr) getNextLabels(ctx context.Context, mergedFeatureHeadShas []stri
 
 	releaseBranch := tp.cfg.ReleaseBranch()
 
-	logArgs := []string{"log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
-	if tp.normalizedTagPrefix != "" {
-		logArgs = append(logArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
-	}
+	logArgs := tagLogArgs(tp.normalizedTagPrefix, "log", "--pretty=format:%h", "--abbrev=7", "--no-merges", "--first-parent",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
 	shasStr, _, err := tp.c.Git(logArgs...)
 	if err != nil {
 		return []string{}, err
@@ -482,23 +463,13 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 		}
 		return tp.completeRelease(ctx, plan, pr, tagExists)
 	}
-	mergeLogArgs := []string{"log", "--merges", "--first-parent", "--pretty=format:%P",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch)}
-	if tp.normalizedTagPrefix != "" {
-		mergeLogArgs = append(mergeLogArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
-	}
+	mergeLogArgs := tagLogArgs(tp.normalizedTagPrefix, "log", "--merges", "--first-parent", "--pretty=format:%P",
+		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
 	shasStr, _, err := tp.c.Git(mergeLogArgs...)
 	if err != nil {
 		return err
 	}
-	var mergedFeatureHeadShas []string
-	for line := range strings.SplitSeq(shasStr, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		mergedFeatureHeadShas = append(mergedFeatureHeadShas, fields[1])
-	}
+	mergedFeatureHeadShas := mergedFeatureHeads(shasStr)
 	prShasStr, _, err := tp.c.Git("ls-remote", tp.remoteName, "refs/pull/*/head")
 	if err != nil {
 		return err
@@ -591,40 +562,9 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	if err != nil {
 		return err
 	}
-	var treeEntries []*github.TreeEntry
-	for line := range strings.SplitSeq(diffFiles, "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		if !strings.HasPrefix(line, ":") {
-			continue
-		}
-		parts := strings.Fields(line)
-		if len(parts) < 6 {
-			continue
-		}
-
-		newMode, status, filePath := parts[1], parts[4], parts[5]
-		switch status {
-		case "A", "M": // Created or modified files
-			contentBytes, err := os.ReadFile(filePath)
-			if err != nil {
-				return err
-			}
-			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path:    new(filePath),
-				Type:    new("blob"),
-				Content: new(string(contentBytes)),
-				Mode:    new(newMode),
-			})
-		case "D": // Deleted files
-			treeEntries = append(treeEntries, &github.TreeEntry{
-				SHA:  nil,
-				Path: new(filePath),
-				Type: new("blob"),
-				Mode: new("100644"),
-			})
-		}
+	treeEntries, err := treeEntriesFromDiff(diffFiles)
+	if err != nil {
+		return err
 	}
 
 	var tree *github.Tree
@@ -663,11 +603,8 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	// cherry-pick if the remote branch is exists and changed
 	// XXX: Do I need to apply merge commits too?
 	//     (We omitted merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	cherryLogArgs := []string{"log", "--no-merges", "--pretty=format:%h %s",
-		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch)}
-	if tp.normalizedTagPrefix != "" {
-		cherryLogArgs = append(cherryLogArgs, "--", strings.TrimSuffix(tp.normalizedTagPrefix, "/"))
-	}
+	cherryLogArgs := tagLogArgs(tp.normalizedTagPrefix, "log", "--no-merges", "--pretty=format:%h %s",
+		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch))
 	out, _, err := tp.c.Git(cherryLogArgs...)
 	if err == nil {
 		var cherryPicks []string
@@ -809,10 +746,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	tp.cfg.Reload()
 	tp.normalizedTagPrefix = normalizeTagPrefix(tp.cfg.TagPrefix())
 	if tp.cfg.VersionFile() != "" && tp.cfg.VersionFile() != "-" {
-		vfiles = strings.Split(tp.cfg.VersionFile(), ",")
-		for i, v := range vfiles {
-			vfiles[i] = strings.TrimSpace(v)
-		}
+		vfiles = splitVersionFiles(tp.cfg.VersionFile())
 	}
 	if len(vfiles) > 0 && vfiles[0] != "" {
 		if tp.cfg.CalendarVersioning() {
@@ -1064,10 +998,7 @@ func (tp *tagpr) getVfiles(currVer *semv) ([]string, error) {
 	var vfiles []string
 
 	if vf := tp.cfg.VersionFile(); vf != "" && vf != "-" {
-		vfiles = strings.Split(vf, ",")
-		for i, v := range vfiles {
-			vfiles[i] = strings.TrimSpace(v)
-		}
+		vfiles = splitVersionFiles(vf)
 	} else if tp.cfg.versionFile == nil {
 		vfile, err := detectVersionFile(".", currVer)
 		if err != nil {
