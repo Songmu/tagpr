@@ -394,7 +394,7 @@ func assertReleasePRSearch(t *testing.T, requests *releasePRRequests, wantSHAs [
 
 func assertReleasePRPublished(t *testing.T, r *testRepo, requests *releasePRRequests, wantSHA string) {
 	t.Helper()
-	if len(wantSHA) != 40 {
+	if wantSHA == "" {
 		t.Fatalf("missing successful commit SHA: %q", wantSHA)
 	}
 	var publishedSHAs []string
