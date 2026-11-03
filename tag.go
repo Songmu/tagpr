@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -161,18 +164,6 @@ func mergedBaseSHA(pr *github.PullRequest) (string, error) {
 	return sha, nil
 }
 
-func (tp *tagpr) withCheckout(commitish, restoreBranch string, fn func() error) (err error) {
-	if _, _, err := tp.c.Git("checkout", commitish); err != nil {
-		return err
-	}
-	defer func() {
-		if _, _, restoreErr := tp.c.Git("checkout", restoreBranch); restoreErr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to checkout %s: %w", restoreBranch, restoreErr))
-		}
-	}()
-	return fn()
-}
-
 func (tp *tagpr) tagSigningEnabled() (bool, error) {
 	value, stderr, err := tp.c.Git("config", "--bool", "--get", "tag.gpgSign")
 	if err != nil {
@@ -197,7 +188,7 @@ func (tp *tagpr) prepareReleasePlan(
 		return releasePlan{}, err
 	}
 	pendingTag, err := tp.calculateReleaseTag(
-		pr, currVer, boundarySHA, targetSHA, tp.cfg.ReleaseBranch())
+		pr, currVer, boundarySHA, targetSHA)
 	if err != nil {
 		return releasePlan{}, err
 	}
@@ -211,46 +202,79 @@ func (tp *tagpr) prepareReleasePlan(
 }
 
 func (tp *tagpr) releaseVersionFile(
-	currVer *semv, boundarySHA, restoreCommitish string,
+	currVer *semv, boundarySHA string,
 ) (string, error) {
-	var vfile string
-	if tp.cfg.VersionFile() == "" {
-		if err := tp.withCheckout(boundarySHA, restoreCommitish, func() error {
-			var detectErr error
-			vfile, detectErr = detectVersionFile(".", currVer)
-			return detectErr
-		}); err != nil {
+	if tp.cfg.VersionFile() == "-" {
+		return "", nil
+	}
+	if tp.cfg.VersionFile() != "" {
+		return strings.TrimSpace(strings.Split(tp.cfg.VersionFile(), ",")[0]), nil
+	}
+	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(currVer.Naked()))
+	if err != nil {
+		return "", err
+	}
+	c := *tp.c
+	c.outStream = io.Discard
+	out, _, err := c.Git("grep", "--full-name", "--name-only", "--null",
+		"--fixed-strings", "--no-color", "--no-recurse-submodules",
+		"-e", currVer.Naked(), boundarySHA, "--")
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+			return "", nil
+		}
+		return "", err
+	}
+	var matches []string
+	for ref := range strings.SplitSeq(out, "\x00") {
+		if ref == "" {
+			continue
+		}
+		path := strings.TrimPrefix(ref, boundarySHA+":")
+		parts := strings.Split(path, "/")
+		skip := isSkipFile(parts[len(parts)-1])
+		for _, dir := range parts[:len(parts)-1] {
+			skip = skip || skipDirs[dir]
+		}
+		if skip {
+			continue
+		}
+		content, _, err := c.Git("show", boundarySHA+":"+path)
+		if err != nil {
 			return "", err
 		}
-	} else if tp.cfg.VersionFile() != "-" {
-		vfiles := strings.Split(tp.cfg.VersionFile(), ",")
-		vfile = strings.TrimSpace(vfiles[0])
+		if verReg.MatchString(content) {
+			matches = append(matches, filepath.ToSlash(path))
+		}
 	}
+	vfile, _ := versionFile(matches)
 	return vfile, nil
 }
 
 func (tp *tagpr) calculateReleaseTag(
 	pr *github.PullRequest,
 	currVer *semv,
-	boundarySHA, targetSHA, restoreCommitish string,
+	boundarySHA, targetSHA string,
 ) (string, error) {
-	vfile, err := tp.releaseVersionFile(currVer, boundarySHA, restoreCommitish)
+	vfile, err := tp.releaseVersionFile(currVer, boundarySHA)
 	if err != nil {
 		return "", err
 	}
 
 	var nextTag string
 	if vfile != "" {
-		if err := tp.withCheckout(targetSHA, restoreCommitish, func() error {
-			nextVer, retrieveErr := retrieveVersionFromFile(vfile, currVer)
-			if retrieveErr != nil {
-				return retrieveErr
-			}
-			nextTag = nextVer.Tag()
-			return nil
-		}); err != nil {
+		c := *tp.c
+		c.outStream = io.Discard
+		content, _, err := c.Git("show", targetSHA+":"+vfile)
+		if err != nil {
 			return "", err
 		}
+		nextVer, err := retrieveVersionFromContents(vfile, []byte(content), currVer)
+		if err != nil {
+			return "", err
+		}
+		nextTag = nextVer.Tag()
 	} else {
 		var labels []string
 		for _, l := range pr.Labels {
@@ -436,13 +460,6 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 		return fmt.Errorf("base tag changed from %q to %q", plan.BaseTag, latestTag)
 	}
 
-	restoreCommitish, _, err := tp.c.Git("symbolic-ref", "--quiet", "--short", "HEAD")
-	if err != nil {
-		restoreCommitish, _, err = tp.c.Git("rev-parse", "HEAD")
-		if err != nil {
-			return err
-		}
-	}
 	currVer, err := tp.versionFromBaseTag(plan.BaseTag)
 	if err != nil {
 		return err
@@ -451,7 +468,7 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 		if err := tp.validateCalverTag(plan.Tag); err != nil {
 			return err
 		}
-		vfile, err := tp.releaseVersionFile(currVer, boundarySHA, restoreCommitish)
+		vfile, err := tp.releaseVersionFile(currVer, boundarySHA)
 		if err != nil {
 			return err
 		}
@@ -460,7 +477,7 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 		}
 	}
 	recalculatedTag, err := tp.calculateReleaseTag(
-		pr, currVer, boundarySHA, targetSHA, restoreCommitish)
+		pr, currVer, boundarySHA, targetSHA)
 	if err != nil {
 		return err
 	}

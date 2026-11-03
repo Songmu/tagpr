@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -775,34 +774,6 @@ func TestReleaseBoundarySHA(t *testing.T) {
 	}
 }
 
-func TestWithCheckoutRestoresBranchOnError(t *testing.T) {
-	r := newTestRepo(t, "")
-	boundarySHA := r.git("rev-parse", "HEAD")
-	r.commit("later.txt", "later\n", "advance main")
-	sentinel := errors.New("detection failed")
-	tp := &tagpr{
-		c: &commander{
-			gitPath:   "git",
-			dir:       r.dir,
-			outStream: io.Discard,
-			errStream: io.Discard,
-		},
-	}
-
-	err := tp.withCheckout(boundarySHA, "main", func() error {
-		if got := r.git("rev-parse", "HEAD"); got != boundarySHA {
-			t.Errorf("HEAD = %s, want boundary %s", got, boundarySHA)
-		}
-		return sentinel
-	})
-	if !errors.Is(err, sentinel) {
-		t.Fatalf("withCheckout() error = %v, want %v", err, sentinel)
-	}
-	if got := r.git("symbolic-ref", "--short", "HEAD"); got != "main" {
-		t.Errorf("current branch = %s, want main", got)
-	}
-}
-
 // TestTagReleaseStaleBase ensures that the "before" SHA of the push event is used
 // even when the base SHA of the release pull request is stale because the release
 // branch advanced after the release pull request was last updated.
@@ -1134,6 +1105,106 @@ func TestApplyReleasePlanAcceptsDifferentTagObjectsForSameCommit(t *testing.T) {
 				t.Errorf("fetch changed the lightweight local tag to %q", got)
 			}
 		})
+	}
+}
+
+func TestReleasePlanReadsCommittedVersion(t *testing.T) {
+	for _, versionFile := range []string{"version.go", ""} {
+		t.Run("versionFile="+versionFile, func(t *testing.T) {
+			r := newTestRepo(t, `const version = "0.1.0"`)
+			t.Chdir(r.dir)
+			baseSHA := r.merge("merge")
+			targetSHA := r.git("rev-parse", "HEAD")
+			r.git("push", "origin", "main")
+			staged := `const version = "0.9.0"`
+			dirty := `const version = "0.9.1"`
+			if err := os.WriteFile(filepath.Join(r.dir, "version.go"), []byte(staged), 0644); err != nil {
+				t.Fatal(err)
+			}
+			r.git("add", "version.go")
+			if err := os.WriteFile(filepath.Join(r.dir, "version.go"), []byte(dirty), 0644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(r.dir, "aaa.go"), []byte(`const version = "0.1.0"`), 0644); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("GITHUB_OUTPUT", "")
+			if err := os.Unsetenv("GITHUB_OUTPUT"); err != nil {
+				t.Fatal(err)
+			}
+			tp, _ := newTestTagpr(t, r, newTestConfig(versionFile))
+			t.Setenv(envGitHubEventName, "push")
+			t.Setenv(envGitHubEventPath, writeEventFile(t,
+				`{"before":"`+baseSHA+`","after":"`+targetSHA+`","ref":"refs/heads/main"}`))
+			var output, diagnostics bytes.Buffer
+			tp.out, tp.c.outStream = &output, &diagnostics
+			tp.runOptions = runOptions{Mode: executionModePlan}
+			if err := tp.Run(context.Background()); err != nil {
+				t.Errorf("plan with local version edits failed: %v", err)
+			} else {
+				var plan releasePlan
+				if err := json.Unmarshal(output.Bytes(), &plan); err != nil {
+					t.Fatal(err)
+				}
+				if plan.Tag != "v0.2.0" || plan.CommitSHA != targetSHA {
+					t.Errorf("plan used local edits: %#v", plan)
+				}
+			}
+			plan := releasePlan{
+				Tag: "v0.9.1", CommitSHA: targetSHA, BaseTag: "v0.1.0",
+				PullRequestNumber: 1, ReleaseNotesBoundarySHA: baseSHA,
+			}
+			tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+			if err := tp.Run(context.Background()); err == nil || !strings.Contains(err.Error(), "planned tag changed") {
+				t.Fatalf("locally edited version error = %v, want a changed-tag error", err)
+			}
+			plan.Tag = "v0.2.0"
+			if err := tp.Run(context.Background()); err != nil {
+				t.Fatalf("apply of the committed version failed: %v", err)
+			}
+			if got := r.git("rev-parse", plan.Tag); got != targetSHA {
+				t.Errorf("tag = %s, want %s", got, targetSHA)
+			}
+			if got := r.git("show", ":version.go"); got != staged {
+				t.Errorf("staged version changed: %q", got)
+			}
+			if got, err := os.ReadFile(filepath.Join(r.dir, "version.go")); err != nil || string(got) != dirty {
+				t.Errorf("working version changed: %q, err=%v", got, err)
+			}
+			if got := r.git("symbolic-ref", "--short", "HEAD"); got != "main" {
+				t.Errorf("branch changed to %s", got)
+			}
+			if strings.Contains(diagnostics.String(), "const version") {
+				t.Error("version file contents leaked into diagnostics")
+			}
+		})
+	}
+}
+
+func TestReleasePlanRejectsUntrackedVersionFile(t *testing.T) {
+	r := newTestRepo(t, "")
+	t.Chdir(r.dir)
+	baseSHA := r.merge("merge")
+	targetSHA := r.git("rev-parse", "HEAD")
+	r.git("push", "origin", "main")
+	if err := os.WriteFile(filepath.Join(r.dir, "untracked.go"), []byte(`const version = "0.2.0"`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	tp, _ := newTestTagpr(t, r, newTestConfig("untracked.go"))
+	t.Setenv(envGitHubEventName, "push")
+	t.Setenv(envGitHubEventPath, writeEventFile(t,
+		`{"before":"`+baseSHA+`","after":"`+targetSHA+`","ref":"refs/heads/main"}`))
+	tp.runOptions = runOptions{Mode: executionModePlan}
+	if err := tp.Run(context.Background()); err == nil {
+		t.Error("plan accepted a version file absent from the target commit")
+	}
+	plan := releasePlan{
+		Tag: "v0.2.0", CommitSHA: targetSHA, BaseTag: "v0.1.0",
+		PullRequestNumber: 1, ReleaseNotesBoundarySHA: baseSHA,
+	}
+	tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+	if err := tp.Run(context.Background()); err == nil {
+		t.Fatal("apply accepted a version file absent from the target commit")
 	}
 }
 
