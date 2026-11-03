@@ -360,10 +360,22 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	commitMessage := tp.cfg.CommitPrefix() + " " + autoCommitMessage
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
 
-	latestSemverTag := tp.latestSemverTag()
-	if tp.runOptions.Mode != executionModeApply {
-		tp.setOutput("base_tag", latestSemverTag)
+	releaseBranch := tp.cfg.ReleaseBranch()
+	if releaseBranch == "" {
+		releaseBranch, _ = tp.defaultBranch()
+		if releaseBranch == "" {
+			releaseBranch = defaultReleaseBranch
+		}
+		if err := tp.cfg.SetReleaseBranch(releaseBranch); err != nil {
+			return err
+		}
 	}
+	if tp.runOptions.Mode == executionModeApply {
+		return tp.applyReleasePlan(ctx, *tp.runOptions.Plan)
+	}
+
+	latestSemverTag := tp.latestSemverTag()
+	tp.setOutput("base_tag", latestSemverTag)
 	currVerStr := latestSemverTag
 	fromCommitish := "refs/tags/" + currVerStr
 	if currVerStr == "" {
@@ -392,21 +404,6 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 
 	currVer.asCalendarVersion = tp.cfg.CalendarVersioning()
 	currVer.calverFormat = tp.cfg.CalendarVersioningFormat()
-
-	releaseBranch := tp.cfg.ReleaseBranch()
-	if releaseBranch == "" {
-		releaseBranch, _ = tp.defaultBranch()
-		if releaseBranch == "" {
-			releaseBranch = defaultReleaseBranch
-		}
-		if err := tp.cfg.SetReleaseBranch(releaseBranch); err != nil {
-			return err
-		}
-	}
-
-	if tp.runOptions.Mode == executionModeApply {
-		return tp.applyReleasePlan(ctx, *tp.runOptions.Plan)
-	}
 
 	branch, _, err := tp.c.Git("symbolic-ref", "--short", "HEAD")
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Songmu/gitconfig"
 	"github.com/google/go-github/v93/github"
 )
 
@@ -1044,29 +1045,52 @@ func TestApplyReleasePlanFetchesMissingTargetCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("GIT_CONFIG_GLOBAL", globalConfig)
-	r := newTestRepo(t, "")
-	checkout := &testRepo{dir: t.TempDir(), t: t}
-	r.git("clone", "--branch", "main", r.git("remote", "get-url", "origin"), checkout.dir)
-	checkout.git("config", "tag.gpgsign", "false")
-	baseSHA := r.merge("merge")
-	targetSHA := r.git("rev-parse", "HEAD")
-	r.git("push", "origin", "main", "refs/tags/v0.1.0")
-	t.Chdir(checkout.dir)
-	tp, _ := newTestTagpr(t, r, newTestConfig("-"))
-	tp.c.dir = checkout.dir
-	plan := releasePlan{
-		Tag:                     "v0.1.1",
-		CommitSHA:               targetSHA,
-		BaseTag:                 "v0.1.0",
-		PullRequestNumber:       1,
-		ReleaseNotesBoundarySHA: baseSHA,
+	tests := []struct {
+		baseTag, tag string
+		calendar     bool
+	}{
+		{baseTag: "v0.1.0", tag: "v0.1.1"},
+		{baseTag: "0.1.0", tag: "0.1.1"},
+		{baseTag: "v2000.1031.0", tag: "v2000.1101.0", calendar: true},
+		{baseTag: "2000.1031.0", tag: "2000.1101.0", calendar: true},
 	}
-	tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
-	if err := tp.Run(context.Background()); err != nil {
-		t.Fatalf("Run() with a target missing from the initial checkout failed: %v", err)
-	}
-	if got := checkout.git("rev-parse", "refs/tags/v0.1.1^{commit}"); got != targetSHA {
-		t.Errorf("tagged %s, want the fetched plan commit %s", got, targetSHA)
+	for _, tt := range tests {
+		t.Run(tt.tag, func(t *testing.T) {
+			r := newTestRepo(t, "")
+			initialSHA := r.git("rev-parse", "HEAD")
+			r.git("tag", "-d", "v0.1.0")
+			r.git("tag", tt.baseTag, initialSHA)
+			checkout := &testRepo{dir: t.TempDir(), t: t}
+			r.git("clone", "--branch", "main", r.git("remote", "get-url", "origin"), checkout.dir)
+			checkout.git("config", "tag.gpgsign", "false")
+			baseSHA := r.merge("merge")
+			targetSHA := r.git("rev-parse", "HEAD")
+			r.git("push", "origin", "main", "refs/tags/"+tt.baseTag)
+			t.Chdir(checkout.dir)
+			cfg := newTestConfig("-")
+			cfg.vPrefix = nil
+			cfg.conf = filepath.Join(checkout.dir, ".tagpr")
+			cfg.gitconfig = &gitconfig.Config{GitPath: "git", File: cfg.conf}
+			if tt.calendar {
+				cfg.calendarVersioning = new("true")
+			}
+			tp, _ := newTestTagpr(t, r, cfg)
+			tp.c.dir = checkout.dir
+			plan := releasePlan{
+				Tag:                     tt.tag,
+				CommitSHA:               targetSHA,
+				BaseTag:                 tt.baseTag,
+				PullRequestNumber:       1,
+				ReleaseNotesBoundarySHA: baseSHA,
+			}
+			tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+			if err := tp.Run(context.Background()); err != nil {
+				t.Fatalf("Run() with a target missing from the initial checkout failed: %v", err)
+			}
+			if got := checkout.git("rev-parse", "refs/tags/"+tt.tag+"^{commit}"); got != targetSHA {
+				t.Errorf("tagged %s, want the fetched plan commit %s", got, targetSHA)
+			}
+		})
 	}
 }
 

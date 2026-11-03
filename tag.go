@@ -375,6 +375,15 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 	if err := tp.fetchReleaseRefs(); err != nil {
 		return fmt.Errorf("failed to fetch release branch and tags: %w", err)
 	}
+	if tp.cfg.vPrefix == nil {
+		currVer, err := tp.versionFromBaseTag(tp.latestSemverTag())
+		if err != nil {
+			return err
+		}
+		if err := tp.cfg.SetVPrefix(currVer.vPrefix); err != nil {
+			return err
+		}
+	}
 	targetSHA, err := tp.resolveExactCommit(plan.CommitSHA)
 	if err != nil {
 		return fmt.Errorf("failed to resolve plan commit SHA: %w", err)
@@ -468,7 +477,10 @@ func (tp *tagpr) validateCalverTag(tag string) error {
 		format = defaultCalendarVersioningFormat
 	}
 	prefix := tp.normalizedTagPrefix
-	vPrefix := tp.cfg.vPrefix == nil || *tp.cfg.vPrefix
+	vPrefix := strings.HasPrefix(strings.TrimPrefix(tag, prefix), "v")
+	if tp.cfg.vPrefix != nil {
+		vPrefix = *tp.cfg.vPrefix
+	}
 	if vPrefix {
 		prefix += "v"
 	}
