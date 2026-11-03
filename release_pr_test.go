@@ -41,9 +41,12 @@ type releasePRRequests struct {
 	stderr      bytes.Buffer
 	outputFile  string
 
-	existing    bool
-	pullStatus  int
-	mergeStatus map[string]int
+	existing       bool
+	existingLabels []string
+	searchIssues   []*github.Issue
+	pullStatus     int
+	mergeStatus    map[string]int
+	mergeTrees     map[string]string
 }
 
 // newReleasePRTagpr exercises local Git normally and stubs only the GitHub
@@ -80,7 +83,12 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 	}
 	requests := &releasePRRequests{
 		mergeStatus: map[string]int{},
+		mergeTrees:  map[string]string{},
 		outputFile:  filepath.Join(r.dir, "output"),
+		searchIssues: []*github.Issue{{
+			Number: new(8), User: &github.User{Login: new("developer")},
+			Labels: []*github.Label{{Name: "minor"}},
+		}},
 	}
 	t.Setenv("GITHUB_OUTPUT", requests.outputFile)
 
@@ -109,9 +117,17 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 	prResponse := func() *github.PullRequest {
 		pr := &github.PullRequest{
 			Number: new(42), Title: new("Release v0.2.0"), Body: new("updated body"),
-			Head:   &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
-			Base:   &github.PullRequestBranch{Ref: new("main")},
-			Labels: []*github.Label{{Name: "tagpr"}, {Name: "tagpr:minor"}},
+			Head: &github.PullRequestBranch{Ref: new("tagpr-from-v0.1.0")},
+			Base: &github.PullRequestBranch{Ref: new("main")},
+		}
+		if requests.existing {
+			pr.Labels = append(pr.Labels, &github.Label{Name: "tagpr"})
+			for _, label := range requests.existingLabels {
+				pr.Labels = append(pr.Labels, &github.Label{Name: label})
+			}
+		}
+		for _, label := range requests.labels {
+			pr.Labels = append(pr.Labels, &github.Label{Name: label})
 		}
 		if requests.pull != nil {
 			if err := json.Unmarshal(requests.pull["title"], &pr.Title); err != nil {
@@ -138,10 +154,7 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 			// A feature PR association avoids the release-index retry delay.
 			encode([]*github.PullRequest{{Number: new(7)}})
 		case req.URL.Path == "/search/issues":
-			encode(map[string]any{"total_count": 1, "items": []*github.Issue{{
-				Number: new(7), User: &github.User{Login: new("developer")},
-				Labels: []*github.Label{{Name: "minor"}},
-			}}})
+			encode(map[string]any{"total_count": len(requests.searchIssues), "items": requests.searchIssues})
 		case path == "/issues/7" && req.Method == http.MethodGet:
 			requests.featurePRs = append(requests.featurePRs, 7)
 			encode(&github.Issue{
@@ -155,7 +168,6 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 			if requests.existing {
 				pr := prResponse()
 				pr.Title, pr.Body = new("old title"), new("User instructions\n\n---\nold notes")
-				pr.Labels = []*github.Label{{Name: "tagpr"}}
 				encode([]*github.PullRequest{pr})
 			} else {
 				encode([]*github.PullRequest{})
@@ -226,8 +238,15 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 				encode(map[string]string{"message": "merge failed"})
 				return
 			}
-			// The manual PR commit's fixture tree represents the merged result.
-			encode(repositoryCommit(body.Head))
+			tree, ok := requests.mergeTrees[body.Head]
+			if !ok {
+				t.Errorf("missing merge-result fixture for %s", body.Head)
+				http.Error(w, "missing merge-result fixture", http.StatusInternalServerError)
+				return
+			}
+			merged := repositoryCommit(body.Head)
+			merged.Commit.Tree.SHA = new(tree)
+			encode(merged)
 		case path == "/git/refs" && req.Method == http.MethodPost:
 			var body github.CreateRef
 			decode(&body)
@@ -313,8 +332,20 @@ func assertReleasePROutput(t *testing.T, requests *releasePRRequests) {
 				t.Fatal(err)
 			}
 			if pr.GetNumber() != 42 || pr.GetTitle() != pullRequestField(t, requests, "title") ||
-				pr.GetBody() != pullRequestField(t, requests, "body") || len(pr.Labels) != 2 {
+				pr.GetBody() != pullRequestField(t, requests, "body") {
 				t.Errorf("output does not contain the refreshed PR: %s", encoded)
+			}
+			var got, want []string
+			for _, label := range pr.Labels {
+				got = append(got, label.GetName())
+			}
+			if requests.existing {
+				want = append(want, "tagpr")
+				want = append(want, requests.existingLabels...)
+			}
+			want = append(want, requests.labels...)
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("output PR labels = %v, want post-addition labels %v", got, want)
 			}
 			return
 		}
@@ -325,6 +356,7 @@ func assertReleasePROutput(t *testing.T, requests *releasePRRequests) {
 func TestRunCreatesReleasePR(t *testing.T) {
 	r := newTestRepo(t, "package test\nconst Version = \"0.1.0\"\n")
 	tp, requests := newReleasePRTagpr(t, r)
+	requests.searchIssues = nil
 	r.git("config", "-f", ".tagpr", "--unset", configVersionFile)
 	var err error
 	tp.cfg, err = newConfig("git")
@@ -400,6 +432,7 @@ func TestRunUpdatesReleasePROmitsBase(t *testing.T) {
 	r := newTestRepo(t, "package test\nconst Version = \"0.1.0\"\n")
 	tp, requests := newReleasePRTagpr(t, r)
 	requests.existing = true
+	requests.existingLabels = []string{"tagpr:major"}
 	r.git("push", "origin", "tagpr-from-v0.1.0")
 	if err := tp.cfg.set(configTemplateText, "Release {{.NextVersion}}\n\n---\nNew notes"); err != nil {
 		t.Fatal(err)
@@ -416,8 +449,11 @@ func TestRunUpdatesReleasePROmitsBase(t *testing.T) {
 	if _, present := requests.pull["base"]; present {
 		t.Errorf("PATCH must omit base: %s", requests.pull["base"])
 	}
-	if got := pullRequestField(t, requests, "title"); got != "Release v0.2.0" {
+	if got := pullRequestField(t, requests, "title"); got != "Release v1.0.0" {
 		t.Errorf("title = %q", got)
+	}
+	if got := r.git("show", requests.updatedRefs[0].SHA+":version.go"); !strings.Contains(got, `"1.0.0"`) {
+		t.Errorf("existing major label did not override new minor label: %q", got)
 	}
 	if got := pullRequestField(t, requests, "body"); got != "---\nNew notes" {
 		t.Errorf("replacement body = %q", got)
@@ -432,44 +468,62 @@ func TestRunUpdatesReleasePROmitsBase(t *testing.T) {
 }
 
 func TestRunHookFailuresContinueAndJoinLaterError(t *testing.T) {
-	r := newTestRepo(t, "package test\nconst Version = \"0.1.0\"\n")
-	tp, requests := newReleasePRTagpr(t, r)
-	for key, command := range map[string]string{
-		configCommand:            `cat version.go > pre-version; printf 'pre failed\n' >&2; exit 2`,
-		configPostVersionCommand: `cat version.go > post-version; printf 'post failed\n' >&2; exit 3`,
+	for _, tt := range []struct {
+		name   string
+		status int
+	}{
+		{"PR succeeds", 0},
+		{"PR fails", http.StatusInternalServerError},
 	} {
-		if err := tp.cfg.set(key, command); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := tp.cfg.Reload(); err != nil {
-		t.Fatal(err)
-	}
-	requests.pullStatus = http.StatusInternalServerError
-	err := tp.Run(context.Background())
-	if err == nil {
-		t.Fatal("Run succeeded despite hook and PR failures")
-	}
-	for _, want := range []string{configCommand, "exit status 2", "pre failed", configPostVersionCommand, "exit status 3", "post failed", "PR processing failed"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("joined error %q does not contain %q", err, want)
-		}
-	}
-	var apiErr *github.ErrorResponse
-	if !errors.As(err, &apiErr) || apiErr.Response.StatusCode != http.StatusInternalServerError {
-		t.Errorf("joined error lost API error: %v", err)
-	}
-	if !strings.Contains(readReleasePRFile(t, "pre-version"), `"0.1.0"`) ||
-		!strings.Contains(readReleasePRFile(t, "post-version"), `"0.2.0"`) {
-		t.Error("hooks did not run on the expected sides of the bump")
-	}
-	if requests.pullMethod != http.MethodPost || len(requests.updatedRefs) != 1 {
-		t.Error("hook failures prevented branch/PR processing")
-	}
-	for _, name := range []string{configCommand, configPostVersionCommand} {
-		if !strings.Contains(requests.stderrAtPR, "::error title="+name+" failed::") {
-			t.Errorf("hook failure was not annotated before PR processing: %s", requests.stderrAtPR)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			r := newTestRepo(t, "package test\nconst Version = \"0.1.0\"\n")
+			tp, requests := newReleasePRTagpr(t, r)
+			for key, command := range map[string]string{
+				configCommand:            `cat version.go > pre-version; printf 'pre failed\n' >&2; exit 2`,
+				configPostVersionCommand: `cat version.go > post-version; printf 'post failed\n' >&2; exit 3`,
+			} {
+				if err := tp.cfg.set(key, command); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := tp.cfg.Reload(); err != nil {
+				t.Fatal(err)
+			}
+			requests.pullStatus = tt.status
+			err := tp.Run(context.Background())
+			if err == nil {
+				t.Fatal("Run succeeded despite hook failures")
+			}
+			for _, want := range []string{configCommand, "exit status 2", "pre failed", configPostVersionCommand, "exit status 3", "post failed"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("joined error %q does not contain %q", err, want)
+				}
+			}
+			var apiErr *github.ErrorResponse
+			if tt.status != 0 {
+				if !errors.As(err, &apiErr) || apiErr.Response.StatusCode != tt.status ||
+					!strings.Contains(err.Error(), "PR processing failed") {
+					t.Errorf("joined error lost API error: %v", err)
+				}
+			} else {
+				if errors.As(err, &apiErr) {
+					t.Errorf("successful PR processing returned an API error: %v", err)
+				}
+				assertReleasePROutput(t, requests)
+			}
+			if !strings.Contains(readReleasePRFile(t, "pre-version"), `"0.1.0"`) ||
+				!strings.Contains(readReleasePRFile(t, "post-version"), `"0.2.0"`) {
+				t.Error("hooks did not run on the expected sides of the bump")
+			}
+			if requests.pullMethod != http.MethodPost || len(requests.updatedRefs) != 1 {
+				t.Error("hook failures prevented branch/PR processing")
+			}
+			for _, name := range []string{configCommand, configPostVersionCommand} {
+				if !strings.Contains(requests.stderrAtPR, "::error title="+name+" failed::") {
+					t.Errorf("hook failure was not annotated before PR processing: %s", requests.stderrAtPR)
+				}
+			}
+		})
 	}
 }
 
@@ -545,6 +599,17 @@ func TestRunCherryPicksOldestFirstAndReloads(t *testing.T) {
 	newest := r.git("rev-parse", "--short", "HEAD")
 	override := r.git("rev-parse", "--short", "HEAD^")
 	r.git("push", "origin", "tagpr-from-v0.1.0")
+	// Explicit merge-result snapshots retain the generated version bump and
+	// accepted manual changes, without importing the skipped conflicting tree.
+	r.git("checkout", "-b", "merge-results", "main")
+	r.commit("version.go", "package test\nconst Version = \"0.2.0\"\n", "fixture version bump")
+	r.commit("MANUAL.md", "first\n", "fixture first merge")
+	requests.mergeTrees[oldest] = r.git("rev-parse", "HEAD^{tree}")
+	r.commit("custom-version", "1.4.0\n", "fixture version override")
+	requests.mergeTrees[override] = r.git("rev-parse", "HEAD^{tree}")
+	r.git("checkout", newest, "--", ".tagpr")
+	r.git("commit", "-m", "fixture config override")
+	requests.mergeTrees[newest] = r.git("rev-parse", "HEAD^{tree}")
 	r.git("checkout", "main")
 	requests.mergeStatus[conflict] = http.StatusConflict
 	if err := tp.Run(context.Background()); err != nil {
@@ -573,6 +638,12 @@ func TestRunCherryPicksOldestFirstAndReloads(t *testing.T) {
 	}
 	if got := r.git("show", requests.updatedRefs[len(requests.updatedRefs)-1].SHA+":custom-version"); got != "1.4.0" {
 		t.Errorf("published custom version = %q", got)
+	}
+	if got := r.git("show", requests.updatedRefs[len(requests.updatedRefs)-1].SHA+":MANUAL.md"); got != "first" {
+		t.Errorf("published manual changes = %q, want accepted first change only", got)
+	}
+	if got := readReleasePRFile(t, "MANUAL.md"); got != "first\n" {
+		t.Errorf("checked-out manual changes = %q, want first\\n", got)
 	}
 }
 
