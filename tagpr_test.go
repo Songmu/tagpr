@@ -482,12 +482,7 @@ func TestBuildGitLogArgsWithPathFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This tests the exact pattern used in tagpr.go for path filtering
-			args := make([]string, len(tt.baseArgs))
-			copy(args, tt.baseArgs)
-			if tt.normalizedTagPrefix != "" {
-				args = append(args, "--", strings.TrimSuffix(tt.normalizedTagPrefix, "/"))
-			}
+			args := tagLogArgs(tt.normalizedTagPrefix, tt.baseArgs...)
 			if !reflect.DeepEqual(args, tt.wantArgs) {
 				t.Errorf("got %v, want %v", args, tt.wantArgs)
 			}
