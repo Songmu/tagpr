@@ -8,7 +8,7 @@ import (
 	"github.com/google/go-github/v93/github"
 )
 
-func (tp *tagpr) updateReleaseBranchRef(ctx context.Context, rcBranch string, ref *github.Reference, newCommit *github.Commit) error {
+func (tp *tagpr) updateReleasePullRequestBranchRef(ctx context.Context, rcBranch string, ref *github.Reference, newCommit *github.Commit) error {
 	rcBranchRef := "refs/heads/" + rcBranch
 	_, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, rcBranchRef)
 	if err != nil {

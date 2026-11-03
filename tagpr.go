@@ -402,7 +402,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	if err != nil {
 		return err
 	}
-	if err := tp.updateReleaseBranchRef(ctx, rcBranch, ref, newCommit); err != nil {
+	if err := tp.updateReleasePullRequestBranchRef(ctx, rcBranch, ref, newCommit); err != nil {
 		return err
 	}
 	return tp.publishReleasePullRequest(ctx, currTagPR, prText, releaseBranch, head, addingLabels)

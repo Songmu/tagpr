@@ -111,7 +111,7 @@ func (tp *tagpr) replayReleaseCommit(ctx context.Context, commitish, tempRef str
 	}
 
 	mergeRequest := github.RepositoryMergeRequest{
-		Base: "tagpr-temp",
+		Base: strings.TrimPrefix(tempRef, "refs/heads/"),
 		Head: commitish,
 	}
 	mergeCommit, resp, err := tp.gh.Repositories.Merge(
