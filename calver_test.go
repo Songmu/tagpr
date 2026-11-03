@@ -406,6 +406,7 @@ func TestCalverWithTagPrefix(t *testing.T) {
 			tagPrefix:  "tools",
 			tags:       []string{"tools/v2026.0123.0", "tools/2026.0123.0"},
 			anyVPrefix: true,
+			tagSort:    "refname",
 			format:     "YYYY.0M0D.MICRO",
 			wantTag:    "tools/2026.0123.0",
 		},
