@@ -56,37 +56,51 @@ func (tp *tagpr) latestSemverTag(excludedTags ...string) string {
 		if slices.Contains(excludedTags, v) {
 			continue
 		}
-		semvPart := strings.TrimPrefix(v, tp.normalizedTagPrefix)
-		sv, err := newSemver(semvPart)
-		if err != nil {
+		sv := tp.semverTagCandidate(v, fixedMajor)
+		if sv == nil {
 			continue
 		}
-
-		// Filter by fixedMajorVersion
-		if fixedMajor != nil {
-			if sv.sv.Major() != *fixedMajor {
-				continue
-			}
-		}
-
-		// Filter by vPrefix
-		if tp.cfg.vPrefix != nil && strings.HasPrefix(semvPart, "v") != *tp.cfg.vPrefix {
-			continue
-		}
-		for version := sv.Tag(); ; version = strings.TrimSuffix(version, ".0") {
-			tag := fullTag(tp.normalizedTagPrefix, version)
-			if slices.Contains(vers, tag) {
-				if slices.Contains(excludedTags, tag) {
-					break
-				}
-				return tag
-			}
-			if !strings.HasSuffix(version, ".0") {
-				break
-			}
+		if tag := tp.resolveSemverTag(sv.Tag(), vers, excludedTags); tag != "" {
+			return tag
 		}
 	}
 	return ""
+}
+
+func (tp *tagpr) semverTagCandidate(tag string, fixedMajor *uint64) *semv {
+	semvPart := strings.TrimPrefix(tag, tp.normalizedTagPrefix)
+	sv, err := newSemver(semvPart)
+	if err != nil {
+		return nil
+	}
+	if fixedMajor != nil && sv.sv.Major() != *fixedMajor {
+		return nil
+	}
+	if tp.cfg.vPrefix != nil && strings.HasPrefix(semvPart, "v") != *tp.cfg.vPrefix {
+		return nil
+	}
+	return sv
+}
+
+func (tp *tagpr) resolveSemverTag(version string, tags, excludedTags []string) string {
+	for ; ; version = strings.TrimSuffix(version, ".0") {
+		tag := fullTag(tp.normalizedTagPrefix, version)
+		if slices.Contains(tags, tag) {
+			// An excluded precise tag must not fall back to a floating alias.
+			if slices.Contains(excludedTags, tag) {
+				return ""
+			}
+			return tag
+		}
+		if !strings.HasSuffix(version, ".0") {
+			return ""
+		}
+	}
+}
+
+type calverTag struct {
+	tag string
+	cv  *calver.Calver
 }
 
 func (tp *tagpr) latestCalverTag(excludedTags ...string) string {
@@ -94,51 +108,48 @@ func (tp *tagpr) latestCalverTag(excludedTags ...string) string {
 	if format == "" {
 		format = defaultCalendarVersioningFormat
 	}
-	prefix := tp.normalizedTagPrefix
-
 	out, _, err := tp.c.Git("tag", "-l")
 	if err != nil {
 		return ""
 	}
 
-	type tagCV struct {
-		tag string
-		cv  *calver.Calver
-	}
-	var tagCVs []tagCV
-
+	var tags []calverTag
 	for _, tag := range strings.Split(out, "\n") {
 		tag = strings.TrimSpace(tag)
 		if tag == "" || slices.Contains(excludedTags, tag) {
 			continue
 		}
-
-		if prefix != "" && !strings.HasPrefix(tag, prefix) {
-			continue
+		if cv := tp.parseCalverTag(tag, format); cv != nil {
+			tags = append(tags, calverTag{tag: tag, cv: cv})
 		}
-
-		verPart := strings.TrimPrefix(tag, prefix)
-		hasVPrefix := strings.HasPrefix(verPart, "v")
-		verStr := strings.TrimPrefix(verPart, "v")
-
-		if tp.cfg.vPrefix != nil && hasVPrefix != *tp.cfg.vPrefix {
-			continue
-		}
-
-		cv, err := calver.Parse(format, verStr)
-		if err != nil {
-			continue
-		}
-
-		tagCVs = append(tagCVs, tagCV{tag: tag, cv: cv})
 	}
+	return latestCalverTagString(tags)
+}
 
-	if len(tagCVs) == 0 {
+func (tp *tagpr) parseCalverTag(tag, format string) *calver.Calver {
+	prefix := tp.normalizedTagPrefix
+	if prefix != "" && !strings.HasPrefix(tag, prefix) {
+		return nil
+	}
+	verPart := strings.TrimPrefix(tag, prefix)
+	hasVPrefix := strings.HasPrefix(verPart, "v")
+	if tp.cfg.vPrefix != nil && hasVPrefix != *tp.cfg.vPrefix {
+		return nil
+	}
+	cv, err := calver.Parse(format, strings.TrimPrefix(verPart, "v"))
+	if err != nil {
+		return nil
+	}
+	return cv
+}
+
+func latestCalverTagString(tags []calverTag) string {
+	if len(tags) == 0 {
 		return ""
 	}
 
-	cvs := make(calver.Calvers, len(tagCVs))
-	for i, tc := range tagCVs {
+	cvs := make(calver.Calvers, len(tags))
+	for i, tc := range tags {
 		cvs[i] = tc.cv
 	}
 	latest, err := cvs.Latest()
@@ -146,7 +157,7 @@ func (tp *tagpr) latestCalverTag(excludedTags ...string) string {
 		return ""
 	}
 
-	for _, tc := range tagCVs {
+	for _, tc := range tags {
 		if tc.cv.String() == latest.String() {
 			return tc.tag
 		}

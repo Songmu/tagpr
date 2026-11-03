@@ -413,16 +413,82 @@ func TestLatestSemverTag(t *testing.T) {
 	vPrefixTrue := true
 	vPrefixFalse := false
 	tests := []struct {
-		name    string
-		vPrefix *bool
-		wantVer bool
+		name         string
+		vPrefix      *bool
+		wantVer      bool
+		tags         []string
+		tagPrefix    string
+		fixedMajor   string
+		excludedTags []string
+		wantTag      string
 	}{
-		{"github.com/Songmu/tagpr has a semver tag with 'v' prefix", &vPrefixTrue, true},
-		{"github.com/Songmu/tagpr has no semver tag without 'v' prefix", &vPrefixFalse, false},
-		{"github.com/Songmu/tagpr returns the first tag when no config exists", nil, true},
+		{name: "github.com/Songmu/tagpr has a semver tag with 'v' prefix", vPrefix: &vPrefixTrue, wantVer: true},
+		{name: "github.com/Songmu/tagpr has no semver tag without 'v' prefix", vPrefix: &vPrefixFalse},
+		{name: "github.com/Songmu/tagpr returns the first tag when no config exists", wantVer: true},
+		{
+			name:       "fixed major and v prefix filter namespaced candidates",
+			tags:       []string{"tools/v3.0.0", "tools/2.9.0", "tools/v2.1.0", "v9.0.0"},
+			tagPrefix:  "tools",
+			fixedMajor: "2",
+			vPrefix:    &vPrefixTrue,
+			wantTag:    "tools/v2.1.0",
+		},
+		{
+			name:       "v-prefixed fixed major accepts unprefixed versions",
+			tags:       []string{"v3.0.0", "v2.9.0", "2.1.0"},
+			fixedMajor: "v2",
+			vPrefix:    &vPrefixFalse,
+			wantTag:    "2.1.0",
+		},
+		{
+			name:       "invalid fixed major leaves selection unrestricted",
+			tags:       []string{"v1.0.0", "v2.0.0"},
+			fixedMajor: "invalid",
+			wantTag:    "v2.0.0",
+		},
+		{
+			name:         "excluded minor alias blocks fallback to major alias",
+			tags:         []string{"tools/v2", "tools/v2.0", "tools/v1.5.0"},
+			tagPrefix:    "tools",
+			excludedTags: []string{"tools/v2.0"},
+			wantTag:      "tools/v1.5.0",
+		},
+		{
+			name:    "full version takes precedence over floating aliases",
+			tags:    []string{"v2", "v2.0", "v2.0.0"},
+			wantTag: "v2.0.0",
+		},
+		{
+			name: "empty repository has no version",
+			tags: []string{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.tags != nil {
+				r := &testRepo{dir: t.TempDir(), t: t}
+				r.git("init", "--initial-branch=main")
+				r.git("config", "commit.gpgsign", "false")
+				r.git("config", "tag.gpgsign", "false")
+				r.commit("README.md", "# test\n", "initial commit")
+				for _, tag := range tt.tags {
+					r.git("tag", tag)
+				}
+				t.Chdir(r.dir)
+				tp := &tagpr{
+					gitPath: "git",
+					cfg: &config{
+						vPrefix:           tt.vPrefix,
+						tagPrefix:         &tt.tagPrefix,
+						fixedMajorVersion: &tt.fixedMajor,
+					},
+					normalizedTagPrefix: normalizeTagPrefix(tt.tagPrefix),
+				}
+				if got := tp.latestSemverTag(tt.excludedTags...); got != tt.wantTag {
+					t.Errorf("latestSemverTag() = %q, want %q", got, tt.wantTag)
+				}
+				return
+			}
 			tp, err := newTagPR(context.Background(), &commander{
 				gitPath: "git", outStream: os.Stdout, errStream: os.Stderr, dir: "."},
 			)
