@@ -329,6 +329,10 @@ func (tp *tagpr) fetchReleaseRefs() error {
 		}
 		if tp.cfg.CalendarVersioning() {
 			if tp.validateCalverTag(strings.TrimPrefix(ref, "refs/tags/")) == nil {
+				localSHA, _, err := tp.c.Git("rev-parse", "--verify", ref+"^{commit}")
+				if err == nil && localSHA == sha {
+					continue
+				}
 				args = append(args, ref+":"+ref)
 			}
 			continue
@@ -339,6 +343,10 @@ func (tp *tagpr) fetchReleaseRefs() error {
 		}
 	}
 	for _, ref := range refs {
+		localSHA, _, err := tp.c.Git("rev-parse", "--verify", ref.name+"^{commit}")
+		if err == nil && localSHA == ref.sha {
+			continue
+		}
 		force := ""
 		if ref.precision < 3 && ref.version.sv.Prerelease() == "" && ref.version.sv.Metadata() == "" {
 			// Only advance aliases whose remote target also has a fully specified tag.

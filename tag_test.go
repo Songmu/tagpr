@@ -1014,6 +1014,7 @@ func TestApplyReleasePlanRejectsUnfetchedReleaseTag(t *testing.T) {
 	publisher.git("config", "user.name", "Test")
 	publisher.git("config", "user.email", "test@example.com")
 	publisher.git("config", "commit.gpgsign", "false")
+	publisher.git("config", "tag.gpgsign", "false")
 	publisher.git("checkout", "-b", "maintenance", baseSHA)
 	publisher.commit("hotfix.md", "fix\n", "maintenance release")
 	publisher.git("tag", "v0.1.2")
@@ -1037,9 +1038,16 @@ func TestApplyReleasePlanRejectsUnfetchedReleaseTag(t *testing.T) {
 }
 
 func TestApplyReleasePlanFetchesMissingTargetCommit(t *testing.T) {
+	globalConfig := filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(globalConfig, []byte(
+		"[user]\nname = Test\nemail = test@example.com\n[tag]\ngpgsign = true\n[gpg]\nprogram = false\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", globalConfig)
 	r := newTestRepo(t, "")
 	checkout := &testRepo{dir: t.TempDir(), t: t}
 	r.git("clone", "--branch", "main", r.git("remote", "get-url", "origin"), checkout.dir)
+	checkout.git("config", "tag.gpgsign", "false")
 	baseSHA := r.merge("merge")
 	targetSHA := r.git("rev-parse", "HEAD")
 	r.git("push", "origin", "main", "refs/tags/v0.1.0")
@@ -1059,6 +1067,49 @@ func TestApplyReleasePlanFetchesMissingTargetCommit(t *testing.T) {
 	}
 	if got := checkout.git("rev-parse", "refs/tags/v0.1.1^{commit}"); got != targetSHA {
 		t.Errorf("tagged %s, want the fetched plan commit %s", got, targetSHA)
+	}
+}
+
+func TestApplyReleasePlanAcceptsDifferentTagObjectsForSameCommit(t *testing.T) {
+	for _, calendar := range []bool{false, true} {
+		t.Run(fmt.Sprintf("calendar=%t", calendar), func(t *testing.T) {
+			r := newTestRepo(t, "")
+			t.Chdir(r.dir)
+			baseSHA := r.merge("merge")
+			targetSHA := r.git("rev-parse", "HEAD")
+			baseTag, tag := "v0.1.0", "v0.1.1"
+			cfg := newTestConfig("-")
+			if calendar {
+				cfg.calendarVersioning = new("true")
+				baseTag, tag = "v2000.1031.0", "v2000.1101.0"
+				r.git("tag", baseTag, baseSHA)
+			}
+			r.git("tag", tag, targetSHA)
+			r.git("push", "origin", "main", "refs/tags/"+baseTag)
+			publisher := &testRepo{dir: t.TempDir(), t: t}
+			r.git("clone", "--branch", "main", r.git("remote", "get-url", "origin"), publisher.dir)
+			publisher.git("config", "user.name", "Test")
+			publisher.git("config", "user.email", "test@example.com")
+			publisher.git("config", "tag.gpgsign", "false")
+			publisher.git("tag", "-a", "-m", "remote annotation", tag, targetSHA)
+			publisher.git("push", "origin", "refs/tags/"+tag)
+
+			tp, _ := newTestTagpr(t, r, cfg)
+			plan := releasePlan{
+				Tag:                     tag,
+				CommitSHA:               targetSHA,
+				BaseTag:                 baseTag,
+				PullRequestNumber:       1,
+				ReleaseNotesBoundarySHA: baseSHA,
+			}
+			tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+			if err := tp.Run(context.Background()); err != nil {
+				t.Fatalf("Run() with matching peeled commits failed: %v", err)
+			}
+			if got := r.git("cat-file", "-t", "refs/tags/"+tag); got != "commit" {
+				t.Errorf("fetch changed the lightweight local tag to %q", got)
+			}
+		})
 	}
 }
 
