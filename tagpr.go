@@ -2,7 +2,6 @@ package tagpr
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,11 +11,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/Songmu/gitconfig"
 	"github.com/Songmu/gitsemvers"
-	"github.com/Songmu/tagpr/gh2changelog"
 	"github.com/google/go-github/v93/github"
 	"github.com/k1LoW/calver"
 )
@@ -341,629 +338,74 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 	commitMessage := tp.cfg.CommitPrefix() + " " + autoCommitMessage
 	changelogMessage := tp.cfg.CommitPrefix() + " " + autoChangelogMessage
 
-	releaseBranch := tp.cfg.ReleaseBranch()
-	if releaseBranch == "" {
-		releaseBranch, _ = tp.defaultBranch()
-		if releaseBranch == "" {
-			releaseBranch = defaultReleaseBranch
-		}
-		if err := tp.cfg.SetReleaseBranch(releaseBranch); err != nil {
-			return err
-		}
+	releaseBranch, err := tp.configureReleaseBranch()
+	if err != nil {
+		return err
 	}
 	if tp.runOptions.Mode == executionModeApply {
 		return tp.applyReleasePlan(ctx, *tp.runOptions.Plan)
 	}
-
-	latestSemverTag := tp.latestSemverTag()
-	tp.setOutput("base_tag", latestSemverTag)
-	currVerStr := latestSemverTag
-	fromCommitish := "refs/tags/" + currVerStr
-	if currVerStr == "" {
-		var err error
-		fromCommitish, _, err = tp.c.Git("rev-list", "--max-parents=0", "HEAD")
-		if err != nil {
-			return err
-		}
-		currVerStr = "v0.0.0"
-	} else {
-		// Strip prefix for newSemver (fromCommitish already has full tag name)
-		currVerStr = strings.TrimPrefix(currVerStr, tp.normalizedTagPrefix)
-	}
-	currVer, err := newSemver(currVerStr)
+	latestSemverTag, fromCommitish, currVer, err := tp.currentReleaseVersion()
 	if err != nil {
 		return err
 	}
-
-	if tp.cfg.vPrefix == nil {
-		if err := tp.cfg.SetVPrefix(currVer.vPrefix); err != nil {
-			return err
-		}
-	} else {
-		currVer.vPrefix = *tp.cfg.vPrefix
+	if err := tp.requireReleaseBranch(releaseBranch); err != nil {
+		return err
 	}
-
-	currVer.asCalendarVersion = tp.cfg.CalendarVersioning()
-	currVer.calverFormat = tp.cfg.CalendarVersioningFormat()
-
-	branch, _, err := tp.c.Git("symbolic-ref", "--short", "HEAD")
-	if err != nil {
-		return fmt.Errorf("failed to git symbolic-ref: %w", err)
-	}
-	if branch != releaseBranch {
-		return fmt.Errorf("you are not on release branch %q, current branch is %q",
-			releaseBranch, branch)
-	}
-
-	// If the latest commit was introduced by a merged tagpr pull request,
-	// tag the semver to the commit and create a release and exit.
-	if pr, err := tp.latestMergedReleasePullRequest(ctx); err != nil || pr != nil {
-		if err != nil {
-			return err
-		}
-		if tp.runOptions.Mode != executionModePlan {
-			if err := tp.fetchReleaseRefs(); err != nil {
-				return fmt.Errorf("failed to fetch release tags: %w", err)
-			}
-		}
-		latestSemverTag, err = tp.releasePullRequestBaseTag(pr)
-		if err != nil {
-			return err
-		}
-		currVer, err = tp.versionFromBaseTag(latestSemverTag)
-		if err != nil {
-			return err
-		}
-		plan, err := tp.prepareReleasePlan(pr, currVer, latestSemverTag)
-		if err != nil {
-			return err
-		}
-		if tp.cfg.CalendarVersioning() {
-			vfile, err := tp.releaseVersionFile(currVer, plan.ReleaseNotesBoundarySHA, plan.CommitSHA)
-			if err != nil {
-				return err
-			}
-			if vfile == "" {
-				latestTag := tp.latestSemverTag()
-				if latestTag != "" && latestTag != plan.BaseTag {
-					sha, _, err := tp.c.Git("rev-parse", "--verify", "refs/tags/"+latestTag+"^{commit}")
-					if err != nil {
-						return err
-					}
-					if sha == plan.CommitSHA {
-						plan.Tag = latestTag
-					}
-				}
-			}
-		}
-		if plan.BaseTag != "" {
-			if err := tp.requireAncestor(plan.BaseTag, plan.ReleaseNotesBoundarySHA,
-				"base tag is not an ancestor of the release boundary"); err != nil {
-				return err
-			}
-		}
-		if tp.runOptions.Mode == executionModePlan {
-			if err := tp.setOutput("base_tag", plan.BaseTag); err != nil {
-				return err
-			}
-			if err := tp.setPlanOutput(plan); err != nil {
-				return err
-			}
-			b, _ := json.Marshal(pr)
-			tp.setOutput("pull_request", string(b))
-			return nil
-		}
-		latestTag := tp.latestSemverTag(plan.Tag)
-		if latestTag != plan.BaseTag {
-			return fmt.Errorf("base tag changed from %q to %q", plan.BaseTag, latestTag)
-		}
-		_, tagExists, err := tp.inspectExistingTag(plan.Tag, plan.CommitSHA)
-		if err != nil {
-			return err
-		}
-		return tp.completeRelease(ctx, plan, pr, tagExists)
-	}
-	mergeLogArgs := tagLogArgs(tp.normalizedTagPrefix, "log", "--merges", "--first-parent", "--pretty=format:%P",
-		fmt.Sprintf("%s..%s/%s", fromCommitish, tp.remoteName, releaseBranch))
-	shasStr, _, err := tp.c.Git(mergeLogArgs...)
+	pr, err := tp.latestMergedReleasePullRequest(ctx)
 	if err != nil {
 		return err
 	}
-	mergedFeatureHeadShas := mergedFeatureHeads(shasStr)
-	prShasStr, _, err := tp.c.Git("ls-remote", tp.remoteName, "refs/pull/*/head")
+	if pr != nil {
+		return tp.handleMergedRelease(ctx, pr)
+	}
+
+	nextLabels, err := tp.mergedChangeLabels(ctx, fromCommitish, releaseBranch)
 	if err != nil {
 		return err
 	}
-
-	nextLabels, err := tp.getNextLabels(ctx, mergedFeatureHeadShas, prShasStr, fromCommitish)
-	if err != nil {
-		return err
-	}
-
-	// Get the latest commit of the release branch
 	ref, resp, err := tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, "refs/heads/"+releaseBranch)
 	if err != nil {
 		tp.showGHError(err, resp)
 		return err
 	}
-
 	rcBranch := fmt.Sprintf("%s%s%s", branchPrefix, branchSafePrefix(tp.normalizedTagPrefix), currVer.Tag())
 	head := fmt.Sprintf("%s:%s", tp.owner, rcBranch)
-	pulls, resp, err := tp.gh.PullRequests.List(ctx, tp.owner, tp.repo,
-		&github.PullRequestListOptions{
-			Head: head,
-			Base: releaseBranch,
-		})
+	currTagPR, nextVer, addingLabels, err := tp.planReleasePullRequest(ctx, head, releaseBranch, currVer, nextLabels)
 	if err != nil {
-		tp.showGHError(err, resp)
 		return err
 	}
-
-	var (
-		labels    []string
-		currTagPR *github.PullRequest
-	)
-	if len(pulls) > 0 {
-		currTagPR = pulls[0]
-		for _, l := range currTagPR.Labels {
-			labels = append(labels, l.GetName())
-		}
+	vfiles, err := tp.prepareReleaseChanges(currVer, nextVer, &commandErr)
+	if err != nil {
+		return err
 	}
-	nextVer := currVer.GuessNext(append(labels, nextLabels...))
-	var addingLabels []string
-
-	for _, l := range nextLabels {
-		if !slices.Contains(labels, l) {
-			addingLabels = append(addingLabels, l)
-		}
+	newCommit, err := tp.createPreparationCommit(ctx, ref, commitMessage)
+	if err != nil {
+		return err
 	}
-	vfiles, err := tp.getVfiles(currVer)
+	newCommit, ref, err = tp.replayManualReleaseCommits(ctx, releaseBranch, rcBranch, commitMessage, changelogMessage, newCommit, ref)
+	if err != nil {
+		return err
+	}
+	nextVer, err = tp.reevaluateReleaseVersion(currVer, nextVer, vfiles)
 	if err != nil {
 		return err
 	}
 
-	if prog := tp.cfg.Command(); prog != "" {
-		tp.runReleaseCommand(&commandErr, configCommand, prog, currVer, nextVer)
-	}
-
-	if len(vfiles) > 0 && vfiles[0] != "" {
-		for _, vfile := range vfiles {
-			if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
-				return err
-			}
-		}
-	}
-	tp.c.Git("add", "-f", tp.cfg.conf) // ignore any errors
-
-	if prog := tp.cfg.PostVersionCommand(); prog != "" {
-		tp.runReleaseCommand(&commandErr, configPostVersionCommand, prog, currVer, nextVer)
-	}
-
-	releaseYaml := tp.cfg.ReleaseYAMLPath()
-	if releaseYaml != "" && !exists(releaseYaml) {
-		if err := tp.initializeReleaseYaml(releaseYaml); err != nil {
-			return err
-		}
-	}
-	if releaseYaml == "" {
-		// GitHub supports both default filenames when configuration_file_path is omitted.
-		// https://docs.github.com/en/rest/releases/releases#generate-release-notes-content-for-a-release
-		const defaultReleaseYml = ".github/release.yml"
-		const defaultReleaseYaml = ".github/release.yaml"
-		if !exists(defaultReleaseYml) && !exists(defaultReleaseYaml) {
-			if err := tp.initializeReleaseYaml(defaultReleaseYml); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Detect modified files and create a new tree object
-	diffFiles, _, err := tp.c.Git("diff", "--raw", "HEAD")
-	if err != nil {
-		return err
-	}
-	treeEntries, err := treeEntriesFromDiff(diffFiles)
-	if err != nil {
-		return err
-	}
-
-	var tree *github.Tree
-	if len(treeEntries) > 0 {
-		// Create a new tree object if there are changes
-		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *ref.Object.SHA, treeEntries)
-		if err != nil {
-			tp.showGHError(err, resp)
-			return err
-		}
-	}
-
-	// Get the parent commit to attach the commit to.
-	parent, resp, err := tp.gh.Repositories.GetCommit(ctx, tp.owner, tp.repo, *ref.Object.SHA, nil)
-	if err != nil {
-		tp.showGHError(err, resp)
-		return err
-	}
-	parent.Commit.SHA = parent.SHA
-
-	// Create a new commit
-	commit := github.Commit{
-		Message: new(commitMessage),
-		Tree:    parent.Commit.Tree,
-		Parents: []*github.Commit{parent.Commit},
-	}
-	if tree != nil {
-		commit.Tree = tree
-	}
-	newCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-	if err != nil {
-		tp.showGHError(err, resp)
-		return err
-	}
-
-	// cherry-pick if the remote branch is exists and changed
-	// XXX: Do I need to apply merge commits too?
-	//     (We omitted merge commits for now, because if we cherry-pick them, we need to add options like "-m 1".
-	cherryLogArgs := tagLogArgs(tp.normalizedTagPrefix, "log", "--no-merges", "--pretty=format:%h %s",
-		fmt.Sprintf("%s..%s/%s", releaseBranch, tp.remoteName, rcBranch))
-	out, _, err := tp.c.Git(cherryLogArgs...)
-	if err == nil {
-		var cherryPicks []string
-		for line := range strings.SplitSeq(out, "\n") {
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-			m := strings.SplitN(line, " ", 2)
-			if len(m) < 2 {
-				continue
-			}
-			commitish := m[0]
-			subject := strings.TrimSpace(m[1])
-			if subject != commitMessage && subject != changelogMessage {
-				cherryPicks = append(cherryPicks, commitish)
-			}
-		}
-		if len(cherryPicks) > 0 {
-			// Specify a commitish one by one for cherry-pick instead of multiple commitish,
-			// and apply it as much as possible.
-
-			// Delete temporary reference if it exists
-			resp, err := tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
-			if err != nil && resp.StatusCode != 422 {
-				tp.showGHError(err, resp)
-				return err
-			}
-
-			tempRef := "refs/heads/tagpr-temp"
-			// Create a temporary reference
-			createRef := github.CreateRef{
-				Ref: tempRef,
-				SHA: *newCommit.SHA,
-			}
-			ref, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, createRef)
-			if err != nil {
-				tp.showGHError(err, resp)
-				return err
-			}
-
-			for i := len(cherryPicks) - 1; i >= 0; i-- {
-				commitish := cherryPicks[i]
-
-				// Get cherry-pick commit
-				cherryPickCommit, resp, err := tp.gh.Repositories.GetCommit(
-					ctx, tp.owner, tp.repo, commitish, nil)
-				if err != nil {
-					tp.showGHError(err, resp)
-					return err
-				}
-
-				// Create a new commit
-				commit := github.Commit{
-					Message: new("cherry-pick: " + commitish),
-					Tree:    newCommit.Tree,
-					Parents: cherryPickCommit.Parents,
-				}
-				tempCommit, resp, err := tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-				if err != nil {
-					tp.showGHError(err, resp)
-					return err
-				}
-
-				// Update temporary reference
-				updateRef := github.UpdateRef{
-					SHA:   *tempCommit.SHA,
-					Force: new(true),
-				}
-				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
-				if err != nil {
-					tp.showGHError(err, resp)
-					return err
-				}
-
-				// Merge
-				mergeRequest := github.RepositoryMergeRequest{
-					Base: "tagpr-temp",
-					Head: commitish,
-				}
-				mergeCommit, resp, err := tp.gh.Repositories.Merge(
-					ctx, tp.owner, tp.repo, mergeRequest)
-				if err != nil {
-					// conflict, etc. / Need error handling in case of non-conflict error?
-					if resp.StatusCode == 409 {
-						continue
-					}
-					tp.showGHError(err, resp)
-					return err
-				}
-
-				// Create a new commit
-				// The Author is not set because setting the same Author as the original commit makes it
-				// difficult to create a Verified Commit.
-				commit = github.Commit{
-					Message: cherryPickCommit.Commit.Message,
-					Tree:    mergeCommit.Commit.Tree,
-					Parents: []*github.Commit{newCommit},
-				}
-				newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-				if err != nil {
-					tp.showGHError(err, resp)
-					return err
-				}
-
-				// Update temporary reference
-				updateRef = github.UpdateRef{
-					SHA:   *newCommit.SHA,
-					Force: new(true),
-				}
-				_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, tempRef, updateRef)
-				if err != nil {
-					tp.showGHError(err, resp)
-					return err
-				}
-			}
-
-			// Checkout the temporary reference (Files like .tagpr used in subsequent processes may have
-			// been rewritten during the cherry-pick process)
-			if _, _, err := tp.c.Git("fetch"); err != nil {
-				return err
-			}
-			if _, _, err := tp.c.Git("reset", "--hard"); err != nil {
-				return err
-			}
-			if _, _, err := tp.c.Git("checkout", "tagpr-temp"); err != nil {
-				return err
-			}
-
-			// Delete temporary reference
-			resp, err = tp.gh.Git.DeleteRef(ctx, tp.owner, tp.repo, "refs/heads/tagpr-temp")
-			if err != nil {
-				tp.showGHError(err, resp)
-				return err
-			}
-		}
-	}
-
-	// Reread the configuration file (.tagpr) as it may have been rewritten during the cherry-pick process.
-	tp.cfg.Reload()
-	tp.normalizedTagPrefix = normalizeTagPrefix(tp.cfg.TagPrefix())
-	if tp.cfg.VersionFile() != "" && tp.cfg.VersionFile() != "-" {
-		vfiles = splitVersionFiles(tp.cfg.VersionFile())
-	}
-	if len(vfiles) > 0 && vfiles[0] != "" {
-		if tp.cfg.CalendarVersioning() {
-			for _, vfile := range vfiles {
-				if err := bumpVersionFile(vfile, currVer, nextVer); err != nil {
-					return err
-				}
-			}
-		} else {
-			nVer, _ := retrieveVersionFromFile(vfiles[0], nextVer)
-			if nVer != nil && nVer.Naked() != nextVer.Naked() {
-				nextVer = nVer
-			}
-		}
-	}
-
-	host := "github.com"
-	if baseURL, err := url.Parse(tp.gh.BaseURL()); err == nil && baseURL.Host != "" {
-		host = strings.TrimPrefix(baseURL.Host, "api.")
-	}
-	currTag := fullTag(tp.normalizedTagPrefix, currVer.Tag())
-	nextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-	draft := &lazyDraftChangelog{load: func() (*draftChangelog, error) {
-		opts := []gh2changelog.Option{
-			gh2changelog.GitPath(tp.gitPath),
-			gh2changelog.SetOutputs(tp.c.outStream, tp.c.errStream),
-			gh2changelog.GitHubClient(tp.gh),
-			gh2changelog.TagPrefix(tp.normalizedTagPrefix),
-			gh2changelog.ChangelogMdPath(tp.cfg.ChangelogFile()),
-		}
-		if tp.cfg.ReleaseYAMLPath() != "" {
-			opts = append(opts, gh2changelog.ReleaseYamlPath(tp.cfg.ReleaseYAMLPath()))
-		}
-		if fixedMajor, err := tp.cfg.FixedMajorVersion(); err == nil && fixedMajor != nil {
-			opts = append(opts, gh2changelog.FilteredMajorVersion(*fixedMajor))
-		}
-		if tp.cfg.CalendarVersioning() && latestSemverTag != "" {
-			opts = append(opts, gh2changelog.VersionTags([]string{latestSemverTag}))
-		}
-		gch, err := gh2changelog.New(ctx, opts...)
-		if err != nil {
-			return nil, err
-		}
-
-		draftNextTag := fullTag(tp.normalizedTagPrefix, nextVer.Tag())
-		changelog, generatedNotes, err := gch.Draft(ctx, draftNextTag, releaseBranch, time.Now())
-		if err != nil {
-			return nil, err
-		}
-		return &draftChangelog{
-			generator:      gch,
-			changelog:      changelog,
-			generatedNotes: generatedNotes,
-		}, nil
-	}}
-	prArg := &tmplArg{
-		NextVersion: nextVer.Tag(),
-		Branch:      rcBranch,
-		TagPrefix:   strings.TrimSuffix(tp.normalizedTagPrefix, "/"),
-		loadChangelog: func() (string, error) {
-			generatedNotes, err := draft.GeneratedNotes()
-			if err != nil {
-				return "", err
-			}
-			return replaceCompareLink(
-				generatedNotes, host, tp.owner, tp.repo, currTag, nextTag, rcBranch), nil
-		},
-	}
+	draft, prArg := tp.releasePullRequestTemplate(ctx, latestSemverTag, releaseBranch, rcBranch, currVer, nextVer)
 	pt := loadPRTmpl(tp.cfg)
-
-	if tp.cfg.Changelog() {
-		result, err := draft.Load()
-		if err != nil {
-			return err
-		}
-		changelogMd := tp.cfg.ChangelogFile()
-		changelog := result.changelog
-		if !exists(changelogMd) {
-			logs, _, err := result.generator.Changelogs(ctx, 20)
-			if err != nil {
-				return err
-			}
-			changelog = strings.Join(
-				append([]string{changelog}, logs...), "\n")
-		}
-		if _, err := result.generator.Update(changelog, 0); err != nil {
-			return err
-		}
-
-		// Create a new tree object for CHANGELOG.md
-		treeEntries = nil
-		contentBytes, err := os.ReadFile(changelogMd)
-		if err != nil {
-			return err
-		}
-		treeEntries = append(treeEntries, &github.TreeEntry{
-			Path:    new(changelogMd),
-			Type:    new("blob"),
-			Content: new(string(contentBytes)),
-			Mode:    new("100644"),
-		})
-		tree, resp, err = tp.gh.Git.CreateTree(ctx, tp.owner, tp.repo, *newCommit.SHA, treeEntries)
-		if err != nil {
-			tp.showGHError(err, resp)
-			return err
-		}
-		// Create a new commit
-		commit = github.Commit{
-			Message: new(changelogMessage),
-			Tree:    tree,
-			Parents: []*github.Commit{newCommit},
-		}
-		newCommit, resp, err = tp.gh.Git.CreateCommit(ctx, tp.owner, tp.repo, commit, nil)
-		if err != nil {
-			tp.showGHError(err, resp)
-			return err
-		}
+	newCommit, err = tp.commitReleaseChangelog(ctx, draft, newCommit, changelogMessage)
+	if err != nil {
+		return err
 	}
-
 	prText, err := pt.Render(prArg)
 	if err != nil {
 		return err
 	}
-
-	// Create or Get remote rcBranch reference
-	rcBranchRef := "refs/heads/" + rcBranch
-	_, resp, err = tp.gh.Git.GetRef(ctx, tp.owner, tp.repo, rcBranchRef)
-	if err != nil {
-		if resp.StatusCode != 404 {
-			tp.showGHError(err, resp)
-			return err
-		}
-		createNewRef := github.CreateRef{
-			Ref: "refs/heads/" + rcBranch,
-			SHA: *ref.Object.SHA,
-		}
-		_, resp, err = tp.gh.Git.CreateRef(ctx, tp.owner, tp.repo, createNewRef)
-		if err != nil {
-			tp.showGHError(err, resp)
-			return err
-		}
-	}
-	updateRef := github.UpdateRef{
-		SHA:   *newCommit.SHA,
-		Force: new(true),
-	}
-	_, resp, err = tp.gh.Git.UpdateRef(ctx, tp.owner, tp.repo, rcBranchRef, updateRef)
-	if err != nil {
-		tp.showGHError(err, resp)
+	if err := tp.updateReleaseBranchRef(ctx, rcBranch, ref, newCommit); err != nil {
 		return err
 	}
-
-	stuffs := strings.SplitN(strings.TrimSpace(prText), "\n", 2)
-	title := stuffs[0]
-	var body string
-	if len(stuffs) > 1 {
-		body = strings.TrimSpace(stuffs[1])
-	}
-	if currTagPR == nil {
-		pr, resp, err := tp.gh.PullRequests.Create(ctx, tp.owner, tp.repo, github.CreatePullRequest{
-			Title: new(title),
-			Body:  new(body),
-			Base:  releaseBranch,
-			Head:  head,
-		})
-		if err != nil {
-			tp.showGHError(err, resp)
-			return err
-		}
-		addingLabels = append(addingLabels, autoLabelName)
-		_, resp, err = tp.gh.Issues.AddLabelsToIssue(
-			ctx, tp.owner, tp.repo, *pr.Number, addingLabels)
-		if err != nil {
-			tp.showGHError(err, resp)
-			return err
-		}
-		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
-		if err == nil {
-			pr = tmpPr
-		} else {
-			tp.showGHError(err, resp)
-		}
-		b, _ := json.Marshal(pr)
-		tp.setOutput("pull_request", string(b))
-		return nil
-	}
-	currTagPR.Title = new(title)
-	currTagPR.Body = new(mergeBody(*currTagPR.Body, body))
-	// Clear Base so go-github does not include the `base` field in the PATCH
-	// payload. When `base` is sent shortly after an UpdateRef (force-push),
-	// GitHub emits a duplicate `pull_request.synchronize` webhook, causing
-	// pull_request-triggered workflows to run twice on the same SHA.
-	// Release PRs never change their base branch, so this is safe.
-	// See: https://github.com/google/go-github/issues/1250
-	currTagPR.Base = nil
-	pr, resp, err := tp.gh.PullRequests.Edit(ctx, tp.owner, tp.repo, *currTagPR.Number, currTagPR)
-	if err != nil {
-		tp.showGHError(err, resp)
-		return err
-	}
-	if len(addingLabels) > 0 {
-		_, resp, err := tp.gh.Issues.AddLabelsToIssue(
-			ctx, tp.owner, tp.repo, *currTagPR.Number, addingLabels)
-		if err != nil {
-			tp.showGHError(err, resp)
-			return err
-		}
-		tmpPr, resp, err := tp.gh.PullRequests.Get(ctx, tp.owner, tp.repo, *pr.Number)
-		if err == nil {
-			pr = tmpPr
-		} else {
-			tp.showGHError(err, resp)
-		}
-	}
-	b, _ := json.Marshal(pr)
-	tp.setOutput("pull_request", string(b))
-	return nil
+	return tp.publishReleasePullRequest(ctx, currTagPR, prText, releaseBranch, head, addingLabels)
 }
 
 func replaceCompareLink(orig, host, owner, repo, currTag, nextTag, rcBranch string) string {
