@@ -341,6 +341,35 @@ func (tp *tagpr) fetchReleaseRefs() error {
 	if err != nil {
 		return err
 	}
+	tags := parseRemoteTagRefs(out)
+	args := []string{"fetch", "--no-tags", tp.remote(),
+		"+refs/heads/" + tp.cfg.ReleaseBranch() +
+			":refs/remotes/" + tp.remote() + "/" + tp.cfg.ReleaseBranch()}
+	var refs []releaseRef
+	prefix := "refs/tags/" + tp.normalizedTagPrefix
+	for name, sha := range tags {
+		ref, ok := tp.classifyReleaseRef(name, sha, prefix)
+		if !ok {
+			continue
+		}
+		if ref.version == nil {
+			if refspec := tp.releaseFetchRefspec(ref, nil, prefix); refspec != "" {
+				args = append(args, refspec)
+			}
+			continue
+		}
+		refs = append(refs, ref)
+	}
+	for _, ref := range refs {
+		if refspec := tp.releaseFetchRefspec(ref, refs, prefix); refspec != "" {
+			args = append(args, refspec)
+		}
+	}
+	_, _, err = tp.c.Git(args...)
+	return err
+}
+
+func parseRemoteTagRefs(out string) map[string]string {
 	tags := map[string]string{}
 	for line := range strings.SplitSeq(out, "\n") {
 		fields := strings.Fields(line)
@@ -352,60 +381,57 @@ func (tp *tagpr) fetchReleaseRefs() error {
 			tags[ref] = fields[0]
 		}
 	}
-	args := []string{"fetch", "--no-tags", tp.remote(),
-		"+refs/heads/" + tp.cfg.ReleaseBranch() +
-			":refs/remotes/" + tp.remote() + "/" + tp.cfg.ReleaseBranch()}
-	type releaseRef struct {
-		name, sha string
-		version   *semv
-		precision int
+	return tags
+}
+
+type releaseRef struct {
+	name, sha string
+	version   *semv
+	precision int
+}
+
+func (tp *tagpr) classifyReleaseRef(name, sha, prefix string) (releaseRef, bool) {
+	version, ok := strings.CutPrefix(name, prefix)
+	if !ok {
+		return releaseRef{}, false
 	}
-	var refs []releaseRef
-	prefix := "refs/tags/" + tp.normalizedTagPrefix
-	for ref, sha := range tags {
-		version, ok := strings.CutPrefix(ref, prefix)
-		if !ok {
+	if tp.cfg.CalendarVersioning() {
+		return releaseRef{name: name, sha: sha},
+			tp.validateCalverTag(strings.TrimPrefix(name, "refs/tags/")) == nil
+	}
+	sv, err := newSemver(version)
+	return releaseRef{name, sha, sv, strings.Count(version, ".") + 1}, err == nil
+}
+
+func (ref releaseRef) canForceAlias(refs []releaseRef, prefix string) bool {
+	if ref.version == nil || ref.precision >= 3 ||
+		ref.version.sv.Prerelease() != "" || ref.version.sv.Metadata() != "" {
+		return false
+	}
+	// Only advance aliases whose remote target also has a fully specified tag.
+	for _, full := range refs {
+		if full.version.Tag() != strings.TrimPrefix(full.name, prefix) ||
+			full.sha != ref.sha || full.version.vPrefix != ref.version.vPrefix ||
+			full.version.sv.Major() != ref.version.sv.Major() {
 			continue
 		}
-		if tp.cfg.CalendarVersioning() {
-			if tp.validateCalverTag(strings.TrimPrefix(ref, "refs/tags/")) == nil {
-				localSHA, _, err := tp.c.Git("rev-parse", "--verify", ref+"^{commit}")
-				if err == nil && localSHA == sha {
-					continue
-				}
-				args = append(args, ref+":"+ref)
-			}
-			continue
-		}
-		sv, err := newSemver(version)
-		if err == nil {
-			refs = append(refs, releaseRef{ref, sha, sv, strings.Count(version, ".") + 1})
+		if ref.precision == 1 || full.version.sv.Minor() == ref.version.sv.Minor() {
+			return true
 		}
 	}
-	for _, ref := range refs {
-		localSHA, _, err := tp.c.Git("rev-parse", "--verify", ref.name+"^{commit}")
-		if err == nil && localSHA == ref.sha {
-			continue
-		}
-		force := ""
-		if ref.precision < 3 && ref.version.sv.Prerelease() == "" && ref.version.sv.Metadata() == "" {
-			// Only advance aliases whose remote target also has a fully specified tag.
-			for _, full := range refs {
-				if full.version.Tag() != strings.TrimPrefix(full.name, prefix) ||
-					full.sha != ref.sha || full.version.vPrefix != ref.version.vPrefix ||
-					full.version.sv.Major() != ref.version.sv.Major() {
-					continue
-				}
-				if ref.precision == 1 || full.version.sv.Minor() == ref.version.sv.Minor() {
-					force = "+"
-					break
-				}
-			}
-		}
-		args = append(args, force+ref.name+":"+ref.name)
+	return false
+}
+
+func (tp *tagpr) releaseFetchRefspec(ref releaseRef, refs []releaseRef, prefix string) string {
+	localSHA, _, err := tp.c.Git("rev-parse", "--verify", ref.name+"^{commit}")
+	if err == nil && localSHA == ref.sha {
+		return ""
 	}
-	_, _, err = tp.c.Git(args...)
-	return err
+	force := ""
+	if ref.canForceAlias(refs, prefix) {
+		force = "+"
+	}
+	return force + ref.name + ":" + ref.name
 }
 
 func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
@@ -435,35 +461,12 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 	plan.CommitSHA = targetSHA
 	plan.ReleaseNotesBoundarySHA = boundarySHA
 
-	remoteReleaseBranch := tp.remote() + "/" + tp.cfg.ReleaseBranch()
-	if err := tp.requireAncestor(targetSHA, remoteReleaseBranch,
-		"target commit is not an ancestor of the release branch"); err != nil {
+	if err := tp.requireReleasePlanAncestors(plan); err != nil {
 		return err
 	}
-	if err := tp.requireAncestor(boundarySHA, targetSHA,
-		"release boundary is not an ancestor of the target commit"); err != nil {
-		return err
-	}
-	if plan.BaseTag != "" {
-		if err := tp.requireAncestor(plan.BaseTag, boundarySHA,
-			"base tag is not an ancestor of the release boundary"); err != nil {
-			return err
-		}
-	}
-
-	pr, err := tp.mergedReleasePullRequestForCommit(ctx, targetSHA)
+	pr, err := tp.mergedReleasePullRequestForPlan(ctx, plan)
 	if err != nil {
 		return err
-	}
-	if pr == nil || pr.GetNumber() != plan.PullRequestNumber {
-		return fmt.Errorf(
-			"target commit %s is not associated with merged tagpr pull request #%d",
-			targetSHA, plan.PullRequestNumber)
-	}
-	if pr.GetMergeCommitSHA() != targetSHA {
-		return fmt.Errorf(
-			"target commit %s is not the final merge commit %s of pull request #%d",
-			targetSHA, pr.GetMergeCommitSHA(), plan.PullRequestNumber)
 	}
 
 	_, remoteTagExists, err := tp.inspectExistingTag(
@@ -504,6 +507,45 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 	return tp.completeRelease(ctx, plan, pr, remoteTagExists)
 }
 
+func (tp *tagpr) requireReleasePlanAncestors(plan releasePlan) error {
+	remoteReleaseBranch := tp.remote() + "/" + tp.cfg.ReleaseBranch()
+	if err := tp.requireAncestor(plan.CommitSHA, remoteReleaseBranch,
+		"target commit is not an ancestor of the release branch"); err != nil {
+		return err
+	}
+	if err := tp.requireAncestor(plan.ReleaseNotesBoundarySHA, plan.CommitSHA,
+		"release boundary is not an ancestor of the target commit"); err != nil {
+		return err
+	}
+	if plan.BaseTag != "" {
+		if err := tp.requireAncestor(plan.BaseTag, plan.ReleaseNotesBoundarySHA,
+			"base tag is not an ancestor of the release boundary"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (tp *tagpr) mergedReleasePullRequestForPlan(
+	ctx context.Context, plan releasePlan,
+) (*github.PullRequest, error) {
+	pr, err := tp.mergedReleasePullRequestForCommit(ctx, plan.CommitSHA)
+	if err != nil {
+		return nil, err
+	}
+	if pr == nil || pr.GetNumber() != plan.PullRequestNumber {
+		return nil, fmt.Errorf(
+			"target commit %s is not associated with merged tagpr pull request #%d",
+			plan.CommitSHA, plan.PullRequestNumber)
+	}
+	if pr.GetMergeCommitSHA() != plan.CommitSHA {
+		return nil, fmt.Errorf(
+			"target commit %s is not the final merge commit %s of pull request #%d",
+			plan.CommitSHA, pr.GetMergeCommitSHA(), plan.PullRequestNumber)
+	}
+	return pr, nil
+}
+
 func (tp *tagpr) validateCalverTag(tag string) error {
 	format := tp.cfg.CalendarVersioningFormat()
 	if format == "" {
@@ -537,71 +579,93 @@ func (tp *tagpr) completeRelease(
 	pr *github.PullRequest,
 	tagExists bool,
 ) error {
+	var notes *github.RepositoryReleaseNotes
+	if tp.cfg.Release() {
+		var err error
+		notes, err = tp.generateReleaseNotes(ctx, plan, tagExists)
+		if err != nil {
+			return err
+		}
+	}
+	if !tagExists {
+		if err := tp.createAndPushReleaseTag(plan); err != nil {
+			return err
+		}
+	}
+	if tp.cfg.Release() {
+		if err := tp.ensureGitHubRelease(ctx, plan, notes); err != nil {
+			return err
+		}
+	}
+	return tp.setFinalOutputs(plan, pr)
+}
+
+func (tp *tagpr) generateReleaseNotes(
+	ctx context.Context, plan releasePlan, tagExists bool,
+) (*github.RepositoryReleaseNotes, error) {
 	previousTag := &plan.BaseTag
 	if plan.BaseTag == "" {
 		previousTag = nil
 	}
-	var releases *github.RepositoryReleaseNotes
-	var resp *github.Response
-	var err error
-	if tp.cfg.Release() {
-		targetCommitish := plan.ReleaseNotesBoundarySHA
-		tagName := plan.Tag
-		if tagExists {
-			tagName += "-notes"
-		}
-		releases, resp, err = tp.gh.Repositories.GenerateReleaseNotes(
-			ctx, tp.owner, tp.repo, github.GenerateNotesRequest{
-				TagName:               tagName,
-				PreviousTagName:       previousTag,
-				TargetCommitish:       &targetCommitish,
-				ConfigurationFilePath: new(tp.cfg.ReleaseYAMLPath()),
-			})
+	targetCommitish := plan.ReleaseNotesBoundarySHA
+	tagName := plan.Tag
+	if tagExists {
+		tagName += "-notes"
+	}
+	notes, resp, err := tp.gh.Repositories.GenerateReleaseNotes(
+		ctx, tp.owner, tp.repo, github.GenerateNotesRequest{
+			TagName:               tagName,
+			PreviousTagName:       previousTag,
+			TargetCommitish:       &targetCommitish,
+			ConfigurationFilePath: new(tp.cfg.ReleaseYAMLPath()),
+		})
+	if err != nil {
+		tp.showGHError(err, resp)
+		return nil, err
+	}
+	if tagExists {
+		notes.Name = strings.ReplaceAll(notes.Name, tagName, plan.Tag)
+		notes.Body = strings.ReplaceAll(notes.Body, "..."+tagName, "..."+plan.Tag)
+		notes.Body = strings.ReplaceAll(notes.Body, "/commits/"+tagName, "/commits/"+plan.Tag)
+	}
+	return notes, nil
+}
+
+func (tp *tagpr) createAndPushReleaseTag(plan releasePlan) error {
+	localSHA, _, localErr := tp.c.Git(
+		"rev-parse", "--verify", "refs/tags/"+plan.Tag+"^{commit}")
+	if localErr != nil {
+		tagArgs := []string{"tag"}
+		signTag, err := tp.tagSigningEnabled()
 		if err != nil {
-			tp.showGHError(err, resp)
 			return err
 		}
-		if tagExists {
-			releases.Name = strings.ReplaceAll(releases.Name, tagName, plan.Tag)
-			releases.Body = strings.ReplaceAll(releases.Body, "..."+tagName, "..."+plan.Tag)
-			releases.Body = strings.ReplaceAll(releases.Body, "/commits/"+tagName, "/commits/"+plan.Tag)
+		if signTag {
+			tagArgs = append(tagArgs, "-s", "-m", "Release "+plan.Tag)
+		}
+		tagArgs = append(tagArgs, plan.Tag, plan.CommitSHA)
+		if _, _, err := tp.c.Git(tagArgs...); err != nil {
+			return err
+		}
+	} else if localSHA != plan.CommitSHA {
+		return fmt.Errorf(
+			"tag %s already points to %s, want %s",
+			plan.Tag, localSHA, plan.CommitSHA)
+	}
+	ref := "refs/tags/" + plan.Tag
+	if _, _, err := tp.c.Git("push", tp.remote(), ref+":"+ref); err != nil {
+		_, existsAfterPush, verifyErr := tp.inspectExistingTag(
+			plan.Tag, plan.CommitSHA)
+		if verifyErr != nil || !existsAfterPush {
+			return err
 		}
 	}
+	return nil
+}
 
-	if !tagExists {
-		localSHA, _, localErr := tp.c.Git(
-			"rev-parse", "--verify", "refs/tags/"+plan.Tag+"^{commit}")
-		if localErr != nil {
-			tagArgs := []string{"tag"}
-			signTag, err := tp.tagSigningEnabled()
-			if err != nil {
-				return err
-			}
-			if signTag {
-				tagArgs = append(tagArgs, "-s", "-m", "Release "+plan.Tag)
-			}
-			tagArgs = append(tagArgs, plan.Tag, plan.CommitSHA)
-			if _, _, err := tp.c.Git(tagArgs...); err != nil {
-				return err
-			}
-		} else if localSHA != plan.CommitSHA {
-			return fmt.Errorf(
-				"tag %s already points to %s, want %s",
-				plan.Tag, localSHA, plan.CommitSHA)
-		}
-		ref := "refs/tags/" + plan.Tag
-		if _, _, err := tp.c.Git("push", tp.remote(), ref+":"+ref); err != nil {
-			_, existsAfterPush, verifyErr := tp.inspectExistingTag(
-				plan.Tag, plan.CommitSHA)
-			if verifyErr != nil || !existsAfterPush {
-				return err
-			}
-		}
-	}
-
-	if !tp.cfg.Release() {
-		return tp.setFinalOutputs(plan, pr)
-	}
+func (tp *tagpr) ensureGitHubRelease(
+	ctx context.Context, plan releasePlan, notes *github.RepositoryReleaseNotes,
+) error {
 	existingRelease, err := tp.findReleaseByTag(ctx, plan.Tag)
 	if err != nil {
 		return err
@@ -612,21 +676,21 @@ func (tp *tagpr) completeRelease(
 				"GitHub Release for %s already exists with draft=%t, want draft=%t",
 				plan.Tag, existingRelease.GetDraft(), tp.cfg.ReleaseDraft())
 		}
-		return tp.setFinalOutputs(plan, pr)
+		return nil
 	}
-	_, resp, err = tp.gh.Repositories.CreateRelease(
+	_, resp, err := tp.gh.Repositories.CreateRelease(
 		ctx, tp.owner, tp.repo, github.CreateReleaseRequest{
 			TagName:         plan.Tag,
 			TargetCommitish: &plan.CommitSHA,
-			Name:            &releases.Name,
-			Body:            &releases.Body,
+			Name:            &notes.Name,
+			Body:            &notes.Body,
 			Draft:           new(tp.cfg.ReleaseDraft()),
 		})
 	if err != nil {
 		tp.showGHError(err, resp)
 		return err
 	}
-	return tp.setFinalOutputs(plan, pr)
+	return nil
 }
 
 func (tp *tagpr) findReleaseByTag(ctx context.Context, tag string) (*github.RepositoryRelease, error) {
