@@ -108,34 +108,26 @@ func versionFile(files []string) (string, string) {
 	files = fileOrder(files)
 	var meta string
 	for _, f := range files {
-		if strings.HasSuffix(f, ".gemspec") {
-			return f, "ruby"
-		}
-		if strings.HasSuffix(f, ".go") {
-			return f, "go"
-		}
-		if meta != "" {
-			if strings.HasPrefix(f, "lib/") && strings.HasSuffix(f, ".pm") {
-				return f, "perl"
-			}
-		}
-
 		base := strings.ToLower(filepath.Base(f))
-		switch base {
-		case "setup.py", "setup.cfg":
+		switch {
+		case strings.HasSuffix(f, ".gemspec"):
+			return f, "ruby"
+		case strings.HasSuffix(f, ".go"):
+			return f, "go"
+		case meta != "" && strings.HasPrefix(f, "lib/") && strings.HasSuffix(f, ".pm"):
+			return f, "perl"
+		case base == "setup.py", base == "setup.cfg":
 			return f, "python"
-		case "package.json":
+		case base == "package.json":
 			return f, "node"
-		case "manifest.json": // for chrome extension
+		case base == "manifest.json": // for chrome extension
 			return f, "javascript"
-		case "pom.xml":
+		case base == "pom.xml":
 			return f, "java"
-		case "cargo.toml":
+		case base == "cargo.toml":
 			return f, "rust"
-		case "meta.json":
-			if meta == "" {
-				meta = f
-			}
+		case base == "meta.json" && meta == "":
+			meta = f
 		}
 	}
 
