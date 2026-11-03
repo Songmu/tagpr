@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -1110,9 +1111,10 @@ func TestApplyReleasePlanAcceptsDifferentTagObjectsForSameCommit(t *testing.T) {
 
 func TestReleaseVersionFileEligibility(t *testing.T) {
 	tests := []struct {
-		name  string
-		files map[string]string
-		want  string
+		name        string
+		files       map[string]string
+		want        string
+		skipWindows bool
 	}{
 		{
 			name: "excluded files and directories",
@@ -1141,7 +1143,8 @@ func TestReleaseVersionFileEligibility(t *testing.T) {
 			files: map[string]string{
 				"release\nversion.go": `version = "0.1.0"`,
 			},
-			want: "release\nversion.go",
+			want:        "release\nversion.go",
+			skipWindows: true,
 		},
 		{
 			name: "fixed-string match without a version declaration",
@@ -1152,6 +1155,9 @@ func TestReleaseVersionFileEligibility(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipWindows && runtime.GOOS == "windows" {
+				t.Skip("Windows does not support newline filenames")
+			}
 			r := newTestRepo(t, "")
 			t.Chdir(r.dir)
 			for path, content := range tt.files {
