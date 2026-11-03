@@ -13,11 +13,11 @@ inputs:
     description: "A github.com token used to verify release attestations when running on GHES or *.ghe.com. If unset there, SHA-256 checksum verification is used instead"
     required: false
   mode:
-    description: "Execution mode: auto, plan, or apply"
+    description: "Execution mode: auto, plan, or apply. The plan and apply modes are experimental"
     required: false
     default: "auto"
   plan:
-    description: "The release plan JSON emitted by plan mode, required in apply mode"
+    description: "Experimental release plan JSON emitted by plan mode, required in apply mode"
     required: false
 outputs:
   tag:
@@ -30,7 +30,7 @@ outputs:
     description: "The base semver tag for comparison, empty if no previous tag exists"
     value: ${{ steps.tagpr.outputs.base_tag }}
   plan:
-    description: "The release plan JSON, output in plan mode when a merged release pull request is detected"
+    description: "Experimental release plan JSON, output in plan mode when a merged release pull request is detected"
     value: ${{ steps.tagpr.outputs.plan }}
 runs:
   using: "composite"

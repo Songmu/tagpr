@@ -111,6 +111,10 @@ Other available outputs are:
 
 ## Test and approve before tagging {#test-and-approve-before-tagging}
 
+> [!NOTE]
+> **Experimental:** `plan` and `apply` modes and the plan JSON format may change in
+> future releases.
+
 By default, tagpr creates the tag as soon as it detects a merged release pull request.
 Use `plan` and `apply` modes when the exact merged commit must pass additional tests or
 wait for a protected-environment approval before tagging.

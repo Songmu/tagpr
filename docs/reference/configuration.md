@@ -116,7 +116,8 @@ The GitHub Action supports these general inputs:
 - `attestation-token` is a github.com token used to verify the release's build
   provenance on GitHub Enterprise Server or `*.ghe.com`. If it is unset there, the
   action verifies only the SHA-256 checksum;
-- `mode` selects `auto`, `plan`, or `apply`. The default is `auto`.
+- `mode` selects `auto`, `plan`, or `apply`. The default is `auto`; `plan` and
+  `apply` are experimental.
 
 `apply` mode requires a `plan` input containing the release plan JSON emitted by
 `plan` mode.

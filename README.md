@@ -524,6 +524,9 @@ Controls when tagpr creates a release tag:
 
 The default is `auto`.
 
+**Experimental:** `plan` and `apply` modes and the plan JSON format may change in
+future releases.
+
 #### config (Optional)
 
 The path to the tagpr configuration file. The default is `.tagpr`.
@@ -543,8 +546,8 @@ checksum verification. It is not needed on github.com.
 
 #### plan (Optional)
 
-The release plan JSON emitted by `plan` mode. Required in `apply` mode; pass it
-unchanged.
+The experimental release plan JSON emitted by `plan` mode. Required in `apply`
+mode; pass it unchanged.
 
 ### Outputs
 
@@ -553,8 +556,9 @@ unchanged.
 - `pull_request`: JSON describing the release pull request created or updated by tagpr.
 - `base_tag`: the base version tag used for comparison. It is empty when no previous
   tag exists.
-- `plan`: release plan JSON emitted by `plan` mode when a merged release pull request
-  is detected. It is empty when tagpr only creates or updates the release pull request.
+- `plan`: experimental release plan JSON emitted by `plan` mode when a merged release
+  pull request is detected. It is empty when tagpr only creates or updates the release
+  pull request.
 
 See [Tagging and release](docs/guides/tag-and-release.md#test-and-approve-before-tagging)
 for the plan JSON fields and a complete workflow that tests `plan.commit_sha` and

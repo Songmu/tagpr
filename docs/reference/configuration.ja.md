@@ -99,7 +99,7 @@ GitHub Action では次の一般的な入力を利用できます。
 - `config` は `.tagpr` 以外の設定ファイルを選ぶ。
 - `version` は Action がインストールする tagpr 実行可能ファイルのバージョンを選ぶ。
 - `attestation-token` は GitHub Enterprise Server や `*.ghe.com` で、リリースのビルド来歴(provenance)を検証するための github.com 用トークン。未設定の場合は SHA-256 チェックサムのみ検証する。
-- `mode` は `auto`、`plan`、`apply` から実行モードを選ぶ。デフォルトは `auto`。
+- `mode` は `auto`、`plan`、`apply` から実行モードを選ぶ。デフォルトは `auto`。`plan` と `apply` は実験的な機能です。
 
 `apply` モードでは、`plan` モードが出力したリリース計画の JSON を `plan` 入力として渡します。
 
