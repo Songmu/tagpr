@@ -202,6 +202,10 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 			requests.trees = append(requests.trees, body)
 			gitInput("", "read-tree", body.BaseTree)
 			for _, entry := range body.Entries {
+				if entry.SHA == nil && entry.Content == nil {
+					gitInput("", "update-index", "--force-remove", "--", entry.GetPath())
+					continue
+				}
 				sha := gitInput(entry.GetContent(), "hash-object", "-w", "--stdin")
 				gitInput("", "update-index", "--add", "--cacheinfo", entry.GetMode(), sha, entry.GetPath())
 			}
@@ -478,8 +482,11 @@ func TestRunHookFailuresContinueAndJoinLaterError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := newTestRepo(t, "package test\nconst Version = \"0.1.0\"\n")
 			tp, requests := newReleasePRTagpr(t, r)
+			r.commit("obsolete.md", "obsolete artifact\n", "add obsolete artifact")
+			r.commit("empty.md", "old content\n", "add file to clear")
+			r.git("push", "origin", "main")
 			for key, command := range map[string]string{
-				configCommand:            `cat version.go > pre-version; printf 'pre failed\n' >&2; exit 2`,
+				configCommand:            `cat version.go > pre-version; rm obsolete.md; : > empty.md; printf 'pre failed\n' >&2; exit 2`,
 				configPostVersionCommand: `cat version.go > post-version; printf 'post failed\n' >&2; exit 3`,
 			} {
 				if err := tp.cfg.set(key, command); err != nil {
@@ -516,7 +523,19 @@ func TestRunHookFailuresContinueAndJoinLaterError(t *testing.T) {
 				t.Error("hooks did not run on the expected sides of the bump")
 			}
 			if requests.pullMethod != http.MethodPost || len(requests.updatedRefs) != 1 {
-				t.Error("hook failures prevented branch/PR processing")
+				t.Fatal("hook failures prevented branch/PR processing")
+			}
+			if tt.status == 0 {
+				sha := requests.updatedRefs[0].SHA
+				if got := r.git("ls-tree", "--name-only", sha, "--", "obsolete.md"); got != "" {
+					t.Errorf("published hook-deleted path still exists: %q", got)
+				}
+				if got := r.git("ls-tree", "--name-only", sha, "--", "empty.md"); got != "empty.md" {
+					t.Errorf("published empty file is missing: %q", got)
+				}
+				if got := r.git("show", sha+":empty.md"); got != "" {
+					t.Errorf("published cleared file content = %q, want empty", got)
+				}
 			}
 			for _, name := range []string{configCommand, configPostVersionCommand} {
 				if !strings.Contains(requests.stderrAtPR, "::error title="+name+" failed::") {
