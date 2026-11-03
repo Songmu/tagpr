@@ -233,7 +233,7 @@ func TestNewVersionTags(t *testing.T) {
 	for _, args := range [][]string{
 		{"init", "-q", dir},
 		{"-C", dir, "-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "initial"},
-		{"-C", dir, "tag", "v1.2.3"},
+		{"-C", dir, "-c", "tag.gpgSign=false", "tag", "v1.2.3"},
 		{"-C", dir, "remote", "add", "origin", "https://github.com/Songmu/gh2changelog.git"},
 	} {
 		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
