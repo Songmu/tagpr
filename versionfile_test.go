@@ -52,35 +52,61 @@ func TestRetrieveVersionFile(t *testing.T) {
 	}
 }
 
+func TestVersionFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		files    []string
+		file     string
+		language string
+	}{
+		{name: "empty"},
+		{"fallback uses depth then name", []string{"a/version", "z.txt", "b.txt"}, "b.txt", ""},
+		{"gemspec by name order", []string{"version.go", "app.gemspec"}, "app.gemspec", "ruby"},
+		{"go by depth", []string{"lib/app.gemspec", "version.go"}, "version.go", "go"},
+		{"setup cfg by case-sensitive name order", []string{"package.json", "SETUP.cfg"}, "SETUP.cfg", "python"},
+		{"setup py by depth", []string{"src/version.go", "setup.py"}, "setup.py", "python"},
+		{"package by case-sensitive name order", []string{"manifest.json", "Package.json"}, "Package.json", "node"},
+		{"manifest by name order", []string{"package.json", "manifest.json"}, "manifest.json", "javascript"},
+		{"pom by depth", []string{"src/package.json", "POM.XML"}, "POM.XML", "java"},
+		{"cargo by case-sensitive name order", []string{"app.gemspec", "Cargo.toml"}, "Cargo.toml", "rust"},
+		{"meta alone", []string{"META.JSON"}, "META.JSON", "perl"},
+		{"module after meta", []string{"lib/App.pm", "meta.json"}, "lib/App.pm", "perl"},
+		{"module before meta is not revisited", []string{"lib/App.pm", "lib/meta.json"}, "lib/meta.json", "perl"},
+		{"module without meta", []string{"lib/App.pm", "other.txt"}, "other.txt", ""},
+		{"first meta retained", []string{"nested/meta.json", "meta.json"}, "meta.json", "perl"},
+		{"go before meta fallback", []string{"meta.json", "version.go"}, "version.go", "go"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			file, language := versionFile(tt.files)
+			if file != tt.file || language != tt.language {
+				t.Errorf("got: (%q, %q), expected: (%q, %q)", file, language, tt.file, tt.language)
+			}
+		})
+	}
+}
+
 func TestDetectVersionFile(t *testing.T) {
-	v, _ := newSemver(version)
-	f, err := detectVersionFile(".", v)
-	if err != nil {
-		t.Error(err)
+	tests := []struct {
+		name    string
+		root    string
+		version string
+		file    string
+	}{
+		{"go", ".", version, "version.go"},
+		{"perl", "testdata/perl", "v1.0.0", "lib/Riji.pm"},
+		{"rust", "testdata/rust", "v1.0.0", "Cargo.toml"},
 	}
-	if f != "version.go" {
-		t.Errorf("error")
-	}
-}
-
-func TestDetectVersionFile_perl(t *testing.T) {
-	v, _ := newSemver("v1.0.0")
-	f, err := detectVersionFile("testdata/perl", v)
-	if err != nil {
-		t.Errorf("error should be nil, but: %s", err)
-	}
-	if f != "lib/Riji.pm" {
-		t.Errorf("error: %s", f)
-	}
-}
-
-func TestDetectVersionFile_rust(t *testing.T) {
-	v, _ := newSemver("v1.0.0")
-	f, err := detectVersionFile("testdata/rust", v)
-	if err != nil {
-		t.Errorf("error should be nil, but: %s", err)
-	}
-	if f != "Cargo.toml" {
-		t.Errorf("error: %s", f)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, _ := newSemver(tt.version)
+			f, err := detectVersionFile(tt.root, v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if f != tt.file {
+				t.Errorf("got: %s, expected: %s", f, tt.file)
+			}
+		})
 	}
 }

@@ -154,48 +154,32 @@ func TestConfigCalendarVersioningWithFormat(t *testing.T) {
 }
 
 func TestConfigCalendarVersioningFromEnv(t *testing.T) {
-	tmpdir := t.TempDir()
-	confPath := filepath.Join(tmpdir, defaultConfigFile)
-
-	t.Setenv("TAGPR_CALENDAR_VERSIONING", "true")
-
-	cfg := &config{
-		conf:      confPath,
-		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+	tests := []struct {
+		name   string
+		value  string
+		format string
+	}{
+		{"enabled", "true", defaultCalendarVersioningFormat},
+		{"format", "YY.0M0D.MICRO", "YY.0M0D.MICRO"},
 	}
-
-	if err := cfg.Reload(); err != nil {
-		t.Error(err)
-	}
-
-	if !cfg.CalendarVersioning() {
-		t.Error("CalendarVersioning should be true from env")
-	}
-	if e, g := defaultCalendarVersioningFormat, cfg.CalendarVersioningFormat(); e != g {
-		t.Errorf("got: %s, expect: %s", g, e)
-	}
-}
-
-func TestConfigCalendarVersioningFormatFromEnv(t *testing.T) {
-	tmpdir := t.TempDir()
-	confPath := filepath.Join(tmpdir, defaultConfigFile)
-
-	t.Setenv("TAGPR_CALENDAR_VERSIONING", "YY.0M0D.MICRO")
-
-	cfg := &config{
-		conf:      confPath,
-		gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
-	}
-
-	if err := cfg.Reload(); err != nil {
-		t.Error(err)
-	}
-
-	if !cfg.CalendarVersioning() {
-		t.Error("CalendarVersioning should be true from env")
-	}
-	if e, g := "YY.0M0D.MICRO", cfg.CalendarVersioningFormat(); e != g {
-		t.Errorf("got: %s, expect: %s", g, e)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			confPath := filepath.Join(t.TempDir(), defaultConfigFile)
+			t.Setenv("TAGPR_CALENDAR_VERSIONING", tt.value)
+			cfg := &config{
+				conf:      confPath,
+				gitconfig: &gitconfig.Config{GitPath: "git", File: confPath},
+			}
+			if err := cfg.Reload(); err != nil {
+				t.Fatal(err)
+			}
+			if !cfg.CalendarVersioning() {
+				t.Error("CalendarVersioning should be true from env")
+			}
+			if g := cfg.CalendarVersioningFormat(); g != tt.format {
+				t.Errorf("got: %s, expect: %s", g, tt.format)
+			}
+		})
 	}
 }
 
