@@ -13,6 +13,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -25,25 +27,31 @@ type releasePRTree struct {
 }
 
 type releasePRRequests struct {
-	trees       []releasePRTree
-	commits     []github.Commit
-	createdRefs []github.CreateRef
-	updatedRefs []github.UpdateRef
-	refPaths    []string
-	pull        map[string]json.RawMessage
-	pullMethod  string
-	stderrAtPR  string
-	labels      []string
-	notes       []github.GenerateNotesRequest
-	featurePRs  []int
-	merges      []string
-	tempRefs    []string
-	stderr      bytes.Buffer
-	outputFile  string
+	trees         []releasePRTree
+	commits       []github.Commit
+	createdRefs   []github.CreateRef
+	updatedRefs   []github.UpdateRef
+	refPaths      []string
+	pull          map[string]json.RawMessage
+	pullMethod    string
+	stderrAtPR    string
+	labels        []string
+	notes         []github.GenerateNotesRequest
+	featurePRs    []int
+	searchQueries []string
+	preparedSHA   string
+	replayedSHAs  []string
+	changelogSHA  string
+	merges        []string
+	tempRefs      []string
+	stderr        bytes.Buffer
+	outputFile    string
 
 	existing       bool
 	existingLabels []string
 	searchIssues   []*github.Issue
+	searchBySHA    map[string]*github.Issue
+	featureIssues  map[int]*github.Issue
 	pullStatus     int
 	mergeStatus    map[string]int
 	mergeTrees     map[string]string
@@ -89,6 +97,12 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 			Number: new(8), User: &github.User{Login: new("developer")},
 			Labels: []*github.Label{{Name: "minor"}},
 		}},
+		featureIssues: map[int]*github.Issue{
+			7: {
+				Number: new(7), User: &github.User{Login: new("developer")},
+				Labels: []*github.Label{{Name: "minor"}},
+			},
+		},
 	}
 	t.Setenv("GITHUB_OUTPUT", requests.outputFile)
 
@@ -154,13 +168,30 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 			// A feature PR association avoids the release-index retry delay.
 			encode([]*github.PullRequest{{Number: new(7)}})
 		case req.URL.Path == "/search/issues":
-			encode(map[string]any{"total_count": len(requests.searchIssues), "items": requests.searchIssues})
-		case path == "/issues/7" && req.Method == http.MethodGet:
-			requests.featurePRs = append(requests.featurePRs, 7)
-			encode(&github.Issue{
-				Number: new(7), User: &github.User{Login: new("developer")},
-				Labels: []*github.Label{{Name: "minor"}},
-			})
+			query := req.URL.Query().Get("q")
+			requests.searchQueries = append(requests.searchQueries, query)
+			issues := requests.searchIssues
+			if requests.searchBySHA != nil {
+				issues = nil
+				// Only map SHA keywords to fixture issues; assertions below check
+				// the scope and qualifiers, not a GitHub search emulation.
+				for _, field := range strings.Fields(query) {
+					if issue := requests.searchBySHA[field]; issue != nil {
+						issues = append(issues, issue)
+					}
+				}
+			}
+			encode(map[string]any{"total_count": len(issues), "items": issues})
+		case strings.HasPrefix(path, "/issues/") && req.Method == http.MethodGet:
+			number, err := strconv.Atoi(strings.TrimPrefix(path, "/issues/"))
+			issue := requests.featureIssues[number]
+			if err != nil || issue == nil {
+				t.Errorf("unexpected feature PR lookup: %s", path)
+				http.NotFound(w, req)
+				return
+			}
+			requests.featurePRs = append(requests.featurePRs, number)
+			encode(issue)
 		case path == "/pulls" && req.Method == http.MethodGet:
 			if req.URL.Query().Get("head") != "Songmu:tagpr-from-v0.1.0" || req.URL.Query().Get("base") != "main" {
 				t.Errorf("unexpected release PR query: %s", req.URL.RawQuery)
@@ -221,12 +252,22 @@ func newReleasePRTagpr(t *testing.T, r *testRepo) (*tagpr, *releasePRRequests) {
 			for _, parent := range wire.Parents {
 				body.Parents = append(body.Parents, &github.Commit{SHA: new(parent)})
 			}
-			requests.commits = append(requests.commits, body)
 			args := []string{"commit-tree", body.Tree.GetSHA(), "-m", body.GetMessage()}
 			for _, parent := range body.Parents {
 				args = append(args, "-p", parent.GetSHA())
 			}
 			body.SHA = new(gitInput("", args...))
+			requests.commits = append(requests.commits, body)
+			switch body.GetMessage() {
+			case "[tagpr] prepare for the next release":
+				requests.preparedSHA = body.GetSHA()
+			case "[tagpr] update CHANGELOG.md":
+				requests.changelogSHA = body.GetSHA()
+			default:
+				if !strings.HasPrefix(body.GetMessage(), "cherry-pick: ") {
+					requests.replayedSHAs = append(requests.replayedSHAs, body.GetSHA())
+				}
+			}
 			encode(&body)
 		case strings.HasPrefix(path, "/commits/"):
 			encode(repositoryCommit(strings.TrimPrefix(path, "/commits/")))
@@ -326,6 +367,50 @@ func pullRequestField(t *testing.T, requests *releasePRRequests, field string) s
 	return value
 }
 
+func assertReleasePRSearch(t *testing.T, requests *releasePRRequests, wantSHAs []string) {
+	t.Helper()
+	var gotSHAs []string
+	for _, query := range requests.searchQueries {
+		var qualifiers []string
+		for _, field := range strings.Fields(query) {
+			if strings.Contains(field, ":") {
+				qualifiers = append(qualifiers, field)
+			} else {
+				gotSHAs = append(gotSHAs, field)
+			}
+		}
+		slices.Sort(qualifiers)
+		if want := []string{"is:closed", "is:pr", "repo:Songmu/tagpr"}; !reflect.DeepEqual(qualifiers, want) {
+			t.Errorf("search qualifiers = %v, want %v (query %q)", qualifiers, want, query)
+		}
+	}
+	slices.Sort(gotSHAs)
+	wantSHAs = slices.Clone(wantSHAs)
+	slices.Sort(wantSHAs)
+	if !reflect.DeepEqual(gotSHAs, wantSHAs) {
+		t.Errorf("searched SHAs = %v, want %v", gotSHAs, wantSHAs)
+	}
+}
+
+func assertReleasePRPublished(t *testing.T, r *testRepo, requests *releasePRRequests, wantSHA string) {
+	t.Helper()
+	if wantSHA == "" {
+		t.Fatalf("missing successful commit SHA: %q", wantSHA)
+	}
+	var publishedSHAs []string
+	for i, ref := range requests.refPaths {
+		if ref == "heads/tagpr-from-v0.1.0" {
+			publishedSHAs = append(publishedSHAs, requests.updatedRefs[i].SHA)
+		}
+	}
+	if !reflect.DeepEqual(publishedSHAs, []string{wantSHA}) {
+		t.Errorf("published commit SHAs = %v, want final successful commit %s", publishedSHAs, wantSHA)
+	}
+	if got := r.git("ls-remote", "origin", "refs/heads/tagpr-from-v0.1.0"); got != wantSHA+"\trefs/heads/tagpr-from-v0.1.0" {
+		t.Errorf("remote release ref = %q, want commit %s", got, wantSHA)
+	}
+}
+
 func assertReleasePROutput(t *testing.T, requests *releasePRRequests) {
 	t.Helper()
 	output := readReleasePRFile(t, requests.outputFile)
@@ -361,6 +446,10 @@ func TestRunCreatesReleasePR(t *testing.T) {
 	r := newTestRepo(t, "package test\nconst Version = \"0.1.0\"\n")
 	tp, requests := newReleasePRTagpr(t, r)
 	requests.searchIssues = nil
+	wantSearchSHAs := []string{
+		r.git("rev-parse", "--short=7", "HEAD"),
+		r.git("rev-parse", "--short=7", "HEAD^"),
+	}
 	r.git("config", "-f", ".tagpr", "--unset", configVersionFile)
 	var err error
 	tp.cfg, err = newConfig("git")
@@ -399,6 +488,7 @@ func TestRunCreatesReleasePR(t *testing.T) {
 	if !reflect.DeepEqual(requests.featurePRs, []int{7}) {
 		t.Errorf("merged feature PR lookups = %v", requests.featurePRs)
 	}
+	assertReleasePRSearch(t, requests, wantSearchSHAs)
 	if len(requests.commits) != 1 || requests.commits[0].GetMessage() != "[tagpr] prepare for the next release" ||
 		len(requests.commits[0].Parents) != 1 ||
 		requests.commits[0].Parents[0].GetSHA() != baseSHA {
@@ -415,10 +505,7 @@ func TestRunCreatesReleasePR(t *testing.T) {
 		!reflect.DeepEqual(requests.refPaths, []string{"heads/tagpr-from-v0.1.0"}) {
 		t.Fatalf("updated refs = %+v", requests.updatedRefs)
 	}
-	published := r.git("ls-remote", "origin", "refs/heads/tagpr-from-v0.1.0")
-	if !strings.HasPrefix(published, requests.updatedRefs[0].SHA+"\t") {
-		t.Errorf("published ref = %q", published)
-	}
+	assertReleasePRPublished(t, r, requests, requests.preparedSHA)
 	if got := r.git("show", requests.updatedRefs[0].SHA+":version.go"); !strings.Contains(got, `"0.2.0"`) {
 		t.Errorf("committed version = %q", got)
 	}
@@ -468,7 +555,67 @@ func TestRunUpdatesReleasePROmitsBase(t *testing.T) {
 	if len(requests.createdRefs) != 0 || len(requests.updatedRefs) != 1 {
 		t.Errorf("existing branch refs: creates=%d updates=%d", len(requests.createdRefs), len(requests.updatedRefs))
 	}
+	assertReleasePRPublished(t, r, requests, requests.preparedSHA)
 	assertReleasePROutput(t, requests)
+}
+
+func TestMergedChangeLabelsScopesHistory(t *testing.T) {
+	r := newTestRepo(t, "package test\nconst Version = \"0.1.0\"\n")
+	tp, requests := newReleasePRTagpr(t, r)
+	const component = "module"
+	for _, dir := range []string{component, "other"} {
+		if err := os.MkdirAll(filepath.Join(r.dir, dir), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tp.normalizedTagPrefix = component + "/"
+	issue := func(number int, label string) *github.Issue {
+		return &github.Issue{
+			Number: new(number), User: &github.User{Login: new("developer")},
+			Labels: []*github.Label{{Name: label}},
+		}
+	}
+	mergeFeature := func(number int, dir string) {
+		branch := fmt.Sprintf("feature-%d", number)
+		r.git("checkout", "-b", branch)
+		r.commit(filepath.Join(dir, branch), "feature\n", branch)
+		r.git("checkout", "main")
+		r.git("merge", "--no-ff", "-m", fmt.Sprintf("Merge pull request #%d", number), branch)
+		r.git("push", "origin", branch+":refs/pull/"+strconv.Itoa(number)+"/head")
+	}
+	// The older target-component changes are major but precede the release
+	// boundary. Neither their search SHA nor their merge PR should be selected.
+	r.commit(filepath.Join(component, "old"), "breaking change\n", "old target major (#10)")
+	oldSHA := r.git("rev-parse", "--short=7", "HEAD")
+	requests.featureIssues[9] = issue(9, "major")
+	mergeFeature(9, component)
+	fromTag := component + "/v0.1.0"
+	r.git("tag", fromTag)
+
+	r.commit(filepath.Join(component, "current"), "new feature\n", "current target minor (#8)")
+	targetSHA := r.git("rev-parse", "--short=7", "HEAD")
+	mergeFeature(7, component)
+	// These major changes are in range but belong to another component.
+	r.commit("other/current", "breaking change\n", "other component major (#11)")
+	otherSHA := r.git("rev-parse", "--short=7", "HEAD")
+	requests.featureIssues[12] = issue(12, "major")
+	mergeFeature(12, "other")
+	r.git("push", "origin", "main")
+	requests.searchBySHA = map[string]*github.Issue{
+		oldSHA: issue(10, "major"), targetSHA: issue(8, "minor"), otherSHA: issue(11, "major"),
+	}
+
+	labels, err := tp.mergedChangeLabels(context.Background(), fromTag, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertReleasePRSearch(t, requests, []string{targetSHA})
+	if !reflect.DeepEqual(requests.featurePRs, []int{7}) {
+		t.Errorf("merged feature PR lookups = %v, want only in-range target PR 7", requests.featurePRs)
+	}
+	if !reflect.DeepEqual(labels, []string{"tagpr:minor"}) {
+		t.Errorf("next labels = %v, want minor without unrelated major changes", labels)
+	}
 }
 
 func TestRunHookFailuresContinueAndJoinLaterError(t *testing.T) {
@@ -525,6 +672,7 @@ func TestRunHookFailuresContinueAndJoinLaterError(t *testing.T) {
 			if requests.pullMethod != http.MethodPost || len(requests.updatedRefs) != 1 {
 				t.Fatal("hook failures prevented branch/PR processing")
 			}
+			assertReleasePRPublished(t, r, requests, requests.preparedSHA)
 			if tt.status == 0 {
 				sha := requests.updatedRefs[0].SHA
 				if got := r.git("ls-tree", "--name-only", sha, "--", "obsolete.md"); got != "" {
@@ -590,8 +738,14 @@ func TestRunGeneratesChangelogLazily(t *testing.T) {
 				if got := r.git("show", requests.updatedRefs[0].SHA+":CHANGELOG.md"); got != strings.TrimSpace(changelog) {
 					t.Errorf("published changelog = %q, local = %q", got, changelog)
 				}
+				if requests.commits[1].Parents[0].GetSHA() != requests.preparedSHA {
+					t.Error("changelog commit does not extend the prepared commit")
+				}
+				assertReleasePRPublished(t, r, requests, requests.changelogSHA)
 			} else if len(requests.commits) != 1 || changelog != "# Changelog\n\n## Older release\n" {
 				t.Error("disabled changelog changed the file or created a changelog commit")
+			} else {
+				assertReleasePRPublished(t, r, requests, requests.preparedSHA)
 			}
 		})
 	}
@@ -617,6 +771,10 @@ func TestRunCherryPicksOldestFirstAndReloads(t *testing.T) {
 	r.git("commit", "-m", "customize release")
 	newest := r.git("rev-parse", "--short", "HEAD")
 	override := r.git("rev-parse", "--short", "HEAD^")
+	// A final manual commit has the same tree as its predecessor. Content
+	// assertions alone cannot distinguish publishing those two commits.
+	r.git("commit", "--allow-empty", "-m", "retain release tree")
+	sameTree := r.git("rev-parse", "--short", "HEAD")
 	r.git("push", "origin", "tagpr-from-v0.1.0")
 	// Explicit merge-result snapshots retain the generated version bump and
 	// accepted manual changes, without importing the skipped conflicting tree.
@@ -629,12 +787,13 @@ func TestRunCherryPicksOldestFirstAndReloads(t *testing.T) {
 	r.git("checkout", newest, "--", ".tagpr")
 	r.git("commit", "-m", "fixture config override")
 	requests.mergeTrees[newest] = r.git("rev-parse", "HEAD^{tree}")
+	requests.mergeTrees[sameTree] = requests.mergeTrees[newest]
 	r.git("checkout", "main")
 	requests.mergeStatus[conflict] = http.StatusConflict
 	if err := tp.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(requests.merges, []string{oldest, conflict, override, newest}) {
+	if !reflect.DeepEqual(requests.merges, []string{oldest, conflict, override, newest, sameTree}) {
 		t.Errorf("cherry-pick order = %v", requests.merges)
 	}
 	type replayTree struct {
@@ -651,10 +810,20 @@ func TestRunCherryPicksOldestFirstAndReloads(t *testing.T) {
 		{conflict, requests.mergeTrees[oldest]},
 		{override, requests.mergeTrees[oldest]},
 		{newest, requests.mergeTrees[override]},
+		{sameTree, requests.mergeTrees[newest]},
 	}
 	if !reflect.DeepEqual(replayTrees, wantReplayTrees) {
 		t.Errorf("temporary replay trees = %v, want latest accepted trees %v", replayTrees, wantReplayTrees)
 	}
+	if len(requests.replayedSHAs) != 4 {
+		t.Fatalf("successful replay commits = %v, want four (excluding conflict)", requests.replayedSHAs)
+	}
+	previousSHA, finalSHA := requests.replayedSHAs[2], requests.replayedSHAs[3]
+	if previousSHA == finalSHA || r.git("rev-parse", previousSHA+"^{tree}") != r.git("rev-parse", finalSHA+"^{tree}") ||
+		r.git("rev-parse", finalSHA+"^") != previousSHA {
+		t.Fatal("final replay must extend a distinct older commit with an identical tree")
+	}
+	assertReleasePRPublished(t, r, requests, finalSHA)
 	if !reflect.DeepEqual(requests.tempRefs, []string{"delete", "create", "delete"}) {
 		t.Errorf("temporary ref lifecycle = %v", requests.tempRefs)
 	}
