@@ -618,6 +618,24 @@ func TestRunCherryPicksOldestFirstAndReloads(t *testing.T) {
 	if !reflect.DeepEqual(requests.merges, []string{oldest, conflict, override, newest}) {
 		t.Errorf("cherry-pick order = %v", requests.merges)
 	}
+	type replayTree struct {
+		head, tree string
+	}
+	var replayTrees []replayTree
+	for _, commit := range requests.commits {
+		if head, ok := strings.CutPrefix(commit.GetMessage(), "cherry-pick: "); ok {
+			replayTrees = append(replayTrees, replayTree{head, commit.Tree.GetSHA()})
+		}
+	}
+	wantReplayTrees := []replayTree{
+		{oldest, requests.commits[0].Tree.GetSHA()},
+		{conflict, requests.mergeTrees[oldest]},
+		{override, requests.mergeTrees[oldest]},
+		{newest, requests.mergeTrees[override]},
+	}
+	if !reflect.DeepEqual(replayTrees, wantReplayTrees) {
+		t.Errorf("temporary replay trees = %v, want latest accepted trees %v", replayTrees, wantReplayTrees)
+	}
 	if !reflect.DeepEqual(requests.tempRefs, []string{"delete", "create", "delete"}) {
 		t.Errorf("temporary ref lifecycle = %v", requests.tempRefs)
 	}

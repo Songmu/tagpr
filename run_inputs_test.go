@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -31,8 +30,9 @@ func TestMergedPullRequestNumbers(t *testing.T) {
 
 func TestTreeEntriesFromDiff(t *testing.T) {
 	dir := t.TempDir()
-	added := filepath.Join(dir, "added")
-	modified := filepath.Join(dir, "modified")
+	t.Chdir(dir)
+	added := "added"
+	modified := "modified"
 	for path, content := range map[string]string{added: "new", modified: "updated"} {
 		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			t.Fatal(err)
@@ -56,7 +56,7 @@ func TestTreeEntriesFromDiff(t *testing.T) {
 		t.Errorf("treeEntriesFromDiff() = %#v, want %#v", got, want)
 	}
 	t.Run("read failure", func(t *testing.T) {
-		diff := ":000000 100644 0000000 0000000 A\t" + filepath.Join(dir, "missing")
+		diff := ":000000 100644 0000000 0000000 A\tmissing"
 		if _, err := treeEntriesFromDiff(diff); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("treeEntriesFromDiff() error = %v, want missing file", err)
 		}
