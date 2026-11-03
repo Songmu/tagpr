@@ -438,7 +438,7 @@ func (tp *tagpr) Run(ctx context.Context) (runErr error) {
 			return err
 		}
 		if tp.cfg.CalendarVersioning() {
-			vfile, err := tp.releaseVersionFile(currVer, plan.ReleaseNotesBoundarySHA)
+			vfile, err := tp.releaseVersionFile(currVer, plan.ReleaseNotesBoundarySHA, plan.CommitSHA)
 			if err != nil {
 				return err
 			}

@@ -1208,6 +1208,72 @@ func TestReleasePlanRejectsUntrackedVersionFile(t *testing.T) {
 	}
 }
 
+func TestReleasePlanConfiguredVersionFilePaths(t *testing.T) {
+	tests := []struct {
+		path, tag string
+	}{
+		{path: "version.go", tag: "v0.3.0"},
+		{path: "./version.go", tag: "v0.3.0"},
+		{path: "../version.go", tag: "v0.2.0"},
+		{path: "absolute", tag: "v0.3.0"},
+		{path: "version[1].go", tag: "v0.4.0"},
+		{path: "introduced.go", tag: "v0.6.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			r := newTestRepo(t, `const version = "0.1.0"`)
+			if err := os.Mkdir(filepath.Join(r.dir, "tools"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			r.commit("tools/version.go", `const version = "0.3.0"`, "module version")
+			r.commit("tools/version[1].go", `const version = "0.4.0"`, "literal version path")
+			r.commit("tools/version1.go", `const version = "0.5.0"`, "other version path")
+			baseSHA := r.merge("merge")
+			if tt.path == "introduced.go" {
+				r.commit("tools/introduced.go", `const version = "0.6.0"`, "introduce version file")
+			}
+			targetSHA := r.git("rev-parse", "HEAD")
+			r.git("push", "origin", "main")
+			workdir := filepath.Join(r.dir, "tools")
+			t.Chdir(workdir)
+			path := tt.path
+			if path == "absolute" {
+				path = filepath.Join(workdir, "version.go")
+			}
+			tp, _ := newTestTagpr(t, r, newTestConfig(path))
+			tp.c.dir = workdir
+			t.Setenv(envGitHubEventName, "push")
+			t.Setenv(envGitHubEventPath, writeEventFile(t,
+				`{"before":"`+baseSHA+`","after":"`+targetSHA+`","ref":"refs/heads/main"}`))
+			t.Setenv("GITHUB_OUTPUT", "")
+			if err := os.Unsetenv("GITHUB_OUTPUT"); err != nil {
+				t.Fatal(err)
+			}
+			var output bytes.Buffer
+			tp.out = &output
+			tp.runOptions = runOptions{Mode: executionModePlan}
+			if err := tp.Run(context.Background()); err != nil {
+				t.Fatalf("plan from a subdirectory failed: %v", err)
+			}
+			var plan releasePlan
+			if err := json.Unmarshal(output.Bytes(), &plan); err != nil {
+				t.Fatal(err)
+			}
+			if plan.Tag != tt.tag {
+				t.Errorf("plan tag = %s, want %s", plan.Tag, tt.tag)
+			}
+			plan.Tag = tt.tag
+			tp.runOptions = runOptions{Mode: executionModeApply, Plan: &plan}
+			if err := tp.Run(context.Background()); err != nil {
+				t.Fatalf("apply from a subdirectory failed: %v", err)
+			}
+			if got := r.git("rev-parse", plan.Tag); got != targetSHA {
+				t.Errorf("tag = %s, want %s", got, targetSHA)
+			}
+		})
+	}
+}
+
 func TestAutoModeRetriesWithOriginalReleaseBase(t *testing.T) {
 	tests := []struct {
 		name, versionFile, content, prefix, baseTag, tag string

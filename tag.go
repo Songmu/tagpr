@@ -202,13 +202,29 @@ func (tp *tagpr) prepareReleasePlan(
 }
 
 func (tp *tagpr) releaseVersionFile(
-	currVer *semv, boundarySHA string,
+	currVer *semv, boundarySHA, targetSHA string,
 ) (string, error) {
 	if tp.cfg.VersionFile() == "-" {
 		return "", nil
 	}
 	if tp.cfg.VersionFile() != "" {
-		return strings.TrimSpace(strings.Split(tp.cfg.VersionFile(), ",")[0]), nil
+		vfile := strings.TrimSpace(strings.Split(tp.cfg.VersionFile(), ",")[0])
+		if vfile == "" {
+			return "", nil
+		}
+		c := *tp.c
+		c.outStream = io.Discard
+		out, _, err := c.Git("--literal-pathspecs", "ls-tree", "--full-name", "-z",
+			targetSHA, "--", vfile)
+		if err != nil {
+			return "", err
+		}
+		meta, path, ok := strings.Cut(strings.TrimSuffix(out, "\x00"), "\t")
+		fields := strings.Fields(meta)
+		if !ok || strings.Contains(path, "\x00") || len(fields) != 3 || fields[1] != "blob" {
+			return "", fmt.Errorf("version file %q is not a file in target commit %s", vfile, targetSHA)
+		}
+		return path, nil
 	}
 	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(currVer.Naked()))
 	if err != nil {
@@ -257,7 +273,7 @@ func (tp *tagpr) calculateReleaseTag(
 	currVer *semv,
 	boundarySHA, targetSHA string,
 ) (string, error) {
-	vfile, err := tp.releaseVersionFile(currVer, boundarySHA)
+	vfile, err := tp.releaseVersionFile(currVer, boundarySHA, targetSHA)
 	if err != nil {
 		return "", err
 	}
@@ -468,7 +484,7 @@ func (tp *tagpr) applyReleasePlan(ctx context.Context, plan releasePlan) error {
 		if err := tp.validateCalverTag(plan.Tag); err != nil {
 			return err
 		}
-		vfile, err := tp.releaseVersionFile(currVer, boundarySHA)
+		vfile, err := tp.releaseVersionFile(currVer, boundarySHA, targetSHA)
 		if err != nil {
 			return err
 		}
