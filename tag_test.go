@@ -292,17 +292,20 @@ func TestMergedReleasePullRequestForCommitRetryPolicy(t *testing.T) {
 		pages     []page
 		wantPages []string
 		wantPR    int
+		wantSleep []time.Duration
 	}{
 		{
 			name:      "retry empty associations until indexed",
 			pages:     []page{{}, {pulls: []*github.PullRequest{releasePR}}},
 			wantPages: []string{"1", "1"},
 			wantPR:    4,
+			wantSleep: []time.Duration{2 * time.Second},
 		},
 		{
 			name:      "stop after three empty attempts",
 			pages:     []page{{}, {}, {}},
 			wantPages: []string{"1", "1", "1"},
+			wantSleep: []time.Duration{2 * time.Second, 2 * time.Second},
 		},
 		{
 			name: "non-release association on earlier page prevents retry",
@@ -353,7 +356,10 @@ func TestMergedReleasePullRequestForCommitRetryPolicy(t *testing.T) {
 				gh: cli, cfg: &config{releaseBranch: new("main")},
 				owner: "Songmu", repo: "tagpr",
 			}
-			pr, err := tp.mergedReleasePullRequestForCommit(context.Background(), "deadbeef")
+			var sleeps []time.Duration
+			pr, err := tp.lookupMergedReleasePullRequestWithRetry(
+				context.Background(), "deadbeef",
+				func(interval time.Duration) { sleeps = append(sleeps, interval) })
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -362,6 +368,9 @@ func TestMergedReleasePullRequestForCommitRetryPolicy(t *testing.T) {
 			}
 			if !slices.Equal(requestedPages, tt.wantPages) {
 				t.Errorf("requested pages = %v, want %v", requestedPages, tt.wantPages)
+			}
+			if !slices.Equal(sleeps, tt.wantSleep) {
+				t.Errorf("retry sleeps = %v, want %v", sleeps, tt.wantSleep)
 			}
 		})
 	}

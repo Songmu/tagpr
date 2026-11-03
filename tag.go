@@ -21,6 +21,12 @@ import (
 func (tp *tagpr) mergedReleasePullRequestForCommit(
 	ctx context.Context, commitish string,
 ) (*github.PullRequest, error) {
+	return tp.lookupMergedReleasePullRequestWithRetry(ctx, commitish, time.Sleep)
+}
+
+func (tp *tagpr) lookupMergedReleasePullRequestWithRetry(
+	ctx context.Context, commitish string, sleep func(time.Duration),
+) (*github.PullRequest, error) {
 	// Retry because GitHub's internal commit-to-PR index may not be updated
 	// immediately after a merge, causing the API to return an empty list.
 	// This is especially common with squash merges but can also happen with
@@ -40,7 +46,7 @@ func (tp *tagpr) mergedReleasePullRequestForCommit(
 		if i < maxRetries-1 {
 			log.Printf("ListPullRequestsWithCommit returned empty for %s, retrying in %s (%d/%d)",
 				commitish, retryInterval, i+1, maxRetries)
-			time.Sleep(retryInterval)
+			sleep(retryInterval)
 		}
 	}
 	return nil, nil
