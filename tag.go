@@ -208,24 +208,32 @@ func (tp *tagpr) releaseVersionFile(
 		return "", nil
 	}
 	if tp.cfg.VersionFile() != "" {
-		vfile := strings.TrimSpace(strings.Split(tp.cfg.VersionFile(), ",")[0])
-		if vfile == "" {
-			return "", nil
-		}
-		c := *tp.c
-		c.outStream = io.Discard
-		out, _, err := c.Git("--literal-pathspecs", "ls-tree", "--full-name", "-z",
-			targetSHA, "--", vfile)
-		if err != nil {
-			return "", err
-		}
-		meta, path, ok := strings.Cut(strings.TrimSuffix(out, "\x00"), "\t")
-		fields := strings.Fields(meta)
-		if !ok || strings.Contains(path, "\x00") || len(fields) != 3 || fields[1] != "blob" {
-			return "", fmt.Errorf("version file %q is not a file in target commit %s", vfile, targetSHA)
-		}
-		return path, nil
+		return tp.configuredReleaseVersionFile(targetSHA)
 	}
+	return tp.discoverReleaseVersionFile(currVer, boundarySHA)
+}
+
+func (tp *tagpr) configuredReleaseVersionFile(targetSHA string) (string, error) {
+	vfile := strings.TrimSpace(strings.Split(tp.cfg.VersionFile(), ",")[0])
+	if vfile == "" {
+		return "", nil
+	}
+	c := *tp.c
+	c.outStream = io.Discard
+	out, _, err := c.Git("--literal-pathspecs", "ls-tree", "--full-name", "-z",
+		targetSHA, "--", vfile)
+	if err != nil {
+		return "", err
+	}
+	meta, path, ok := strings.Cut(strings.TrimSuffix(out, "\x00"), "\t")
+	fields := strings.Fields(meta)
+	if !ok || strings.Contains(path, "\x00") || len(fields) != 3 || fields[1] != "blob" {
+		return "", fmt.Errorf("version file %q is not a file in target commit %s", vfile, targetSHA)
+	}
+	return path, nil
+}
+
+func (tp *tagpr) discoverReleaseVersionFile(currVer *semv, boundarySHA string) (string, error) {
 	verReg, err := regexp.Compile(versionRegBase + regexp.QuoteMeta(currVer.Naked()))
 	if err != nil {
 		return "", err
@@ -248,12 +256,7 @@ func (tp *tagpr) releaseVersionFile(
 			continue
 		}
 		path := strings.TrimPrefix(ref, boundarySHA+":")
-		parts := strings.Split(path, "/")
-		skip := isSkipFile(parts[len(parts)-1])
-		for _, dir := range parts[:len(parts)-1] {
-			skip = skip || skipDirs[dir]
-		}
-		if skip {
+		if !isReleaseVersionFileCandidate(path) {
 			continue
 		}
 		content, _, err := c.Git("show", boundarySHA+":"+path)
@@ -266,6 +269,19 @@ func (tp *tagpr) releaseVersionFile(
 	}
 	vfile, _ := versionFile(matches)
 	return vfile, nil
+}
+
+func isReleaseVersionFileCandidate(path string) bool {
+	parts := strings.Split(path, "/")
+	if isSkipFile(parts[len(parts)-1]) {
+		return false
+	}
+	for _, dir := range parts[:len(parts)-1] {
+		if skipDirs[dir] {
+			return false
+		}
+	}
+	return true
 }
 
 func (tp *tagpr) calculateReleaseTag(

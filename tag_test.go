@@ -1108,6 +1108,125 @@ func TestApplyReleasePlanAcceptsDifferentTagObjectsForSameCommit(t *testing.T) {
 	}
 }
 
+func TestReleaseVersionFileEligibility(t *testing.T) {
+	tests := []struct {
+		name  string
+		files map[string]string
+		want  string
+	}{
+		{
+			name: "excluded files and directories",
+			files: map[string]string{
+				"VERSION.MD":              `version = "0.1.0"`,
+				"version.lock":            `version = "0.1.0"`,
+				"PACKAGE-LOCK.JSON":       `version = "0.1.0"`,
+				"docs/version.go":         `version = "0.1.0"`,
+				"src/vendor/version.go":   `version = "0.1.0"`,
+				".github/version.go":      `version = "0.1.0"`,
+				"aaa.txt":                 `dependency = "0.1.0"`,
+				"src/release version.txt": `version = "0.1.0"`,
+			},
+			want: "src/release version.txt",
+		},
+		{
+			name: "hidden paths remain eligible and language takes precedence",
+			files: map[string]string{
+				"aaa.txt":            `version = "0.1.0"`,
+				".hidden/version.go": `version = "0.1.0"`,
+			},
+			want: ".hidden/version.go",
+		},
+		{
+			name: "zero-delimited newline path",
+			files: map[string]string{
+				"release\nversion.go": `version = "0.1.0"`,
+			},
+			want: "release\nversion.go",
+		},
+		{
+			name: "fixed-string match without a version declaration",
+			files: map[string]string{
+				"dependency.go": `dependency = "0.1.0"`,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newTestRepo(t, "")
+			t.Chdir(r.dir)
+			for path, content := range tt.files {
+				if err := os.MkdirAll(filepath.Dir(filepath.Join(r.dir, path)), 0755); err != nil {
+					t.Fatal(err)
+				}
+				r.commit(path, content, "add candidate")
+			}
+			boundarySHA := r.git("rev-parse", "HEAD")
+			r.commit("introduced.go", `version = "0.1.0"`, "target-only candidate")
+			tp, _ := newTestTagpr(t, r, newTestConfig(""))
+			var diagnostics bytes.Buffer
+			tp.c.outStream = &diagnostics
+			currVer, err := newSemver("v0.1.0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := tp.releaseVersionFile(currVer, boundarySHA, r.git("rev-parse", "HEAD"))
+			if err != nil || got != tt.want {
+				t.Fatalf("releaseVersionFile() = %q, %v; want %q, nil", got, err, tt.want)
+			}
+			if diagnostics.Len() != 0 {
+				t.Errorf("discovery leaked Git output: %q", diagnostics.String())
+			}
+		})
+	}
+}
+
+func TestReleaseVersionFileEmptyAndErrors(t *testing.T) {
+	r := newTestRepo(t, "")
+	t.Chdir(r.dir)
+	if err := os.Mkdir(filepath.Join(r.dir, "src"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	r.commit("src/version.go", `version = "0.2.0"`, "add configured candidate")
+	sha := r.git("rev-parse", "HEAD")
+	currVer, err := newSemver("v0.1.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name, configured, boundary, target, want, errorText string
+	}{
+		{name: "disabled bypasses Git", configured: "-", boundary: "missing", target: "missing"},
+		{name: "empty first value bypasses Git", configured: " ,src/version.go", boundary: "missing", target: "missing"},
+		{name: "configured first value", configured: " src/version.go ,missing", boundary: "missing",
+			target: sha, want: "src/version.go"},
+		{name: "configured directory", configured: "src", target: sha, errorText: "is not a file in target commit"},
+		{name: "configured invalid target", configured: "src/version.go", target: "missing", errorText: "exit status"},
+		{name: "automatic invalid boundary", boundary: "missing", target: sha, errorText: "exit status"},
+		{name: "automatic no matches", boundary: sha, target: sha},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tp, _ := newTestTagpr(t, r, newTestConfig(tt.configured))
+			var diagnostics bytes.Buffer
+			tp.c.outStream = &diagnostics
+			got, err := tp.releaseVersionFile(currVer, tt.boundary, tt.target)
+			if tt.errorText != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errorText) {
+					t.Fatalf("releaseVersionFile() error = %v, want %q", err, tt.errorText)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("releaseVersionFile() = %q, want %q", got, tt.want)
+			}
+			if diagnostics.Len() != 0 {
+				t.Errorf("discovery leaked Git output: %q", diagnostics.String())
+			}
+		})
+	}
+}
+
 func TestReleasePlanReadsCommittedVersion(t *testing.T) {
 	for _, versionFile := range []string{"version.go", ""} {
 		t.Run("versionFile="+versionFile, func(t *testing.T) {
