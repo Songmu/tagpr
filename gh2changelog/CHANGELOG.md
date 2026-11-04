@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.8.2](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.8.1...gh2changelog/v0.8.2) - 2026-11-03
+
+### Changes
+- test: characterize changelog filtering and failure behavior by @Songmu in https://github.com/Songmu/tagpr/pull/474
+
 ## [v0.8.1](https://github.com/Songmu/tagpr/compare/gh2changelog/v0.8.0...gh2changelog/v0.8.1) - 2026-10-16
 
 ### Changes
