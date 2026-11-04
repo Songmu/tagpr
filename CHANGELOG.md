@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.22.1](https://github.com/Songmu/tagpr/compare/v1.22.0...v1.22.1) - 2026-11-04
+
+### Other Changes
+- refactor: separate release PR pagination from retry policy by @Songmu in https://github.com/Songmu/tagpr/pull/471
+- refactor: separate historical release version-file discovery by @Songmu in https://github.com/Songmu/tagpr/pull/470
+- refactor: separate SemVer and CalVer tag selection policies by @Songmu in https://github.com/Songmu/tagpr/pull/472
+- test: verify release label scope and final publication SHA by @Songmu in https://github.com/Songmu/tagpr/pull/473
+- test: characterize changelog filtering and failure behavior by @Songmu in https://github.com/Songmu/tagpr/pull/474
+
 ## [v1.22.0](https://github.com/Songmu/tagpr/compare/v1.21.4...v1.22.0) - 2026-11-03
 
 ### Features
