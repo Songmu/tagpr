@@ -24,7 +24,7 @@ workflows:
         - 'tcnksm/ghr@v0.18.5'
     '.github/workflows/reviewdog.yml':
         - 'actions/checkout@v7.0.1'
-        - 'reviewdog/action-staticcheck@v1.33.0'
+        - 'reviewdog/action-staticcheck@v1.34.0'
     '.github/workflows/tagpr-docs.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/create-github-app-token@v3.3.0'
@@ -116,18 +116,18 @@ dependencies:
         commit: 'sha1-2752ce1d29631191ea3f27c23495fa06139a5b78'
         owner_id: 30958501
         repo_id: 187902720
-    'reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f':
+    'reviewdog/action-setup@v1.5.0':
         ref: 'v1.5.0'
         commit: 'sha1-d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f'
         owner_id: 48765237
         repo_id: 286005511
-    'reviewdog/action-staticcheck@v1.33.0':
-        ref: 'v1.33.0'
-        commit: 'sha1-c89a7974f4e093793ddc32bba79de7ac9345060f'
+    'reviewdog/action-staticcheck@v1.34.0':
+        ref: 'v1.34.0'
+        commit: 'sha1-a6155dfbaefb5d8b29f2eda8e6addf2103bb234c'
         owner_id: 48765237
         repo_id: 262723301
         uses:
-            - 'reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f'
+            - 'reviewdog/action-setup@v1.5.0'
     'songmu/goxz@v0.13.0':
         ref: 'v0.13.0'
         commit: 'sha1-b7b74d681760746882693f3db7c94a0888a4b714'
