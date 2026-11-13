@@ -13,7 +13,7 @@ require (
 	github.com/google/go-github/v93 v93.0.0
 	github.com/k1LoW/calver v1.0.2
 	github.com/saracen/walker v0.1.4
-	golang.org/x/oauth2 v0.37.0
+	golang.org/x/oauth2 v0.38.0
 )
 
 require (
