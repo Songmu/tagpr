@@ -23,8 +23,8 @@ github.com/google/go-github/v93 v93.0.0 h1:qElXPLv+XbSz1qrLdWyb0t3gSYGsWBTzr9T4/
 github.com/google/go-github/v93 v93.0.0/go.mod h1:l8I3rt4/mdjANKpg4Y84LEy9HJQCetUkZ8WTl2bPU8M=
 github.com/google/go-querystring v1.2.0 h1:yhqkPbu2/OH+V9BfpCVPZkNmUXhb2gBxJArfhIxNtP0=
 github.com/google/go-querystring v1.2.0/go.mod h1:8IFJqpSRITyJ8QhQ13bmbeMBDfmeEJZD5A0egEOmkqU=
-github.com/k1LoW/calver v1.0.2 h1:cJdnnG19UzXDymIocgCruz5vAps6P5+40FsHG3bt0YA=
-github.com/k1LoW/calver v1.0.2/go.mod h1:y+ntai8+hlDRJttIGJWGASz3YFK4syQ8W9fwHz3ak0A=
+github.com/k1LoW/calver v1.1.0 h1:tmKLCzbSGskP6my85iBNshhluyRKW2RDn4wabsmLEYY=
+github.com/k1LoW/calver v1.1.0/go.mod h1:j33TESG5kqVs4uMak8xdG7i0zwaEoY2xikHUYoKL0s8=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
