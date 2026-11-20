@@ -10,7 +10,7 @@ workflows:
         - 'actions/deploy-pages@v5.0.1'
         - 'actions/setup-go@v7.0.0'
         - 'actions/upload-pages-artifact@v5.0.0'
-        - 'peaceiris/actions-hugo@v3.2.1'
+        - 'peaceiris/actions-hugo@v3.3.0'
     '.github/workflows/release-build.yaml':
         - 'actions/attest@v4.2.2'
         - 'actions/checkout@v7.0.1'
@@ -111,9 +111,9 @@ dependencies:
         commit: 'sha1-7d2c558640ea49e798d46539536190aff8c18715'
         owner_id: 3797062
         repo_id: 225328382
-    'peaceiris/actions-hugo@v3.2.1':
-        ref: 'v3.2.1'
-        commit: 'sha1-2752ce1d29631191ea3f27c23495fa06139a5b78'
+    'peaceiris/actions-hugo@v3.3.0':
+        ref: 'v3.3.0'
+        commit: 'sha1-d1c81a15d4e6dca7086a17b9c2565cb70fd576bf'
         owner_id: 30958501
         repo_id: 187902720
     'reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f':
